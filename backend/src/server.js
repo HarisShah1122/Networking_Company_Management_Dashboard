@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const { PORT, CORS_ORIGIN } = require('./config/env');
 const { errorHandler } = require('./middleware/error.middleware');
 const { sequelize } = require('./models');
@@ -26,12 +25,6 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting - only for non-auth routes
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -41,16 +34,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes - Auth routes without rate limiting
+// API routes - No rate limiting applied
 app.use('/api/auth', authRoutes);
-
-// Apply rate limiting to other routes
-app.use('/api/customers', generalLimiter, customerRoutes);
-app.use('/api/connections', generalLimiter, connectionRoutes);
-app.use('/api/recharges', generalLimiter, rechargeRoutes);
-app.use('/api/stock', generalLimiter, stockRoutes);
-app.use('/api/transactions', generalLimiter, transactionRoutes);
-app.use('/api/users', generalLimiter, userRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/connections', connectionRoutes);
+app.use('/api/recharges', rechargeRoutes);
+app.use('/api/stock', stockRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/users', userRoutes);
 
 // 404 handler
 app.use((req, res) => {

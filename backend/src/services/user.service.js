@@ -24,6 +24,13 @@ class UserService {
   }
 
   static async create(data) {
+    // If password_hash is provided, use build and setDataValue to ensure it's set correctly
+    if (data.password_hash) {
+      const user = User.build(data);
+      user.setDataValue('password_hash', data.password_hash); // Explicitly set password_hash
+      await user.save();
+      return user;
+    }
     return await User.create(data);
   }
  

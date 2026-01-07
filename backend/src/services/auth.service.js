@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 const UserService = require('./user.service');
 const ActivityLogService = require('./activityLog.service');
@@ -44,6 +45,11 @@ class AuthService {
   static async register(userData) {
     const { email, username, password, role } = userData;
 
+    // Validate password exists
+    if (!password || password.trim() === '') {
+      throw new Error('Password is required');
+    }
+
     // Check if email exists
     const existingEmail = await UserService.getByEmail(email);
     if (existingEmail) {
@@ -56,7 +62,22 @@ class AuthService {
       throw new Error('Username already exists');
     }
 
-    const user = await UserService.create({ email, username, password, role });
+    // Hash password explicitly before creating user
+    const password_hash = await bcrypt.hash(password, 10);
+    
+    // Ensure password_hash is set
+    if (!password_hash) {
+      throw new Error('Failed to hash password');
+    }
+
+    // Create user with password_hash (don't pass password field)
+    const user = await UserService.create({ 
+      email, 
+      username, 
+      password_hash, // Use password_hash directly instead of password
+      role: role || 'Staff',
+      status: 'active' // Explicitly set status
+    });
     const token = this.generateToken(user.id);
 
     // Log activity (non-blocking)
