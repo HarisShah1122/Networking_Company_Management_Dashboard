@@ -4,6 +4,8 @@ import { useForm } from 'react-hook-form';
 import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
+import Modal from '../../components/common/Modal';
+import Loader from '../../components/common/Loader';
 
 const CustomersPage = () => {
   const navigate = useNavigate();
@@ -67,7 +69,7 @@ const CustomersPage = () => {
 
   const canManage = isManager(user?.role);
 
-  if (loading) return <div className="text-center py-8">Loading...</div>;
+  if (loading) return <Loader />;
 
   return (
     <div className="space-y-6">
@@ -155,34 +157,48 @@ const CustomersPage = () => {
       </div>
 
       {showModal && canManage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingCustomer ? 'Edit Customer' : 'Add Customer'}</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name *</label>
-                <input
-                  {...register('name', { required: 'Name is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+        <Modal
+          isOpen={showModal}
+          onClose={() => { setShowModal(false); reset(); setEditingCustomer(null); }}
+          title={editingCustomer ? 'Edit Customer' : 'Add Customer'}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name *</label>
+                  <input
+                    {...register('name', { required: 'Name is required' })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone *</label>
+                  <input
+                    {...register('phone', { required: 'Phone is required' })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Phone *</label>
-                <input
-                  {...register('phone', { required: 'Phone is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                  {...register('email', { pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
-                  type="email"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    {...register('email', { pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
+                    type="email"
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Address</label>
@@ -191,14 +207,6 @@ const CustomersPage = () => {
                   className="mt-1 block w-full px-3 py-2 border rounded-md"
                   rows="3"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
-                <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
-                </select>
               </div>
               <div className="flex gap-4">
                 <button
@@ -213,8 +221,7 @@ const CustomersPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

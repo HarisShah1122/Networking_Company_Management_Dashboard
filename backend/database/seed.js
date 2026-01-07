@@ -3,6 +3,7 @@
 
 require('dotenv').config({ path: '../.env' });
 const { sequelize, User } = require('../src/models');
+const bcrypt = require('bcrypt');
 
 async function seed() {
   try {
@@ -25,11 +26,14 @@ async function seed() {
       return;
     }
 
+    // Hash password before creating user
+    const passwordHash = await bcrypt.hash('admin123', 10);
+
     // Create default CEO user
     const user = await User.create({
       email: 'ceo@company.com',
       username: 'admin',
-      password: 'admin123', // Will be hashed by the beforeCreate hook
+      password_hash: passwordHash,
       role: 'CEO',
       status: 'active'
     });

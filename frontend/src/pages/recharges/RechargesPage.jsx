@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
+import { DatePickerInput } from '@mantine/dates';
+import dayjs from 'dayjs';
 import { rechargeService } from '../../services/rechargeService';
 import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
+import Modal from '../../components/common/Modal';
+import Loader from '../../components/common/Loader';
 
 const RechargesPage = () => {
   const { user } = useAuthStore();
@@ -15,7 +19,7 @@ const RechargesPage = () => {
   const [editingRecharge, setEditingRecharge] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm();
 
   useEffect(() => {
     loadData();
@@ -40,10 +44,15 @@ const RechargesPage = () => {
 
   const onSubmit = async (data) => {
     try {
+      const submitData = {
+        ...data,
+        due_date: data.due_date ? dayjs(data.due_date).format('YYYY-MM-DD') : null,
+        payment_date: data.payment_date ? dayjs(data.payment_date).format('YYYY-MM-DD') : null,
+      };
       if (editingRecharge) {
-        await rechargeService.update(editingRecharge.id, data);
+        await rechargeService.update(editingRecharge.id, submitData);
       } else {
-        await rechargeService.create(data);
+        await rechargeService.create(submitData);
       }
       reset();
       setShowModal(false);
@@ -58,8 +67,8 @@ const RechargesPage = () => {
     setEditingRecharge(recharge);
     reset({
       ...recharge,
-      due_date: recharge.due_date ? recharge.due_date.split('T')[0] : '',
-      payment_date: recharge.payment_date ? recharge.payment_date.split('T')[0] : '',
+      due_date: recharge.due_date ? dayjs(recharge.due_date).toDate() : null,
+      payment_date: recharge.payment_date ? dayjs(recharge.payment_date).toDate() : null,
     });
     setShowModal(true);
   };
@@ -75,7 +84,7 @@ const RechargesPage = () => {
 
   const canManage = isManager(user?.role);
 
-  if (loading) return <div className="text-center py-8">Loading...</div>;
+  if (loading) return <Loader />;
 
   return (
     <div className="space-y-6">
@@ -172,57 +181,71 @@ const RechargesPage = () => {
       </div>
 
       {showModal && canManage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingRecharge ? 'Edit Recharge' : 'Add Recharge'}</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer *</label>
-                <select
-                  {...register('customer_id', { required: 'Customer is required', valueAsNumber: true })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="">Select Customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
-                  ))}
-                </select>
-                {errors.customer_id && <p className="text-red-500 text-sm">{errors.customer_id.message}</p>}
+        <Modal
+          isOpen={showModal}
+          onClose={() => { setShowModal(false); reset(); setEditingRecharge(null); }}
+          title={editingRecharge ? 'Edit Recharge' : 'Add Recharge'}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Customer *</label>
+                  <select
+                    {...register('customer_id', { required: 'Customer is required', valueAsNumber: true })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="">Select Customer</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>{customer.name}</option>
+                    ))}
+                  </select>
+                  {errors.customer_id && <p className="text-red-500 text-sm">{errors.customer_id.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Amount *</label>
+                  <input
+                    {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
+                    type="number"
+                    step="0.01"
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                  <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="online">Online</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Amount *</label>
-                <input
-                  {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
-                  type="number"
-                  step="0.01"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                <Controller
+                  name="due_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePickerInput
+                      {...field}
+                      value={field.value ? dayjs(field.value).toDate() : null}
+                      onChange={(date) => field.onChange(date)}
+                      placeholder="Select due date"
+                      className="w-full"
+                    />
+                  )}
                 />
-                {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border rounded-md">
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="online">Online</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Due Date</label>
-                <input
-                  {...register('due_date')}
-                  type="date"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
-                <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
-                </select>
               </div>
               <div className="flex gap-4">
                 <button
@@ -237,8 +260,7 @@ const RechargesPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

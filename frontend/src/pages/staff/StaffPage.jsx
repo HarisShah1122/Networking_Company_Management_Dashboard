@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { userService } from '../../services/userService';
+import Modal from '../../components/common/Modal';
+import Loader from '../../components/common/Loader';
 
 const StaffPage = () => {
   const [users, setUsers] = useState([]);
@@ -52,7 +54,7 @@ const StaffPage = () => {
     setShowModal(true);
   };
 
-  if (loading) return <div className="text-center py-8">Loading...</div>;
+  if (loading) return <Loader />;
 
   return (
     <div className="space-y-6">
@@ -110,26 +112,30 @@ const StaffPage = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingUser ? 'Edit User' : 'Add User'}</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email *</label>
-                <input
-                  {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
-                  type="email"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Username *</label>
-                <input
-                  {...register('username', { required: 'Username is required', minLength: { value: 3, message: 'Username must be at least 3 characters' } })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.username && <p className="text-red-500 text-sm">{errors.username.message}</p>}
+        <Modal
+          isOpen={showModal}
+          onClose={() => { setShowModal(false); reset(); setEditingUser(null); }}
+          title={editingUser ? 'Edit User' : 'Add User'}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email *</label>
+                  <input
+                    {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
+                    type="email"
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Username *</label>
+                  <input
+                    {...register('username', { required: 'Username is required', minLength: { value: 3, message: 'Username must be at least 3 characters' } })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.username && <p className="text-red-500 text-sm">{errors.username.message}</p>}
+                </div>
               </div>
               {!editingUser && (
                 <div>
@@ -142,26 +148,28 @@ const StaffPage = () => {
                   {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Role *</label>
-                <select
-                  {...register('role', { required: 'Role is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="Staff">Staff</option>
-                  <option value="Manager">Manager</option>
-                  <option value="CEO">CEO</option>
-                </select>
-              </div>
-              {editingUser && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                  <label className="block text-sm font-medium text-gray-700">Role *</label>
+                  <select
+                    {...register('role', { required: 'Role is required' })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="Staff">Staff</option>
+                    <option value="Manager">Manager</option>
+                    <option value="CEO">CEO</option>
                   </select>
                 </div>
-              )}
+                {editingUser && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Status</label>
+                    <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-4">
                 <button
                   type="button"
@@ -175,8 +183,7 @@ const StaffPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

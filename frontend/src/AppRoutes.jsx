@@ -25,6 +25,7 @@ const AppRoutes = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         
         <Route
           path="/"
@@ -120,17 +121,6 @@ const AppRoutes = () => {
             <ProtectedRoute allowedRoles={['CEO']}>
               <MainLayout>
                 <StaffPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/register"
-          element={
-            <ProtectedRoute allowedRoles={['CEO']}>
-              <MainLayout>
-                <RegisterPage />
               </MainLayout>
             </ProtectedRoute>
           }

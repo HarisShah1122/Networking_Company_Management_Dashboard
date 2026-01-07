@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form';
 import { stockService } from '../../services/stockService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
+import Modal from '../../components/common/Modal';
+import Loader from '../../components/common/Loader';
 
 const StockPage = () => {
   const { user } = useAuthStore();
@@ -70,7 +72,7 @@ const StockPage = () => {
 
   const canManage = isManager(user?.role);
 
-  if (loading) return <div className="text-center py-8">Loading...</div>;
+  if (loading) return <Loader />;
 
   return (
     <div className="space-y-6">
@@ -145,24 +147,28 @@ const StockPage = () => {
       </div>
 
       {showModal && canManage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingItem ? 'Edit Stock Item' : 'Add Stock Item'}</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name *</label>
-                <input
-                  {...register('name', { required: 'Name is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Category</label>
-                <input
-                  {...register('category')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
+        <Modal
+          isOpen={showModal}
+          onClose={() => { setShowModal(false); reset(); setEditingItem(null); }}
+          title={editingItem ? 'Edit Stock Item' : 'Add Stock Item'}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name *</label>
+                  <input
+                    {...register('name', { required: 'Name is required' })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <input
+                    {...register('category')}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -182,14 +188,16 @@ const StockPage = () => {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Unit Price</label>
-                <input
-                  {...register('unit_price', { valueAsNumber: true, min: 0 })}
-                  type="number"
-                  step="0.01"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Unit Price</label>
+                  <input
+                    {...register('unit_price', { valueAsNumber: true, min: 0 })}
+                    type="number"
+                    step="0.01"
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>
@@ -212,8 +220,7 @@ const StockPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

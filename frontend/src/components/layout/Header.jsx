@@ -16,13 +16,18 @@ const Header = ({ onMenuClick }) => {
         </button>
         
         <div className="flex-1 lg:ml-0 ml-4">
-          <h2 className="text-lg font-semibold text-gray-800">Networking Company Dashboard</h2>
+          <h2 className="text-lg font-semibold text-gray-800">PACE Telecom dashboard</h2>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">{user?.username}</span>
-            <span className="ml-2 text-gray-400">({user?.role})</span>
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 text-sm text-gray-600">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 text-white font-semibold">
+              {user?.username?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div>
+              <span className="font-medium text-gray-900">{user?.username}</span>
+              <span className="ml-2 text-gray-500">({user?.role})</span>
+            </div>
           </div>
         </div>
       </div>

@@ -26,12 +26,11 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
-const limiter = rateLimit({
+// Rate limiting - only for non-auth routes
+const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100 // limit each IP to 100 requests per windowMs
 });
-app.use('/api/', limiter);
 
 // Body parsing middleware
 app.use(express.json());
@@ -42,14 +41,16 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes
+// API routes - Auth routes without rate limiting
 app.use('/api/auth', authRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/connections', connectionRoutes);
-app.use('/api/recharges', rechargeRoutes);
-app.use('/api/stock', stockRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/users', userRoutes);
+
+// Apply rate limiting to other routes
+app.use('/api/customers', generalLimiter, customerRoutes);
+app.use('/api/connections', generalLimiter, connectionRoutes);
+app.use('/api/recharges', generalLimiter, rechargeRoutes);
+app.use('/api/stock', generalLimiter, stockRoutes);
+app.use('/api/transactions', generalLimiter, transactionRoutes);
+app.use('/api/users', generalLimiter, userRoutes);
 
 // 404 handler
 app.use((req, res) => {

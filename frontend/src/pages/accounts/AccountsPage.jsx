@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
+import { DatePickerInput } from '@mantine/dates';
+import dayjs from 'dayjs';
 import { transactionService } from '../../services/transactionService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
+import Modal from '../../components/common/Modal';
+import Loader from '../../components/common/Loader';
 
 const AccountsPage = () => {
   const { user } = useAuthStore();
@@ -13,7 +17,7 @@ const AccountsPage = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [typeFilter, setTypeFilter] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm();
 
   useEffect(() => {
     loadData();
@@ -36,10 +40,14 @@ const AccountsPage = () => {
 
   const onSubmit = async (data) => {
     try {
+      const submitData = {
+        ...data,
+        date: data.date ? dayjs(data.date).format('YYYY-MM-DD') : null,
+      };
       if (editingTransaction) {
-        await transactionService.update(editingTransaction.id, data);
+        await transactionService.update(editingTransaction.id, submitData);
       } else {
-        await transactionService.create(data);
+        await transactionService.create(submitData);
       }
       reset();
       setShowModal(false);
@@ -54,7 +62,7 @@ const AccountsPage = () => {
     setEditingTransaction(transaction);
     reset({
       ...transaction,
-      date: transaction.date ? transaction.date.split('T')[0] : new Date().toISOString().split('T')[0],
+      date: transaction.date ? dayjs(transaction.date).toDate() : new Date(),
     });
     setShowModal(true);
   };
@@ -72,7 +80,7 @@ const AccountsPage = () => {
 
   const canManage = isManager(user?.role);
 
-  if (loading) return <div className="text-center py-8">Loading...</div>;
+  if (loading) return <Loader />;
 
   const profitLoss = parseFloat(summary.profit_loss || 0);
 
@@ -82,7 +90,7 @@ const AccountsPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
         {canManage && (
           <button
-            onClick={() => { reset({ type: 'income', date: new Date().toISOString().split('T')[0] }); setEditingTransaction(null); setShowModal(true); }}
+            onClick={() => { reset({ type: 'income', date: new Date() }); setEditingTransaction(null); setShowModal(true); }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Add Transaction
@@ -174,46 +182,61 @@ const AccountsPage = () => {
       </div>
 
       {showModal && canManage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingTransaction ? 'Edit Transaction' : 'Add Transaction'}</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Type *</label>
-                <select
-                  {...register('type', { required: 'Type is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="income">Income</option>
-                  <option value="expense">Expense</option>
-                </select>
-                {errors.type && <p className="text-red-500 text-sm">{errors.type.message}</p>}
+        <Modal
+          isOpen={showModal}
+          onClose={() => { setShowModal(false); reset(); setEditingTransaction(null); }}
+          title={editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Type *</label>
+                  <select
+                    {...register('type', { required: 'Type is required' })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                  </select>
+                  {errors.type && <p className="text-red-500 text-sm">{errors.type.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Amount *</label>
+                  <input
+                    {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
+                    type="number"
+                    step="0.01"
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Amount *</label>
-                <input
-                  {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
-                  type="number"
-                  step="0.01"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Date *</label>
-                <input
-                  {...register('date', { required: 'Date is required' })}
-                  type="date"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.date && <p className="text-red-500 text-sm">{errors.date.message}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Category</label>
-                <input
-                  {...register('category')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                  <Controller
+                    name="date"
+                    control={control}
+                    rules={{ required: 'Date is required' }}
+                    render={({ field }) => (
+                      <DatePickerInput
+                        {...field}
+                        value={field.value ? dayjs(field.value).toDate() : null}
+                        onChange={(date) => field.onChange(date)}
+                        placeholder="Select date"
+                        className="w-full"
+                      />
+                    )}
+                  />
+                  {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <input
+                    {...register('category')}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>
@@ -236,8 +259,7 @@ const AccountsPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

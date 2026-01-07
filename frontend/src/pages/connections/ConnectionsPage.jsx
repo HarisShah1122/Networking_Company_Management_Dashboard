@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
+import { DatePickerInput } from '@mantine/dates';
+import dayjs from 'dayjs';
 import { connectionService } from '../../services/connectionService';
 import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
+import Modal from '../../components/common/Modal';
+import Loader from '../../components/common/Loader';
 
 const ConnectionsPage = () => {
   const { user } = useAuthStore();
@@ -14,7 +18,7 @@ const ConnectionsPage = () => {
   const [editingConnection, setEditingConnection] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm();
 
   useEffect(() => {
     loadData();
@@ -37,10 +41,15 @@ const ConnectionsPage = () => {
 
   const onSubmit = async (data) => {
     try {
+      const submitData = {
+        ...data,
+        installation_date: data.installation_date ? dayjs(data.installation_date).format('YYYY-MM-DD') : null,
+        activation_date: data.activation_date ? dayjs(data.activation_date).format('YYYY-MM-DD') : null,
+      };
       if (editingConnection) {
-        await connectionService.update(editingConnection.id, data);
+        await connectionService.update(editingConnection.id, submitData);
       } else {
-        await connectionService.create(data);
+        await connectionService.create(submitData);
       }
       reset();
       setShowModal(false);
@@ -55,15 +64,15 @@ const ConnectionsPage = () => {
     setEditingConnection(connection);
     reset({
       ...connection,
-      installation_date: connection.installation_date ? connection.installation_date.split('T')[0] : '',
-      activation_date: connection.activation_date ? connection.activation_date.split('T')[0] : '',
+      installation_date: connection.installation_date ? dayjs(connection.installation_date).toDate() : null,
+      activation_date: connection.activation_date ? dayjs(connection.activation_date).toDate() : null,
     });
     setShowModal(true);
   };
 
   const canManage = isManager(user?.role);
 
-  if (loading) return <div className="text-center py-8">Loading...</div>;
+  if (loading) return <Loader />;
 
   return (
     <div className="space-y-6">
@@ -138,46 +147,68 @@ const ConnectionsPage = () => {
       </div>
 
       {showModal && canManage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingConnection ? 'Edit Connection' : 'Add Connection'}</h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer *</label>
-                <select
-                  {...register('customer_id', { required: 'Customer is required', valueAsNumber: true })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="">Select Customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
-                  ))}
-                </select>
-                {errors.customer_id && <p className="text-red-500 text-sm">{errors.customer_id.message}</p>}
+        <Modal
+          isOpen={showModal}
+          onClose={() => { setShowModal(false); reset(); setEditingConnection(null); }}
+          title={editingConnection ? 'Edit Connection' : 'Add Connection'}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Customer *</label>
+                  <select
+                    {...register('customer_id', { required: 'Customer is required', valueAsNumber: true })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="">Select Customer</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>{customer.name}</option>
+                    ))}
+                  </select>
+                  {errors.customer_id && <p className="text-red-500 text-sm">{errors.customer_id.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Connection Type *</label>
+                  <input
+                    {...register('connection_type', { required: 'Connection type is required' })}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                  {errors.connection_type && <p className="text-red-500 text-sm">{errors.connection_type.message}</p>}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Connection Type *</label>
-                <input
-                  {...register('connection_type', { required: 'Connection type is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-                {errors.connection_type && <p className="text-red-500 text-sm">{errors.connection_type.message}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Installation Date</label>
-                <input
-                  {...register('installation_date')}
-                  type="date"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Activation Date</label>
-                <input
-                  {...register('activation_date')}
-                  type="date"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
+                  <Controller
+                    name="installation_date"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePickerInput
+                        {...field}
+                        value={field.value ? dayjs(field.value).toDate() : null}
+                        onChange={(date) => field.onChange(date)}
+                        placeholder="Select installation date"
+                        className="w-full"
+                      />
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Activation Date</label>
+                  <Controller
+                    name="activation_date"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePickerInput
+                        {...field}
+                        value={field.value ? dayjs(field.value).toDate() : null}
+                        onChange={(date) => field.onChange(date)}
+                        placeholder="Select activation date"
+                        className="w-full"
+                      />
+                    )}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Status</label>
@@ -208,8 +239,7 @@ const ConnectionsPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

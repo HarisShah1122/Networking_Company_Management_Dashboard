@@ -19,13 +19,17 @@ const useAuthStore = create((set, get) => {
         set({ isLoading: true, error: null });
         try {
           const { token, user } = await authService.login(email, password);
-          setToken(token);
-          setUser(user);
-          set({ user, token, isAuthenticated: true, isLoading: false });
-          return { success: true };
+          if (token && user) {
+            setToken(token);
+            setUser(user);
+            set({ user, token, isAuthenticated: true, isLoading: false });
+            return { success: true };
+          } else {
+            throw new Error('Invalid response from server');
+          }
         } catch (error) {
-          const errorMessage = error.response?.data?.error || 'Login failed';
-          set({ error: errorMessage, isLoading: false });
+          const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Login failed';
+          set({ error: errorMessage, isLoading: false, isAuthenticated: false });
           return { success: false, error: errorMessage };
         }
       },
@@ -34,13 +38,22 @@ const useAuthStore = create((set, get) => {
         set({ isLoading: true, error: null });
         try {
           const { token, user } = await authService.register(userData);
-          setToken(token);
-          setUser(user);
-          set({ user, token, isAuthenticated: true, isLoading: false });
-          return { success: true };
+          if (token && user) {
+            setToken(token);
+            setUser(user);
+            set({ user, token, isAuthenticated: true, isLoading: false });
+            return { success: true };
+          } else {
+            throw new Error('Invalid response from server');
+          }
         } catch (error) {
-          const errorMessage = error.response?.data?.error || 'Registration failed';
-          set({ error: errorMessage, isLoading: false });
+          let errorMessage = 'Registration failed';
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            errorMessage = 'Registration requires CEO privileges. Please contact your administrator.';
+          } else {
+            errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Registration failed';
+          }
+          set({ error: errorMessage, isLoading: false, isAuthenticated: false });
           return { success: false, error: errorMessage };
         }
       },
@@ -59,9 +72,15 @@ const useAuthStore = create((set, get) => {
         }
 
         try {
-          const { user } = await authService.getMe();
-          setUser(user);
-          set({ user, isAuthenticated: true });
+          const response = await authService.getMe();
+          // Backend returns { user: {...} } in the data object
+          const user = response.user;
+          if (user) {
+            setUser(user);
+            set({ user, isAuthenticated: true });
+          } else {
+            throw new Error('Invalid user data');
+          }
         } catch (error) {
           removeToken();
           removeUser();
