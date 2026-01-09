@@ -1,13 +1,14 @@
+const Sequelize = require('sequelize');
 const sequelize = require('../config/database');
 
-// Import models
-const User = require('./User')(sequelize);
-const Customer = require('./Customer')(sequelize);
-const Connection = require('./Connection')(sequelize);
-const Recharge = require('./Recharge')(sequelize);
-const Stock = require('./Stock')(sequelize);
-const Transaction = require('./Transaction')(sequelize);
-const ActivityLog = require('./ActivityLog')(sequelize);
+// Import models and pass both `sequelize` and `Sequelize.DataTypes`
+const User = require('./User')(sequelize, Sequelize.DataTypes);
+const Customer = require('./Customer')(sequelize, Sequelize.DataTypes);
+const Connection = require('./Connection')(sequelize, Sequelize.DataTypes);
+const Recharge = require('./Recharge')(sequelize, Sequelize.DataTypes);
+const Stock = require('./Stock')(sequelize, Sequelize.DataTypes);
+const Transaction = require('./Transaction')(sequelize, Sequelize.DataTypes);
+const ActivityLog = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
 
 // Define associations
 Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
@@ -32,4 +33,3 @@ module.exports = {
   Transaction,
   ActivityLog
 };
-

@@ -1,6 +1,4 @@
-const { DataTypes } = require('sequelize');
-
-module.exports = (sequelize) => {
+module.exports = (sequelize, DataTypes) => {
   const ActivityLog = sequelize.define('ActivityLog', {
     id: {
       type: DataTypes.UUID,
@@ -9,35 +7,29 @@ module.exports = (sequelize) => {
     },
     user_id: {
       type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id'
-      },
-      onDelete: 'SET NULL'
+      allowNull: false
     },
     action: {
       type: DataTypes.STRING(100),
       allowNull: false
     },
-    module: {
+    model: {
       type: DataTypes.STRING(100),
       allowNull: false
     },
-    details: {
+    description: {
       type: DataTypes.TEXT,
       allowNull: true
-    },
-    timestamp: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW
     }
   }, {
     tableName: 'activity_logs',
-    timestamps: false,
+    timestamps: true,
     underscored: true
   });
 
+  ActivityLog.associate = (models) => {
+    ActivityLog.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
+  };
+
   return ActivityLog;
 };
-
