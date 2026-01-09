@@ -9,7 +9,7 @@ export const authService = {
 
   register: async (userData) => {
     const response = await apiClient.post('/auth/register', userData);
-    // Backend returns { success, message, data: { token, user } }
+  
     return response.data.data;
   },
 
