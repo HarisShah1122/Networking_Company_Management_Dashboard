@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 
 const RegisterPage = () => {
@@ -22,11 +23,38 @@ const RegisterPage = () => {
     setIsLoading(true);
     clearError();
     try {
-      const result = await registerUser(data);
+      // Ensure role is sent, default to 'Staff' if not provided
+      const registrationData = {
+        ...data,
+        role: data.role || 'Staff'
+      };
+      
+      const result = await registerUser(registrationData);
       if (result.success) {
+        toast.success('Account created successfully!');
         navigate('/dashboard', { replace: true });
+      } else {
+        toast.error(result.error ?? 'Registration failed');
       }
     } catch (error) {
+      let errorMsg = 'Registration failed';
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        errorMsg = Array.isArray(errors) 
+          ? errors.map(e => e.msg || e.message || e).join(', ')
+          : errors;
+      } else if (error.response?.data?.message) {
+        errorMsg = Array.isArray(error.response.data.message) 
+          ? error.response.data.message.join(', ') 
+          : error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMsg = Array.isArray(error.response.data.error) 
+          ? error.response.data.error.join(', ') 
+          : error.response.data.error;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -87,12 +115,19 @@ const RegisterPage = () => {
                 Password
               </label>
               <div className="relative">
-                <input
-                  {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
-                  type={showPassword ? 'text' : 'password'}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
-                  placeholder="Enter your password"
-                />
+              <input
+                {...register('password', { 
+                  required: 'Password is required', 
+                  minLength: { value: 6, message: 'Password must be at least 6 characters' },
+                  pattern: {
+                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+                  }
+                })}
+                type={showPassword ? 'text' : 'password'}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                placeholder="Enter your password"
+              />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -120,7 +155,8 @@ const RegisterPage = () => {
                 Role
               </label>
               <select
-                {...register('role', { required: 'Role is required' })}
+                {...register('role')}
+                defaultValue="Staff"
                 className="w-full px-3 py-2.5 border border-gray-300 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="Staff">Staff</option>

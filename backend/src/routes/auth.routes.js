@@ -14,9 +14,17 @@ router.post(
   authController.login
 );
 
-// CEO only route
+// Public registration route - NO AUTHENTICATION REQUIRED
 router.post(
   '/register',
+  authController.validateRegister,
+  handleValidationErrors,
+  authController.register
+);
+
+// CEO only route for admin registration
+router.post(
+  '/register-admin',
   authenticate,
   requireRole('CEO'),
   authController.validateRegister,

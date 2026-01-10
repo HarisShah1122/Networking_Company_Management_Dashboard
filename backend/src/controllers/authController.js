@@ -28,9 +28,11 @@ const login = async (req, res, next) => {
 
 const register = async (req, res, next) => {
   try {
+    // This is a public route - no authentication required
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return ApiResponse.validationError(res, errors.array());
+      const errorMessages = errors.array().map(err => err.msg || err.message);
+      return ApiResponse.validationError(res, errorMessages);
     }
 
     const result = await AuthService.register(req.body);
