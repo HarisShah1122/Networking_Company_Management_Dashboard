@@ -6,7 +6,7 @@ const Loader = ({ size = 'md' }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
+    <div className="fixed inset-0 flex items-center justify-center bg-white bg-opacity-75 z-50">
       <div className={`${sizeClasses[size]} border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin`}></div>
     </div>
   );

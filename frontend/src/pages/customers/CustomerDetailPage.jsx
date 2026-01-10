@@ -24,10 +24,9 @@ const CustomerDetailPage = () => {
         rechargeService.getAll({ customer_id: id }),
       ]);
       setCustomer(customerData.customer);
-      setConnections(connectionsData.connections || []);
-      setRecharges(rechargesData.recharges || []);
+      setConnections(connectionsData.connections ?? []);
+      setRecharges(rechargesData.recharges ?? []);
     } catch (error) {
-      console.error('Error loading customer data:', error);
     } finally {
       setLoading(false);
     }
@@ -70,6 +69,7 @@ const CustomerDetailPage = () => {
         </div>
       </div>
 
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-4">Connections ({connections.length})</h2>
@@ -100,7 +100,7 @@ const CustomerDetailPage = () => {
             {recharges.map((recharge) => (
               <div key={recharge.id} className="border rounded p-3">
                 <div className="flex justify-between">
-                  <span className="font-medium">${parseFloat(recharge.amount).toFixed(2)}</span>
+                  <span className="font-medium">RS {parseFloat(recharge.amount).toFixed(2)}</span>
                   <span className={`px-2 py-1 text-xs rounded ${
                     recharge.status === 'paid' ? 'bg-green-100 text-green-800' :
                     recharge.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :

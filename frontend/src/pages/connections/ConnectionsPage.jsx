@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
+import { toast } from 'react-toastify';
 import { connectionService } from '../../services/connectionService';
 import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
@@ -14,49 +15,174 @@ const ConnectionsPage = () => {
   const [connections, setConnections] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingConnection, setEditingConnection] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const debounceTimer = useRef(null);
+  const isInitialMount = useRef(true);
 
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm();
 
-  useEffect(() => {
-    loadData();
-  }, [statusFilter]);
-
-  const loadData = async () => {
+  const loadConnections = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
-      const [connectionsData, customersData] = await Promise.all([
-        connectionService.getAll({ status: statusFilter }),
-        customerService.getAll(),
-      ]);
-      setConnections(connectionsData.connections || []);
-      setCustomers(customersData.customers || []);
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setSearching(true);
+      }
+      const response = await connectionService.getAll({ status });
+      let connectionsList = [];
+      if (Array.isArray(response)) {
+        connectionsList = response;
+      } else if (response?.connections && Array.isArray(response.connections)) {
+        connectionsList = response.connections;
+      } else if (response?.data?.connections && Array.isArray(response.data.connections)) {
+        connectionsList = response.data.connections;
+      } else if (response?.data && Array.isArray(response.data)) {
+        connectionsList = response.data;
+      }
+      
+      // Filter by search term on frontend if needed (or implement backend search)
+      if (search && search.trim()) {
+        const searchLower = search.toLowerCase();
+        connectionsList = connectionsList.filter(conn => 
+          (conn.customer_name && conn.customer_name.toLowerCase().includes(searchLower)) ||
+          (conn.connection_type && conn.connection_type.toLowerCase().includes(searchLower)) ||
+          (conn.customer_phone && conn.customer_phone.includes(search))
+        );
+      }
+      
+      setConnections(connectionsList);
     } catch (error) {
-      console.error('Error loading data:', error);
+      const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load connections';
+      toast.error(errorMsg);
+      setConnections([]);
     } finally {
       setLoading(false);
+      setSearching(false);
     }
-  };
+  }, []);
+
+  const loadCustomers = useCallback(async () => {
+    try {
+      const response = await customerService.getAll();
+      let customersList = [];
+      if (Array.isArray(response)) {
+        customersList = response;
+      } else if (response?.customers && Array.isArray(response.customers)) {
+        customersList = response.customers;
+      } else if (response?.data?.customers && Array.isArray(response.data.customers)) {
+        customersList = response.data.customers;
+      } else if (response?.data && Array.isArray(response.data)) {
+        customersList = response.data;
+      }
+      
+      // Ensure all customers have valid UUID IDs
+      customersList = customersList.filter(customer => customer && customer.id);
+      
+      setCustomers(customersList);
+    } catch (error) {
+      toast.error('Failed to load customers');
+      setCustomers([]);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    if (isInitialMount.current) {
+      loadConnections('', '', true);
+      loadCustomers();
+      isInitialMount.current = false;
+    }
+  }, [loadConnections, loadCustomers]);
+
+  // Debounce search term and status filter
+  useEffect(() => {
+    if (isInitialMount.current) {
+      return;
+    }
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    if (searchTerm || statusFilter) {
+      setSearching(true);
+    }
+    
+    debounceTimer.current = setTimeout(() => {
+      loadConnections(searchTerm, statusFilter, false);
+    }, 500);
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [searchTerm, statusFilter, loadConnections]);
 
   const onSubmit = async (data) => {
     try {
+      // react-hook-form already validates required fields, so if we get here, customer_id should be present
+      // But let's still validate the format
+      const customerId = data.customer_id;
+      const customerIdStr = String(customerId ?? '').trim();
+      
+      // Validate customer_id is a valid UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
+      if (!customerIdStr || !uuidRegex.test(customerIdStr)) {
+        toast.error('Invalid customer ID. Please select a customer again.');
+        return;
+      }
+
+      // Prepare submit data - ensure customer_id is UUID string, dates are ISO8601 format
       const submitData = {
-        ...data,
-        installation_date: data.installation_date ? dayjs(data.installation_date).format('YYYY-MM-DD') : null,
-        activation_date: data.activation_date ? dayjs(data.activation_date).format('YYYY-MM-DD') : null,
+        customer_id: customerIdStr,
+        connection_type: data.connection_type?.trim() ?? '',
+        status: data.status ?? 'pending',
       };
+
+      // Only include notes if provided
+      if (data.notes && data.notes.trim()) {
+        submitData.notes = data.notes.trim();
+      }
+
+      // Only include dates if they have valid values (ISO8601 format)
+      if (data.installation_date && dayjs(data.installation_date).isValid()) {
+        submitData.installation_date = dayjs(data.installation_date).format('YYYY-MM-DD');
+      }
+      if (data.activation_date && dayjs(data.activation_date).isValid()) {
+        submitData.activation_date = dayjs(data.activation_date).format('YYYY-MM-DD');
+      }
+
       if (editingConnection) {
         await connectionService.update(editingConnection.id, submitData);
+        toast.success('Connection updated successfully!');
       } else {
         await connectionService.create(submitData);
+        toast.success('Connection created successfully!');
       }
       reset();
       setShowModal(false);
       setEditingConnection(null);
-      loadData();
+      await loadConnections(searchTerm, statusFilter, false);
     } catch (error) {
-      console.error('Error saving connection:', error);
+      // Handle validation errors - show all validation messages
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const validationErrors = error.response.data.errors
+          .map(err => err.msg ?? err.message ?? JSON.stringify(err))
+          .filter((msg, index, self) => self.indexOf(msg) === index) // Remove duplicates
+          .join(', ');
+        toast.error(`Validation Error: ${validationErrors}`, { autoClose: 5000 });
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        const errorMsg = error.response?.data?.error ?? error.message ?? 'Failed to save connection';
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -64,10 +190,24 @@ const ConnectionsPage = () => {
     setEditingConnection(connection);
     reset({
       ...connection,
+      customer_id: connection.customer_id || connection.customer?.id,
       installation_date: connection.installation_date ? dayjs(connection.installation_date).toDate() : null,
       activation_date: connection.activation_date ? dayjs(connection.activation_date).toDate() : null,
     });
     setShowModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this connection?')) {
+      try {
+        await connectionService.delete(id);
+        toast.success('Connection deleted successfully!');
+        await loadConnections(searchTerm, statusFilter, false);
+      } catch (error) {
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete connection';
+        toast.error(errorMsg);
+      }
+    }
   };
 
   const canManage = isManager(user?.role);
@@ -76,29 +216,43 @@ const ConnectionsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Connections</h1>
-        {canManage && (
-          <button
-            onClick={() => { reset(); setEditingConnection(null); setShowModal(true); }}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
-            Add Connection
-          </button>
-        )}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Connections</h1>
       </div>
 
-      <div className="mb-4">
+      <div className="flex gap-4 mb-4">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search connections..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {searching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg"
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All Status</option>
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </select>
+        {canManage && (
+          <button
+            onClick={() => { reset(); setEditingConnection(null); setShowModal(true); }}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
+          >
+            Add Connection
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -114,34 +268,59 @@ const ConnectionsPage = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {connections.map((connection) => (
-              <tr key={connection.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">{connection.customer_name || connection.customer_id}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{connection.connection_type}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    connection.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    connection.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {connection.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {connection.installation_date ? new Date(connection.installation_date).toLocaleDateString() : '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {connection.activation_date ? new Date(connection.activation_date).toLocaleDateString() : '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  {canManage && (
-                    <button onClick={() => handleEdit(connection)} className="text-indigo-600 hover:text-indigo-900">
-                      Edit
-                    </button>
-                  )}
+            {connections.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                  No connections found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              connections.map((connection) => (
+                <tr key={connection.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">{connection.customer_name || connection.customer_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{connection.connection_type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                      connection.status === 'completed' ? 'bg-green-600 text-white' :
+                      connection.status === 'pending' ? 'bg-yellow-600 text-white' :
+                      'bg-red-600 text-white'
+                    }`}>
+                      {connection.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {connection.installation_date ? new Date(connection.installation_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {connection.activation_date ? new Date(connection.activation_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {canManage && (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(connection)}
+                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
+                          title="Edit"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(connection.id)}
+                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
+                          title="Delete"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -157,12 +336,20 @@ const ConnectionsPage = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Customer *</label>
                   <select
-                    {...register('customer_id', { required: 'Customer is required', valueAsNumber: true })}
+                    {...register('customer_id', { 
+                      required: 'Customer is required',
+                      validate: (value) => {
+                        if (!value || value === '' || value === 'undefined') {
+                          return 'Please select a customer';
+                        }
+                        return true;
+                      }
+                    })}
                     className="mt-1 block w-full px-3 py-2 border rounded-md"
                   >
                     <option value="">Select Customer</option>
                     {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>{customer.name}</option>
+                      <option key={customer.id} value={String(customer.id)}>{customer.name}</option>
                     ))}
                   </select>
                   {errors.customer_id && <p className="text-red-500 text-sm">{errors.customer_id.message}</p>}
