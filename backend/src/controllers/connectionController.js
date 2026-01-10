@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator');
 const ConnectionService = require('../services/connection.service');
-const ActivityLogService = require('../services/activityLog.service');
+const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
 const { validateConnection } = require('../helpers/validators');
 
@@ -14,6 +14,10 @@ const getAll = async (req, res, next) => {
     const connections = await ConnectionService.getAll(filters);
     return ApiResponse.success(res, { connections }, 'Connections retrieved successfully');
   } catch (error) {
+    // Log error for debugging but don't expose details to client
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching connections:', error.message);
+    }
     next(error);
   }
 };
@@ -42,7 +46,7 @@ const create = async (req, res, next) => {
     const connection = await ConnectionService.create(req.body);
     
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'create',
       'connections',
@@ -69,7 +73,7 @@ const update = async (req, res, next) => {
     }
 
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'update',
       'connections',
@@ -98,7 +102,7 @@ const deleteConnection = async (req, res, next) => {
     }
 
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'delete',
       'connections',

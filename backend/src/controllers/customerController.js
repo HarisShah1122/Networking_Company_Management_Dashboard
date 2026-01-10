@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator');
 const CustomerService = require('../services/customer.service');
-const ActivityLogService = require('../services/activityLog.service');
+const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
 const { validateCustomer } = require('../helpers/validators');
 
@@ -16,6 +16,10 @@ const getAll = async (req, res, next) => {
     const result = await CustomerService.getAll(filters);
     return ApiResponse.paginated(res, result.data, result.pagination, 'Customers retrieved successfully');
   } catch (error) {
+    // Log error for debugging but don't expose details to client
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching customers:', error.message);
+    }
     next(error);
   }
 };
@@ -44,7 +48,7 @@ const create = async (req, res, next) => {
     const customer = await CustomerService.create(req.body);
     
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'create',
       'customers',
@@ -71,7 +75,7 @@ const update = async (req, res, next) => {
     }
 
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'update',
       'customers',
@@ -100,7 +104,7 @@ const deleteCustomer = async (req, res, next) => {
     }
 
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'delete',
       'customers',

@@ -27,6 +27,22 @@ const validateCustomer = [
     .trim()
     .isLength({ max: 1000 })
     .withMessage('Address must not exceed 1000 characters'),
+  body('father_name')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Father name must not exceed 255 characters'),
+  body('gender')
+    .optional()
+    .isIn(['male', 'female', 'other'])
+    .withMessage('Gender must be male, female, or other'),
+  body('whatsapp_number')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 20 })
+    .withMessage('WhatsApp number must be between 10 and 20 characters')
+    .matches(/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/)
+    .withMessage('Invalid WhatsApp number format'),
   body('status')
     .optional()
     .isIn(Object.values(CUSTOMER_STATUS))
