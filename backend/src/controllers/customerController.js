@@ -7,8 +7,8 @@ const { validateCustomer } = require('../helpers/validators');
 const getAll = async (req, res, next) => {
   try {
     const filters = {
-      status: req.query.status,
-      search: req.query.search
+      status: req.query.status || '',
+      search: req.query.search || ''
     };
 
     const customers = await CustomerService.getAll(filters);

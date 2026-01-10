@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { toast } from 'react-toastify';
 import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
@@ -12,41 +13,101 @@ const CustomersPage = () => {
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const debounceTimer = useRef(null);
+  const isInitialMount = useRef(true);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  useEffect(() => {
-    loadCustomers();
-  }, [searchTerm, statusFilter]);
-
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
-      const response = await customerService.getAll({ search: searchTerm, status: statusFilter });
-      setCustomers(response.customers || []);
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setSearching(true);
+      }
+      const response = await customerService.getAll({ search, status });
+      // Handle response structure: { customers: [...] } or { data: { customers: [...] } }
+      let customersList = [];
+      if (Array.isArray(response)) {
+        customersList = response;
+      } else if (response?.customers && Array.isArray(response.customers)) {
+        customersList = response.customers;
+      } else if (response?.data?.customers && Array.isArray(response.data.customers)) {
+        customersList = response.data.customers;
+      } else if (response?.data && Array.isArray(response.data)) {
+        customersList = response.data;
+      }
+      setCustomers(customersList);
     } catch (error) {
       console.error('Error loading customers:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to load customers';
+      toast.error(errorMsg);
+      setCustomers([]);
     } finally {
       setLoading(false);
+      setSearching(false);
     }
-  };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    if (isInitialMount.current) {
+      loadCustomers('', '', true);
+      isInitialMount.current = false;
+    }
+  }, [loadCustomers]);
+
+  // Debounce search term and status filter
+  useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMount.current) {
+      return;
+    }
+
+    // Clear previous timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Set searching state immediately for better UX
+    if (searchTerm || statusFilter) {
+      setSearching(true);
+    }
+    
+    // Debounce the actual API call
+    debounceTimer.current = setTimeout(() => {
+      loadCustomers(searchTerm, statusFilter, false);
+    }, 500);
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [searchTerm, statusFilter, loadCustomers]);
 
   const onSubmit = async (data) => {
     try {
       if (editingCustomer) {
         await customerService.update(editingCustomer.id, data);
+        toast.success('Customer updated successfully!');
       } else {
         await customerService.create(data);
+        toast.success('Customer created successfully!');
       }
       reset();
       setShowModal(false);
       setEditingCustomer(null);
-      loadCustomers();
+      // Reload with current search/filter values
+      await loadCustomers(searchTerm, statusFilter, false);
     } catch (error) {
-      console.error('Error saving customer:', error);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to save customer';
+      toast.error(errorMsg);
     }
   };
 
@@ -60,9 +121,12 @@ const CustomersPage = () => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
         await customerService.delete(id);
-        loadCustomers();
+        toast.success('Customer deleted successfully!');
+        // Reload with current search/filter values
+        await loadCustomers(searchTerm, statusFilter, false);
       } catch (error) {
-        console.error('Error deleting customer:', error);
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete customer';
+        toast.error(errorMsg);
       }
     }
   };
@@ -73,36 +137,43 @@ const CustomersPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-        {canManage && (
-          <button
-            onClick={() => { reset(); setEditingCustomer(null); setShowModal(true); }}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
-            Add Customer
-          </button>
-        )}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Customers</h1>
       </div>
 
       <div className="flex gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Search customers..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 px-4 py-2 border rounded-lg"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search customers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {searching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg"
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
           <option value="suspended">Suspended</option>
         </select>
+        {canManage && (
+          <button
+            onClick={() => { reset(); setEditingCustomer(null); setShowModal(true); }}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
+          >
+            Add Customer
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -117,41 +188,49 @@ const CustomersPage = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {customers.map((customer) => (
-              <tr key={customer.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <button
-                    onClick={() => navigate(`/customers/${customer.id}`)}
-                    className="text-indigo-600 hover:text-indigo-900 font-medium"
-                  >
-                    {customer.name}
-                  </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{customer.email || '-'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    customer.status === 'active' ? 'bg-green-100 text-green-800' :
-                    customer.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {customer.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  {canManage && (
-                    <>
-                      <button onClick={() => handleEdit(customer)} className="text-indigo-600 hover:text-indigo-900 mr-4">
-                        Edit
-                      </button>
-                      <button onClick={() => handleDelete(customer.id)} className="text-red-600 hover:text-red-900">
-                        Delete
-                      </button>
-                    </>
-                  )}
+            {customers.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                  No customers found. {canManage && 'Click "Add Customer" to create one.'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              customers.map((customer) => (
+                <tr key={customer.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => navigate(`/customers/${customer.id}`)}
+                      className="text-indigo-600 hover:text-indigo-900 font-medium"
+                    >
+                      {customer.name}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{customer.email || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                      customer.status === 'active' ? 'bg-green-600 text-white' :
+                      customer.status === 'inactive' ? 'bg-gray-600 text-white' :
+                      'bg-red-600 text-white'
+                    }`}>
+                      {customer.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {canManage && (
+                      <>
+                        <button onClick={() => handleEdit(customer)} className="text-indigo-600 hover:text-indigo-900 mr-4">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(customer.id)} className="text-red-600 hover:text-red-900">
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

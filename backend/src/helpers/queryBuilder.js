@@ -2,11 +2,17 @@ const { Op } = require('sequelize');
 
 class QueryBuilder {
   static buildSearchQuery(searchFields, searchTerm) {
-    if (!searchTerm) return {};
+    if (!searchTerm || typeof searchTerm !== 'string' || !searchTerm.trim()) {
+      return {};
+    }
 
+    const trimmedSearch = searchTerm.trim();
+    
     return {
       [Op.or]: searchFields.map(field => ({
-        [field]: { [Op.like]: `%${searchTerm}%` }
+        [field]: { 
+          [Op.like]: `%${trimmedSearch}%`
+        }
       }))
     };
   }

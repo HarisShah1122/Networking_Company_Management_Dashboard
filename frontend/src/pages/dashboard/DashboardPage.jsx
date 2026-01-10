@@ -5,6 +5,7 @@ import { connectionService } from '../../services/connectionService';
 import { rechargeService } from '../../services/rechargeService';
 import { stockService } from '../../services/stockService';
 import { transactionService } from '../../services/transactionService';
+import Loader from '../../components/common/Loader';
 
 const DashboardPage = () => {
   const [stats, setStats] = useState({
@@ -69,7 +70,7 @@ const DashboardPage = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
+    return <Loader />;
   }
 
   const profitLoss = (stats.transactions.total_income || 0) - (stats.transactions.total_expense || 0);
