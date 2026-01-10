@@ -1,17 +1,16 @@
 const { ActivityLog } = require('../models');
 
 class ActivityLogService {
-  static async logActivity(userId, action, module, details) {
+  static async logActivity(userId, action, model, description) {
     try {
       return await ActivityLog.create({
         user_id: userId,
         action,
-        module,
-        details
+        model: model || 'unknown',
+        description: description || ''
       });
     } catch (error) {
-      // Log error but don't throw - activity logging should not break main flow
-      console.error('Error logging activity:', error);
+      // Silently fail - activity logging should not break main flow or show errors
       return null;
     }
   }
