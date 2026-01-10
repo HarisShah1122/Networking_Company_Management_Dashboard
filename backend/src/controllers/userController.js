@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator');
 const UserService = require('../services/user.service');
-const ActivityLogService = require('../services/activityLog.service');
+const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
 const { validateUser } = require('../helpers/validators');
 
@@ -51,7 +51,7 @@ const create = async (req, res, next) => {
     const user = await UserService.create(req.body);
     
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'create',
       'users',
@@ -87,7 +87,7 @@ const update = async (req, res, next) => {
     }
 
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'update',
       'users',
@@ -116,7 +116,7 @@ const deleteUser = async (req, res, next) => {
     }
 
     // Log activity (non-blocking)
-    ActivityLogService.logActivity(
+    activityLogService.logActivity(
       req.user.id,
       'delete',
       'users',

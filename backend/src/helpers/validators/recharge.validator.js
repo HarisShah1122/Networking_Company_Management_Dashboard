@@ -37,7 +37,12 @@ const validateRecharge = [
     .optional()
     .trim()
     .isLength({ max: 2000 })
-    .withMessage('Notes must not exceed 2000 characters')
+    .withMessage('Notes must not exceed 2000 characters'),
+  body('package')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Package must not exceed 255 characters')
 ];
 
 module.exports = {

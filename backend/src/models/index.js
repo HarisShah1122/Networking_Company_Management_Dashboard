@@ -9,6 +9,7 @@ const Recharge = require('./Recharge')(sequelize, Sequelize.DataTypes);
 const Stock = require('./Stock')(sequelize, Sequelize.DataTypes);
 const Transaction = require('./Transaction')(sequelize, Sequelize.DataTypes);
 const ActivityLog = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
+const Complaint = require('./Complaint')(sequelize, Sequelize.DataTypes);
 
 // Define associations
 Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
@@ -23,6 +24,21 @@ User.hasMany(Transaction, { foreignKey: 'created_by', as: 'transactions' });
 ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
 
+// Initialize Complaint associations
+const models = {
+  User,
+  Customer,
+  Connection,
+  Recharge,
+  Stock,
+  Transaction,
+  ActivityLog,
+  Complaint
+};
+if (Complaint.associate) {
+  Complaint.associate(models);
+}
+
 module.exports = {
   sequelize,
   User,
@@ -31,5 +47,6 @@ module.exports = {
   Recharge,
   Stock,
   Transaction,
-  ActivityLog
+  ActivityLog,
+  Complaint
 };

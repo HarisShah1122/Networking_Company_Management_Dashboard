@@ -26,6 +26,18 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true
     },
+    father_name: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    gender: {
+      type: DataTypes.ENUM('male', 'female', 'other'),
+      allowNull: true
+    },
+    whatsapp_number: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
     status: {
       type: DataTypes.ENUM('active', 'inactive', 'suspended'),
       defaultValue: 'active'

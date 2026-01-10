@@ -1,78 +1,84 @@
 const { Op } = require('sequelize');
 const { User } = require('../models');
 
-class UserService {
-  static async getAll() {
-    return await User.findAll({
-      attributes: ['id', 'email', 'username', 'role', 'status', 'created_at'],
-      order: [['created_at', 'DESC']]
-    });
-  }
+const getAll = async () => {
+  return await User.findAll({
+    attributes: ['id', 'email', 'username', 'role', 'status', 'created_at'],
+    order: [['created_at', 'DESC']]
+  });
+};
 
-  static async getById(id) {
-    return await User.findByPk(id, {
-      attributes: ['id', 'email', 'username', 'role', 'status', 'created_at']
-    });
-  }
+const getById = async (id) => {
+  return await User.findByPk(id, {
+    attributes: ['id', 'email', 'username', 'role', 'status', 'created_at']
+  });
+};
 
-  static async getByEmail(email) {
-    return await User.findByEmail(email);
-  }
+const getByEmail = async (email) => {
+  return await User.findByEmail(email);
+};
 
-  static async getByUsername(username) {
-    return await User.findByUsername(username);
-  }
+const getByUsername = async (username) => {
+  return await User.findByUsername(username);
+};
 
-  static async create(data) {
-    // If password_hash is provided, use build and setDataValue to ensure it's set correctly
-    if (data.password_hash) {
-      const user = User.build(data);
-      user.setDataValue('password_hash', data.password_hash); // Explicitly set password_hash
-      await user.save();
-      return user;
-    }
-    return await User.create(data);
+const create = async (data) => {
+  if (data.password_hash) {
+    const user = User.build(data);
+    user.setDataValue('password_hash', data.password_hash);
+    await user.save();
+    return user;
   }
- 
-  static async update(id, data) {
+  return await User.create(data);
+};
+
+const update = async (id, data) => {
+  const user = await User.findByPk(id);
+  if (!user) return null;
+
+  await user.update(data);
+  return await getById(id);
+};
+
+const emailExists = async (email, excludeId = null) => {
+  const where = { email };
+  if (excludeId) {
+    where.id = { [Op.ne]: excludeId };
+  }
+  
+  const user = await User.findOne({ where });
+  return !!user;
+};
+
+const usernameExists = async (username, excludeId = null) => {
+  const where = { username };
+  if (excludeId) {
+    where.id = { [Op.ne]: excludeId };
+  }
+  
+  const user = await User.findOne({ where });
+  return !!user;
+};
+
+const deleteUser = async (id) => {
+  try {
     const user = await User.findByPk(id);
-    if (!user) return null;
-
-    await user.update(data);
-    return await this.getById(id);
+    if (!user) return false;
+    await user.destroy();
+    return true;
+  } catch (error) {
+    throw error;
   }
+};
 
-  static async emailExists(email, excludeId = null) {
-    const where = { email };
-    if (excludeId) {
-      where.id = { [Op.ne]: excludeId };
-    }
-    
-    const user = await User.findOne({ where });
-    return !!user;
-  }
-
-  static async usernameExists(username, excludeId = null) {
-    const where = { username };
-    if (excludeId) {
-      where.id = { [Op.ne]: excludeId };
-    }
-    
-    const user = await User.findOne({ where });
-    return !!user;
-  }
-
-  static async delete(id) {
-    try {
-      const user = await User.findByPk(id);
-      if (!user) return false;
-      await user.destroy();
-      return true;
-    } catch (error) {
-      throw error;
-    }
-  }
-}
-
-module.exports = UserService;
-
+module.exports = {
+  getAll,
+  getById,
+  getByEmail,
+  getByUsername,
+  create,
+  update,
+  emailExists,
+  usernameExists,
+  delete: deleteUser
+};

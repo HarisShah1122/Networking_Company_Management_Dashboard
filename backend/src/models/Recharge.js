@@ -42,6 +42,22 @@ module.exports = (sequelize) => {
     notes: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    package: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    name: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    address: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    whatsapp_number: {
+      type: DataTypes.STRING(20),
+      allowNull: true
     }
   }, {
     tableName: 'recharges',
