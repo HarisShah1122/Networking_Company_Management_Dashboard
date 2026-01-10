@@ -409,7 +409,7 @@ const ComplaintsPage = () => {
                   <option value="">Select User ID</option>
                   {customers.map((customer) => (
                     <option key={customer.id} value={String(customer.id)}>
-                      {customer.id} - {customer.name}
+                      {customer.name}
                     </option>
                   ))}
                 </select>
