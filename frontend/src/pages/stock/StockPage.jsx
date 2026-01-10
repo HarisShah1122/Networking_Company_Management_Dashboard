@@ -323,6 +323,23 @@ const StockPage = () => {
                   type="number"
                   step="0.01"
                   className="mt-1 block w-full px-3 py-2 border rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Location</label>
+                <input
+                  {...register('location')}
+                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  placeholder="Storage location"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Unit Price</label>
+                <input
+                  {...register('unit_price', { valueAsNumber: true, min: 0 })}
+                  type="number"
+                  step="0.01"
+                  className="mt-1 block w-full px-3 py-2 border rounded-md"
                   defaultValue={0}
                 />
               </div>

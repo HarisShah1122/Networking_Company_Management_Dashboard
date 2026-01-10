@@ -180,7 +180,6 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Complaint Status Chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Complaint Status</h2>

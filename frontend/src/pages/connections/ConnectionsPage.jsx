@@ -34,6 +34,8 @@ const ConnectionsPage = () => {
       }
       const response = await connectionService.getAll({ status });
       let connectionsList = [];
+      
+      // Handle different response structures
       if (Array.isArray(response)) {
         connectionsList = response;
       } else if (response?.connections && Array.isArray(response.connections)) {
@@ -43,6 +45,30 @@ const ConnectionsPage = () => {
       } else if (response?.data && Array.isArray(response.data)) {
         connectionsList = response.data;
       }
+      
+      // Ensure customer_name is properly set for each connection
+      connectionsList = connectionsList.map(connection => {
+        // If customer_name is missing but we have customer_id, try to find customer from local list
+        let customerName = connection.customer_name || null;
+        let customerPhone = connection.customer_phone || null;
+        
+        // If customer_name is not set from backend, try to get it from local customers list
+        if ((!customerName || customerName === null || customerName === '') && connection.customer_id) {
+          if (customers.length > 0) {
+            const customer = customers.find(c => String(c.id) === String(connection.customer_id));
+            if (customer && customer.name) {
+              customerName = customer.name;
+              customerPhone = customer.whatsapp_number || customer.phone || null;
+            }
+          }
+        }
+        
+        return {
+          ...connection,
+          customer_name: customerName,
+          customer_phone: customerPhone
+        };
+      });
       
       // Filter by search term on frontend if needed (or implement backend search)
       if (search && search.trim()) {
@@ -63,7 +89,7 @@ const ConnectionsPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, []);
+  }, [customers]);
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -89,11 +115,14 @@ const ConnectionsPage = () => {
     }
   }, []);
 
-  // Initial load
+  // Initial load - load customers first, then connections
   useEffect(() => {
     if (isInitialMount.current) {
-      loadConnections('', '', true);
-      loadCustomers();
+      const initializeData = async () => {
+        await loadCustomers();
+        await loadConnections('', '', true);
+      };
+      initializeData();
       isInitialMount.current = false;
     }
   }, [loadConnections, loadCustomers]);
@@ -277,7 +306,7 @@ const ConnectionsPage = () => {
             ) : (
               connections.map((connection) => (
                 <tr key={connection.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{connection.customer_name || connection.customer_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{connection.customer_name || connection.customer_id || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{connection.connection_type}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${

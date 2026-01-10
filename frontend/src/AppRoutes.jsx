@@ -12,6 +12,7 @@ import RechargesPage from './pages/recharges/RechargesPage';
 import StockPage from './pages/stock/StockPage';
 import AccountsPage from './pages/accounts/AccountsPage';
 import StaffPage from './pages/staff/StaffPage';
+import ComplaintsPage from './pages/complaints/ComplaintsPage';
 import MainLayout from './components/layout/MainLayout';
 
 const AppRoutes = () => {
@@ -121,6 +122,17 @@ const AppRoutes = () => {
             <ProtectedRoute allowedRoles={['CEO']}>
               <MainLayout>
                 <StaffPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/complaints"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <ComplaintsPage />
               </MainLayout>
             </ProtectedRoute>
           }
