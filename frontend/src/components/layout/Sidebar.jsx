@@ -11,6 +11,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/customers', label: 'Customers', icon: '👥', roles: ['CEO', 'Manager'] },
     { path: '/connections', label: 'Connections', icon: '🔌', roles: ['CEO', 'Manager'] },
     { path: '/recharges', label: 'Recharges', icon: '💰', roles: ['CEO', 'Manager'] },
+    { path: '/complaints', label: 'Complaints', icon: '📝', roles: ['CEO', 'Manager'] },
     { path: '/stock', label: 'Stock', icon: '📦', roles: ['CEO', 'Manager'] },
     { path: '/accounts', label: 'Accounts', icon: '💼', roles: ['CEO', 'Manager'] },
     { path: '/staff', label: 'Staff', icon: '👤', roles: ['CEO'] },

@@ -21,10 +21,12 @@ const RechargesPage = () => {
   const [editingRecharge, setEditingRecharge] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm();
+  const watchedCustomerId = watch('customer_id');
 
   const loadRecharges = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
@@ -35,6 +37,8 @@ const RechargesPage = () => {
       }
       const response = await rechargeService.getAll({ status });
       let rechargesList = [];
+      
+      // Handle different response structures
       if (Array.isArray(response)) {
         rechargesList = response;
       } else if (response?.recharges && Array.isArray(response.recharges)) {
@@ -44,6 +48,30 @@ const RechargesPage = () => {
       } else if (response?.data && Array.isArray(response.data)) {
         rechargesList = response.data;
       }
+      
+      // Ensure customer_name is properly set for each recharge
+      rechargesList = rechargesList.map(recharge => {
+        // If customer_name is missing but we have customer_id, try to find customer from local list
+        let customerName = recharge.customer_name || null;
+        let customerPhone = recharge.customer_phone || null;
+        
+        // If customer_name is not set from backend, try to get it from local customers list
+        if ((!customerName || customerName === null || customerName === '') && recharge.customer_id) {
+          if (customers.length > 0) {
+            const customer = customers.find(c => String(c.id) === String(recharge.customer_id));
+            if (customer && customer.name) {
+              customerName = customer.name;
+              customerPhone = customer.whatsapp_number || customer.phone || null;
+            }
+          }
+        }
+        
+        return {
+          ...recharge,
+          customer_name: customerName,
+          customer_phone: customerPhone
+        };
+      });
       
       // Filter by search term on frontend
       if (search && search.trim()) {
@@ -64,7 +92,7 @@ const RechargesPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, []);
+  }, [customers]);
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -98,12 +126,15 @@ const RechargesPage = () => {
     }
   }, []);
 
-  // Initial load
+  // Initial load - load customers first, then recharges
   useEffect(() => {
     if (isInitialMount.current) {
-      loadRecharges('', '', true);
-      loadCustomers();
-      loadDuePayments();
+      const initializeData = async () => {
+        await loadCustomers();
+        await loadRecharges('', '', true);
+        loadDuePayments();
+      };
+      initializeData();
       isInitialMount.current = false;
     }
   }, [loadRecharges, loadCustomers, loadDuePayments]);
@@ -133,6 +164,15 @@ const RechargesPage = () => {
     };
   }, [searchTerm, statusFilter, loadRecharges]);
 
+  useEffect(() => {
+    if (watchedCustomerId) {
+      const customer = customers.find(c => String(c.id) === String(watchedCustomerId));
+      setSelectedCustomer(customer || null);
+    } else {
+      setSelectedCustomer(null);
+    }
+  }, [watchedCustomerId, customers]);
+
   const onSubmit = async (data) => {
     try {
       // Validate customer_id
@@ -146,12 +186,27 @@ const RechargesPage = () => {
         return;
       }
 
+      // Get customer details from selectedCustomer
+      let name = null;
+      let address = null;
+      let whatsapp_number = null;
+
+      if (selectedCustomer) {
+        name = selectedCustomer.name || null;
+        address = selectedCustomer.address || null;
+        whatsapp_number = selectedCustomer.whatsapp_number || selectedCustomer.phone || null;
+      }
+
       // Prepare submit data
       const submitData = {
         customer_id: customerIdStr,
         amount: parseFloat(data.amount) ?? 0,
         payment_method: data.payment_method ?? 'cash',
         status: data.status ?? 'pending',
+        package: data.package?.trim() || null,
+        name: name,
+        address: address,
+        whatsapp_number: whatsapp_number,
       };
 
       // Only include dates if they have valid values
@@ -177,6 +232,7 @@ const RechargesPage = () => {
       reset();
       setShowModal(false);
       setEditingRecharge(null);
+      setSelectedCustomer(null);
       await loadRecharges(searchTerm, statusFilter, false);
       await loadDuePayments();
     } catch (error) {
@@ -199,9 +255,12 @@ const RechargesPage = () => {
 
   const handleEdit = (recharge) => {
     setEditingRecharge(recharge);
+    const customerId = recharge.customer_id ?? recharge.customer?.id;
+    const customer = customers.find(c => String(c.id) === String(customerId));
+    setSelectedCustomer(customer || null);
     reset({
       ...recharge,
-      customer_id: recharge.customer_id ?? recharge.customer?.id,
+      customer_id: customerId,
       due_date: recharge.due_date ? dayjs(recharge.due_date).toDate() : null,
       payment_date: recharge.payment_date ? dayjs(recharge.payment_date).toDate() : null,
     });
@@ -353,7 +412,7 @@ const RechargesPage = () => {
         </select>
         {canManage && (
           <button
-            onClick={() => { reset(); setEditingRecharge(null); setShowModal(true); }}
+            onClick={() => { reset(); setEditingRecharge(null); setSelectedCustomer(null); setShowModal(true); }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
           >
             Add Recharge
@@ -383,7 +442,7 @@ const RechargesPage = () => {
             ) : (
               recharges.map((recharge) => (
                 <tr key={recharge.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name ?? recharge.customer_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name || recharge.customer_id || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(recharge.amount).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{recharge.payment_method}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -443,32 +502,65 @@ const RechargesPage = () => {
       {showModal && canManage && (
         <Modal
           isOpen={showModal}
-          onClose={() => { setShowModal(false); reset(); setEditingRecharge(null); }}
+          onClose={() => { setShowModal(false); reset(); setEditingRecharge(null); setSelectedCustomer(null); }}
           title={editingRecharge ? 'Edit Recharge' : 'Add Recharge'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Customer *</label>
-                  <select
-                    {...register('customer_id', { 
-                      required: 'Customer is required',
-                      validate: (value) => {
-                        if (!value || value === '' || value === 'undefined') {
-                          return 'Please select a customer';
-                        }
-                        return true;
+              <div>
+                <label className="block text-sm font-medium text-gray-700">User ID *</label>
+                <select
+                  {...register('customer_id', { 
+                    required: 'User ID is required',
+                    validate: (value) => {
+                      if (!value || value === '' || value === 'undefined') {
+                        return 'Please select a User ID';
                       }
-                    })}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
-                  >
-                    <option value="">Select Customer</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={String(customer.id)}>{customer.name}</option>
-                    ))}
-                  </select>
-                  {errors.customer_id && <p className="text-red-500 text-sm">{errors.customer_id.message}</p>}
+                      return true;
+                    }
+                  })}
+                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                >
+                  <option value="">Select User ID</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={String(customer.id)}>
+                      {customer.id} - {customer.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.customer_id && <p className="text-red-500 text-sm mt-1">{errors.customer_id.message}</p>}
+              </div>
+              {selectedCustomer && (
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">User Details</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">User ID</label>
+                      <p className="text-sm text-gray-900 font-mono">{selectedCustomer.id || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Name</label>
+                      <p className="text-sm text-gray-900">{selectedCustomer.name || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">WhatsApp No</label>
+                      <p className="text-sm text-gray-900">{selectedCustomer.whatsapp_number || selectedCustomer.phone || '-'}</p>
+                    </div>
+                    <div className="col-span-3">
+                      <label className="block text-xs font-medium text-gray-600">Address</label>
+                      <p className="text-sm text-gray-900">{selectedCustomer.address || '-'}</p>
+                    </div>
+                  </div>
                 </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Package</label>
+                <input
+                  {...register('package')}
+                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  placeholder="Enter package name"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Amount *</label>
                   <input
@@ -479,8 +571,6 @@ const RechargesPage = () => {
                   />
                   {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Payment Method</label>
                   <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border rounded-md">
@@ -499,7 +589,7 @@ const RechargesPage = () => {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
                   <Controller
@@ -532,19 +622,20 @@ const RechargesPage = () => {
                     )}
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Notes</label>
-                <textarea
-                  {...register('notes')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                  rows="3"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Notes</label>
+                  <textarea
+                    {...register('notes')}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    rows="3"
+                    placeholder="Enter notes"
+                  />
+                </div>
               </div>
               <div className="flex gap-4">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); reset(); setEditingRecharge(null); }}
+                  onClick={() => { setShowModal(false); reset(); setEditingRecharge(null); setSelectedCustomer(null); }}
                   className="flex-1 px-4 py-2 border rounded-lg"
                 >
                   Cancel

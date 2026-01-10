@@ -1,4 +1,5 @@
 import apiClient from './api/apiClient';
+import { extractDataArray, extractData } from '../utils/apiResponseHelper';
 
 export const rechargeService = {
   getAll: async (filters = {}) => {
@@ -7,31 +8,32 @@ export const rechargeService = {
     if (filters.customer_id) params.append('customer_id', filters.customer_id);
     const queryString = params.toString();
     const response = await apiClient.get(`/recharges${queryString ? `?${queryString}` : ''}`);
-    return response.data.data ?? response.data;
+    const data = extractDataArray(response, 'recharges');
+    return data.length > 0 ? data : (response?.data?.data?.recharges ?? []);
   },
   getById: async (id) => {
     const response = await apiClient.get(`/recharges/${id}`);
-    return response.data.data ?? response.data;
+    return extractData(response);
   },
   create: async (data) => {
     const response = await apiClient.post('/recharges', data);
-    return response.data.data ?? response.data;
+    return extractData(response);
   },
   update: async (id, data) => {
     const response = await apiClient.put(`/recharges/${id}`, data);
-    return response.data.data ?? response.data;
+    return extractData(response);
   },
   delete: async (id) => {
     const response = await apiClient.delete(`/recharges/${id}`);
-    return response.data.data ?? response.data;
+    return extractData(response);
   },
   getDuePayments: async () => {
     const response = await apiClient.get('/recharges/due');
-    return response.data.data ?? response.data;
+    return extractDataArray(response, 'recharges');
   },
   getStats: async () => {
     const response = await apiClient.get('/recharges/stats');
-    return response.data.data ?? response.data;
+    return extractData(response);
   },
 };
 

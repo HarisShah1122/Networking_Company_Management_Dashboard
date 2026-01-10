@@ -326,7 +326,7 @@ const CustomersPage = () => {
           title={editingCustomer ? 'Edit Customer' : 'Add Customer'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Name *</label>
                   <input
@@ -336,6 +336,24 @@ const CustomersPage = () => {
                   {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Father Name</label>
+                  <input
+                    {...register('father_name')}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Gender</label>
+                  <select {...register('gender')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Phone *</label>
                   <input
                     {...register('phone', { required: 'Phone is required' })}
@@ -343,8 +361,13 @@ const CustomersPage = () => {
                   />
                   {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                  <input
+                    {...register('whatsapp_number')}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>
                   <input
@@ -354,6 +377,16 @@ const CustomersPage = () => {
                   />
                   {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
                 </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  <textarea
+                    {...register('address')}
+                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    rows="3"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
@@ -362,14 +395,6 @@ const CustomersPage = () => {
                     <option value="suspended">Suspended</option>
                   </select>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Address</label>
-                <textarea
-                  {...register('address')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                  rows="3"
-                />
               </div>
               <div className="flex gap-4">
                 <button
