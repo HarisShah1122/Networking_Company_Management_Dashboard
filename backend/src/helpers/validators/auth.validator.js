@@ -40,9 +40,20 @@ const validateRegister = [
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
   body('role')
-    .optional()
-    .isIn(['CEO', 'Manager', 'Staff'])
-    .withMessage('Invalid role. Must be CEO, Manager, or Staff')
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .custom((value) => {
+      // Allow empty/undefined (will default to Staff in service)
+      if (!value || value === '' || value === null || value === undefined) {
+        return true;
+      }
+      // Validate if provided
+      const trimmedValue = String(value).trim();
+      if (!['CEO', 'Manager', 'Staff'].includes(trimmedValue)) {
+        throw new Error('Invalid role. Must be CEO, Manager, or Staff');
+      }
+      return true;
+    })
 ];
 
 module.exports = {

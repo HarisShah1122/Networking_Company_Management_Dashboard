@@ -70,12 +70,16 @@ class AuthService {
       throw new Error('Failed to hash password');
     }
 
+    // For public registration, default to 'Staff' role if not provided or if role is not allowed
+    const allowedRoles = ['CEO', 'Manager', 'Staff'];
+    const userRole = role && allowedRoles.includes(role) ? role : 'Staff';
+    
     // Create user with password_hash (don't pass password field)
     const user = await UserService.create({ 
       email, 
       username, 
       password_hash, // Use password_hash directly instead of password
-      role: role || 'Staff',
+      role: userRole,
       status: 'active' // Explicitly set status
     });
     const token = this.generateToken(user.id);

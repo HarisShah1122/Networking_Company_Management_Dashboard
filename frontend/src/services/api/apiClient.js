@@ -9,12 +9,18 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor - add token to requests
+// Request interceptor - add token to requests (except auth endpoints)
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Don't send token for login/register endpoints
+    const isAuthEndpoint = config.url?.includes('/auth/login') || 
+                          config.url?.includes('/auth/register');
+    
+    if (!isAuthEndpoint) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -27,8 +33,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    // Don't redirect on 401 for login/register endpoints
+    const isAuthEndpoint = error.config?.url?.includes('/auth/login') || 
+                          error.config?.url?.includes('/auth/register');
+    
+    if (error.response?.status === 401 && !isAuthEndpoint) {
+      // Token expired or invalid - only redirect if not on auth endpoints
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

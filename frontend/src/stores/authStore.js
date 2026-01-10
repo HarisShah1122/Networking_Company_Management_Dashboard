@@ -48,11 +48,35 @@ const useAuthStore = create((set, get) => {
           }
         } catch (error) {
           let errorMessage = 'Registration failed';
-          if (error.response?.status === 401 || error.response?.status === 403) {
-            errorMessage = 'Registration requires CEO privileges. Please contact your administrator.';
-          } else {
-            errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Registration failed';
+          
+          // Check for validation errors
+          if (error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            errorMessage = Array.isArray(errors) 
+              ? errors.map(e => typeof e === 'string' ? e : (e.msg || e.message || JSON.stringify(e))).join(', ')
+              : errors;
+          } 
+          // Check for error message
+          else if (error.response?.data?.message) {
+            errorMessage = Array.isArray(error.response.data.message) 
+              ? error.response.data.message.join(', ')
+              : error.response.data.message;
+          } 
+          // Check for error field
+          else if (error.response?.data?.error) {
+            errorMessage = Array.isArray(error.response.data.error) 
+              ? error.response.data.error.join(', ')
+              : error.response.data.error;
+          } 
+          // Check for status text
+          else if (error.response?.statusText) {
+            errorMessage = error.response.statusText;
           }
+          // Fallback to error message
+          else if (error.message) {
+            errorMessage = error.message;
+          }
+          
           set({ error: errorMessage, isLoading: false, isAuthenticated: false });
           return { success: false, error: errorMessage };
         }
