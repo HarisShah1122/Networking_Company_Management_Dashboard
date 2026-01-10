@@ -228,7 +228,7 @@ const StaffPage = () => {
             {users.length === 0 ? (
               <tr>
                 <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                  No users found. {canManage && 'Click "Add User" to create one.'}
+                  No users found.
                 </td>
               </tr>
             ) : (
@@ -253,14 +253,26 @@ const StaffPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManage && (
-                      <>
-                        <button onClick={() => handleEdit(user)} className="text-indigo-600 hover:text-indigo-900 mr-4">
-                          Edit
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
+                          title="Edit"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
                         </button>
-                        <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-red-900">
-                          Delete
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
+                          title="Delete"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
-                      </>
+                      </div>
                     )}
                   </td>
                 </tr>

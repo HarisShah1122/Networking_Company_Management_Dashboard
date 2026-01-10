@@ -6,81 +6,119 @@ import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
+import TablePagination from '../../components/common/TablePagination';
+import { transformBackendPagination } from '../../utils/pagination.utils';
 import Loader from '../../components/common/Loader';
 
 const CustomersPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [paginationState, setPaginationState] = useState({ page: 1, pageSize: 10 });
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
+  const isManualReload = useRef(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  const loadCustomers = useCallback(async (search = '', status = '', isInitialLoad = false) => {
+  const loadCustomers = useCallback(async (search = '', status = '', page = 1, pageSize = 10, isInitialLoad = false) => {
     try {
       if (isInitialLoad) {
         setLoading(true);
       } else {
         setSearching(true);
       }
-      const response = await customerService.getAll({ search, status });
-      // Handle response structure: { customers: [...] } or { data: { customers: [...] } }
-      let customersList = [];
-      if (Array.isArray(response)) {
-        customersList = response;
-      } else if (response?.customers && Array.isArray(response.customers)) {
-        customersList = response.customers;
-      } else if (response?.data?.customers && Array.isArray(response.data.customers)) {
-        customersList = response.data.customers;
-      } else if (response?.data && Array.isArray(response.data)) {
-        customersList = response.data;
+      
+      const response = await customerService.getAll({ search, status, page, limit: pageSize });
+      
+      let customersData = [];
+      let backendPagination = null;
+      
+      if (response) {
+        if (response.data && Array.isArray(response.data)) {
+          customersData = response.data;
+          backendPagination = response.pagination;
+        } else if (Array.isArray(response)) {
+          customersData = response;
+        }
       }
-      setCustomers(customersList);
+      
+      setCustomers(customersData);
+
+      if (backendPagination) {
+        const transformedPagination = transformBackendPagination(backendPagination, {
+          fallbackPage: page,
+          fallbackLimit: pageSize,
+        });
+        setPagination(transformedPagination);
+      } else {
+        setPagination({
+          currentPage: page,
+          totalPages: Math.ceil(customersData.length / pageSize) || 1,
+          totalCount: customersData.length,
+          limit: pageSize,
+        });
+      }
     } catch (error) {
       const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load customers';
       toast.error(errorMsg);
       setCustomers([]);
+      setPagination({
+        currentPage: page,
+        totalPages: 1,
+        totalCount: 0,
+        limit: pageSize,
+      });
     } finally {
       setLoading(false);
       setSearching(false);
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     if (isInitialMount.current) {
-      loadCustomers('', '', true);
+      loadCustomers('', '', 1, 10, true);
       isInitialMount.current = false;
     }
   }, [loadCustomers]);
 
-  // Debounce search term and status filter
   useEffect(() => {
-    // Skip on initial mount
+    if (isInitialMount.current) {
+      return;
+    }
+    setPaginationState(prev => ({ ...prev, page: 1 }));
+  }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
     if (isInitialMount.current) {
       return;
     }
 
-    // Clear previous timer
+    if (isManualReload.current) {
+      isManualReload.current = false;
+      return;
+    }
+
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
     
-    // Set searching state immediately for better UX
     if (searchTerm || statusFilter) {
       setSearching(true);
     }
     
-    // Debounce the actual API call
     debounceTimer.current = setTimeout(() => {
-      loadCustomers(searchTerm, statusFilter, false);
+      loadCustomers(searchTerm, statusFilter, paginationState.page, paginationState.pageSize, false);
     }, 500);
 
     return () => {
@@ -88,24 +126,42 @@ const CustomersPage = () => {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [searchTerm, statusFilter, loadCustomers]);
+  }, [searchTerm, statusFilter, paginationState.page, paginationState.pageSize, loadCustomers]);
+
+  const handlePageChange = useCallback((page) => {
+    setPaginationState(prev => ({ ...prev, page }));
+  }, []);
+
+  const handlePageSizeChange = useCallback((pageSize) => {
+    setPaginationState(prev => ({
+      ...prev,
+      pageSize,
+      page: 1,
+    }));
+  }, []);
 
   const onSubmit = async (data) => {
     try {
       if (editingCustomer) {
         await customerService.update(editingCustomer.id, data);
         toast.success('Customer updated successfully!');
+        reset();
+        setShowModal(false);
+        setEditingCustomer(null);
+        isManualReload.current = true;
+        await loadCustomers(searchTerm, statusFilter, paginationState.page, paginationState.pageSize, false);
       } else {
         await customerService.create(data);
         toast.success('Customer created successfully!');
+        reset();
+        setShowModal(false);
+        setEditingCustomer(null);
+        isManualReload.current = true;
+        setPaginationState(prev => ({ ...prev, page: 1 }));
+        await loadCustomers(searchTerm, statusFilter, 1, paginationState.pageSize, false);
       }
-      reset();
-      setShowModal(false);
-      setEditingCustomer(null);
-      // Reload with current search/filter values
-      await loadCustomers(searchTerm, statusFilter, false);
     } catch (error) {
-      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to save customer';
+      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to save customer';
       toast.error(errorMsg);
     }
   };
@@ -116,17 +172,24 @@ const CustomersPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      try {
-        await customerService.delete(id);
-        toast.success('Customer deleted successfully!');
-        // Reload with current search/filter values
-        await loadCustomers(searchTerm, statusFilter, false);
-      } catch (error) {
-        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete customer';
-        toast.error(errorMsg);
-      }
+  const handleDelete = (customer) => {
+    setCustomerToDelete(customer);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete) return;
+
+    try {
+      await customerService.delete(customerToDelete.id);
+      toast.success('Customer deleted successfully!');
+      setShowDeleteModal(false);
+      setCustomerToDelete(null);
+      isManualReload.current = true;
+      await loadCustomers(searchTerm, statusFilter, paginationState.page, paginationState.pageSize, false);
+    } catch (error) {
+      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to delete customer';
+      toast.error(errorMsg);
     }
   };
 
@@ -190,7 +253,7 @@ const CustomersPage = () => {
             {customers.length === 0 ? (
               <tr>
                 <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                  No customers found. {canManage && 'Click "Add Customer" to create one.'}
+                  No customers found.
                 </td>
               </tr>
             ) : (
@@ -205,7 +268,7 @@ const CustomersPage = () => {
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{customer.email || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{customer.email ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
                       customer.status === 'active' ? 'bg-green-600 text-white' :
@@ -217,14 +280,26 @@ const CustomersPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManage && (
-                      <>
-                        <button onClick={() => handleEdit(customer)} className="text-indigo-600 hover:text-indigo-900 mr-4">
-                          Edit
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(customer)}
+                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
+                          title="Edit"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
                         </button>
-                        <button onClick={() => handleDelete(customer.id)} className="text-red-600 hover:text-red-900">
-                          Delete
+                        <button
+                          onClick={() => handleDelete(customer)}
+                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
+                          title="Delete"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
-                      </>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -232,6 +307,16 @@ const CustomersPage = () => {
             )}
           </tbody>
         </table>
+        
+        {pagination && pagination.totalPages > 0 && (
+          <TablePagination
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            pageSize={paginationState.pageSize}
+            isFetching={searching}
+          />
+        )}
       </div>
 
       {showModal && canManage && (
@@ -301,9 +386,21 @@ const CustomersPage = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setCustomerToDelete(null);
+        }}
+        title="Delete Customer"
+        itemName={customerToDelete?.name}
+        onConfirm={handleConfirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };
 
 export default CustomersPage;
-

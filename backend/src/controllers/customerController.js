@@ -7,12 +7,14 @@ const { validateCustomer } = require('../helpers/validators');
 const getAll = async (req, res, next) => {
   try {
     const filters = {
-      status: req.query.status || '',
-      search: req.query.search || ''
+      status: req.query.status ?? '',
+      search: req.query.search ?? '',
+      page: req.query.page ?? 1,
+      limit: req.query.limit ?? 10
     };
 
-    const customers = await CustomerService.getAll(filters);
-    return ApiResponse.success(res, { customers }, 'Customers retrieved successfully');
+    const result = await CustomerService.getAll(filters);
+    return ApiResponse.paginated(res, result.data, result.pagination, 'Customers retrieved successfully');
   } catch (error) {
     next(error);
   }

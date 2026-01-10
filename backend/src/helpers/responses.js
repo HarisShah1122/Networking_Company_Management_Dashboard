@@ -57,6 +57,22 @@ class ApiResponse {
       message
     });
   }
+
+  static paginated(res, data = [], pagination = {}, message = 'Data retrieved successfully', statusCode = HTTP_STATUS.OK) {
+    return res.status(statusCode).json({
+      success: true,
+      message,
+      data,
+      pagination: {
+        page: pagination.page ?? 1,
+        limit: pagination.limit ?? 10,
+        total: pagination.total ?? 0,
+        total_pages: pagination.total_pages ?? 1,
+        has_next: pagination.has_next ?? false,
+        has_prev: pagination.has_prev ?? false
+      }
+    });
+  }
 }
 
 module.exports = ApiResponse;

@@ -4,7 +4,7 @@ const QueryBuilder = require('../helpers/queryBuilder');
 
 const getAll = async (filters = {}) => {
   try {
-    const { status, search } = filters;
+    const { status, search, page, limit } = filters;
     
     // Normalize filters
     const normalizedFilters = {
@@ -17,10 +17,38 @@ const getAll = async (filters = {}) => {
       QueryBuilder.buildSearchQuery(['name', 'phone', 'email'], normalizedFilters.search)
     );
 
-    return await Customer.findAll({
+    // Pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 10, 100); // Max 100 per page
+    const offset = (pageNum - 1) * limitNum;
+
+    // Get total count
+    const total = await Customer.count({ where });
+
+    // Get paginated data
+    const customers = await Customer.findAll({
       where,
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],
+      limit: limitNum,
+      offset: offset
     });
+
+    // Calculate pagination metadata
+    const total_pages = Math.ceil(total / limitNum);
+    const has_next = pageNum < total_pages;
+    const has_prev = pageNum > 1;
+
+    return {
+      data: customers,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        total_pages,
+        has_next,
+        has_prev
+      }
+    };
   } catch (error) {
     throw error;
   }
