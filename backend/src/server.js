@@ -60,20 +60,15 @@ const startServer = async () => {
   try {
     // Test database connection
     await sequelize.authenticate();
-    console.log('✅ Database connection established');
-
     // Sync models (only in development, use migrations in production)
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync({ alter: false });
-      console.log('✅ Database models synced');
     }
 
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      // Server started successfully
     });
   } catch (error) {
-    console.error('❌ Unable to start server:', error);
     process.exit(1);
   }
 };

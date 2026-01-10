@@ -50,6 +50,14 @@ class ConnectionService {
     return await this.getById(id);
   }
 
+  static async delete(id) {
+    const connection = await Connection.findByPk(id);
+    if (!connection) return false;
+
+    await connection.destroy();
+    return true;
+  }
+
   static async getStats() {
     const [stats] = await Connection.findAll({
       attributes: [

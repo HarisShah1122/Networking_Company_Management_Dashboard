@@ -22,7 +22,6 @@ const getAll = async (filters = {}) => {
       order: [['created_at', 'DESC']]
     });
   } catch (error) {
-    console.error('Error in customer service getAll:', error);
     throw error;
   }
 };

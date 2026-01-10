@@ -46,7 +46,7 @@ const create = async (req, res, next) => {
       req.user.id,
       'create',
       'recharges',
-      `Created recharge: $${recharge.amount}`
+      `Created recharge: RS ${recharge.amount}`
     );
 
     return ApiResponse.success(res, { recharge }, 'Recharge created successfully', 201);
@@ -73,7 +73,7 @@ const update = async (req, res, next) => {
       req.user.id,
       'update',
       'recharges',
-      `Updated recharge: $${recharge.amount}`
+      `Updated recharge: RS ${recharge.amount}`
     );
 
     return ApiResponse.success(res, { recharge }, 'Recharge updated successfully');
@@ -86,6 +86,35 @@ const getDuePayments = async (req, res, next) => {
   try {
     const duePayments = await RechargeService.getDuePayments();
     return ApiResponse.success(res, { duePayments }, 'Due payments retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteRecharge = async (req, res, next) => {
+  try {
+    const recharge = await RechargeService.getById(req.params.id);
+    
+    if (!recharge) {
+      return ApiResponse.notFound(res, 'Recharge');
+    }
+
+    const amount = recharge.amount;
+    const deleted = await RechargeService.delete(req.params.id);
+
+    if (!deleted) {
+      return ApiResponse.error(res, 'Failed to delete recharge', 500);
+    }
+
+    // Log activity (non-blocking)
+    ActivityLogService.logActivity(
+      req.user.id,
+      'delete',
+      'recharges',
+      `Deleted recharge: RS ${amount}`
+    );
+
+    return ApiResponse.success(res, null, 'Recharge deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -105,6 +134,7 @@ module.exports = {
   getById,
   create,
   update,
+  delete: deleteRecharge,
   getDuePayments,
   getStats,
   validateRecharge

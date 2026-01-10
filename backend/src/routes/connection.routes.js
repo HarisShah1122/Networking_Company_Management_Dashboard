@@ -24,6 +24,11 @@ router.put(
   handleValidationErrors,
   connectionController.update
 );
+router.delete(
+  '/:id',
+  requireRole('CEO', 'Manager'),
+  connectionController.delete
+);
 
 module.exports = router;
 

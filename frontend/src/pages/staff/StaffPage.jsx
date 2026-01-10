@@ -1,45 +1,145 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'react-toastify';
 import { userService } from '../../services/userService';
+import useAuthStore from '../../stores/authStore';
+import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import Loader from '../../components/common/Loader';
 
 const StaffPage = () => {
+  const { user } = useAuthStore();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const debounceTimer = useRef(null);
+  const isInitialMount = useRef(true);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async (search = '', role = '', isInitialLoad = false) => {
     try {
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setSearching(true);
+      }
       const response = await userService.getAll();
-      setUsers(response.users || []);
+      let usersList = [];
+      if (Array.isArray(response)) {
+        usersList = response;
+      } else if (response?.users && Array.isArray(response.users)) {
+        usersList = response.users;
+      } else if (response?.data?.users && Array.isArray(response.data.users)) {
+        usersList = response.data.users;
+      } else if (response?.data && Array.isArray(response.data)) {
+        usersList = response.data;
+      }
+      
+      // Filter by search term and role on frontend
+      if (search && search.trim()) {
+        const searchLower = search.toLowerCase();
+        usersList = usersList.filter(user => 
+          (user.username && user.username.toLowerCase().includes(searchLower)) ||
+          (user.email && user.email.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      if (role && role.trim()) {
+        usersList = usersList.filter(user => user.role === role);
+      }
+      
+      setUsers(usersList);
     } catch (error) {
-      console.error('Error loading users:', error);
+      const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load users';
+      toast.error(errorMsg);
+      setUsers([]);
     } finally {
       setLoading(false);
+      setSearching(false);
     }
-  };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    if (isInitialMount.current) {
+      loadUsers('', '', true);
+      isInitialMount.current = false;
+    }
+  }, [loadUsers]);
+
+  // Debounce search term and role filter
+  useEffect(() => {
+    if (isInitialMount.current) {
+      return;
+    }
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    if (searchTerm || roleFilter) {
+      setSearching(true);
+    }
+    
+    debounceTimer.current = setTimeout(() => {
+      loadUsers(searchTerm, roleFilter, false);
+    }, 500);
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [searchTerm, roleFilter, loadUsers]);
 
   const onSubmit = async (data) => {
     try {
+      // Prepare submit data
+      const submitData = {
+        email: data.email?.trim(),
+        username: data.username?.trim(),
+        role: data.role,
+        status: data.status ?? 'active',
+      };
+
+      // Only include password if provided (for new users or updates)
+      if (data.password && data.password.trim()) {
+        submitData.password = data.password.trim();
+      }
+
       if (editingUser) {
-        await userService.update(editingUser.id, data);
+        await userService.update(editingUser.id, submitData);
+        toast.success('User updated successfully!');
       } else {
-        await userService.create(data);
+        if (!data.password || !data.password.trim()) {
+          toast.error('Password is required for new users');
+          return;
+        }
+        await userService.create(submitData);
+        toast.success('User created successfully!');
       }
       reset();
       setShowModal(false);
       setEditingUser(null);
-      loadUsers();
+      await loadUsers(searchTerm, roleFilter, false);
     } catch (error) {
-      console.error('Error saving user:', error);
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const validationErrors = error.response.data.errors
+          .map(err => err.msg ?? err.message ?? JSON.stringify(err))
+          .filter((msg, index, self) => self.indexOf(msg) === index)
+          .join(', ');
+        toast.error(`Validation Error: ${validationErrors}`, { autoClose: 5000 });
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        const errorMsg = error.response?.data?.error ?? error.message ?? 'Failed to save user';
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -49,23 +149,67 @@ const StaffPage = () => {
       email: user.email,
       username: user.username,
       role: user.role,
-      status: user.status,
+      status: user.status || 'active',
     });
     setShowModal(true);
   };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await userService.delete(id);
+        toast.success('User deleted successfully!');
+        await loadUsers(searchTerm, roleFilter, false);
+      } catch (error) {
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete user';
+        toast.error(errorMsg);
+      }
+    }
+  };
+
+  const canManage = isManager(user?.role);
 
   if (loading) return <Loader />;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Staff Management</h1>
-        <button
-          onClick={() => { reset(); setEditingUser(null); setShowModal(true); }}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Staff Management</h1>
+      </div>
+
+      <div className="flex gap-4 mb-4">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search staff..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {searching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+        </div>
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          Add User
-        </button>
+          <option value="">All Roles</option>
+          <option value="CEO">CEO</option>
+          <option value="Manager">Manager</option>
+          <option value="Staff">Staff</option>
+        </select>
+        {canManage && (
+          <button
+            onClick={() => { reset(); setEditingUser(null); setShowModal(true); }}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
+          >
+            Add User
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -81,37 +225,52 @@ const StaffPage = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-medium">{user.username}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {user.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {new Date(user.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => handleEdit(user)} className="text-indigo-600 hover:text-indigo-900">
-                    Edit
-                  </button>
+            {users.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                  No users found. {canManage && 'Click "Add User" to create one.'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">{user.username}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-600 text-white">
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                      user.status === 'active' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                    }`}>
+                      {user.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {canManage && (
+                      <>
+                        <button onClick={() => handleEdit(user)} className="text-indigo-600 hover:text-indigo-900 mr-4">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-red-900">
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      {showModal && (
+      {showModal && canManage && (
         <Modal
           isOpen={showModal}
           onClose={() => { setShowModal(false); reset(); setEditingUser(null); }}
@@ -141,7 +300,7 @@ const StaffPage = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Password *</label>
                   <input
-                    {...register('password', { required: !editingUser, minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
+                    {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
                     type="password"
                     className="mt-1 block w-full px-3 py-2 border rounded-md"
                   />
@@ -190,4 +349,3 @@ const StaffPage = () => {
 };
 
 export default StaffPage;
-

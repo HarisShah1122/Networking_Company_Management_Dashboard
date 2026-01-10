@@ -25,6 +25,11 @@ router.put(
   handleValidationErrors,
   rechargeController.update
 );
+router.delete(
+  '/:id',
+  requireRole('CEO', 'Manager'),
+  rechargeController.delete
+);
 
 module.exports = router;
 

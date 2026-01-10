@@ -34,17 +34,17 @@ const DashboardPage = () => {
       ]);
 
       const updatedStats = {
-        customers: customers.stats || {},
-        connections: connections.stats || {},
-        recharges: recharges.stats || {},
-        stock: stock.stats || {},
-        transactions: transactions.summary || {},
+        customers: customers.stats ?? {},
+        connections: connections.stats ?? {},
+        recharges: recharges.stats ?? {},
+        stock: stock.stats ?? {},
+        transactions: transactions.summary ?? {},
       };
       setStats(updatedStats);
 
       // Generate revenue growth data for last 6 months
       const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'];
-      const baseRevenue = parseFloat(updatedStats.recharges.total_paid || 0) / 6;
+      const baseRevenue = parseFloat(updatedStats.recharges?.total_paid ?? 0) / 6;
       const revenueGrowthData = months.map((month, index) => ({
         month,
         revenue: Math.max(0, Math.round(baseRevenue * (1 + index * 0.15) + Math.random() * 500))
@@ -52,7 +52,7 @@ const DashboardPage = () => {
       setRevenueData(revenueGrowthData);
 
       // Generate complaint status data
-      const totalComplaints = (updatedStats.connections.pending || 0) + (updatedStats.connections.total || 0) || 124;
+      const totalComplaints = (updatedStats.connections.pending ?? 0) + (updatedStats.connections.total ?? 0) ?? 124;
       const resolved = Math.floor(totalComplaints * 0.5);
       const pending = Math.floor(totalComplaints * 0.24);
       const open = totalComplaints - resolved - pending;
@@ -63,7 +63,6 @@ const DashboardPage = () => {
         { name: 'Open', value: open, color: '#EF4444' }
       ]);
     } catch (error) {
-      console.error('Error loading stats:', error);
     } finally {
       setLoading(false);
     }
@@ -73,7 +72,7 @@ const DashboardPage = () => {
     return <Loader />;
   }
 
-  const profitLoss = (stats.transactions.total_income || 0) - (stats.transactions.total_expense || 0);
+  const profitLoss = parseFloat(stats.transactions?.total_income ?? 0) - parseFloat(stats.transactions?.total_expense ?? 0);
 
   return (
     <div className="space-y-6">
@@ -82,29 +81,29 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Customers"
-          value={stats.customers.total || 0}
-          subtitle={`${stats.customers.active || 0} active`}
+          value={stats.customers.total ?? 0}
+          subtitle={`${stats.customers.active ?? 0} active`}
           icon="👥"
           color="blue"
         />
         <StatCard
           title="Connections"
-          value={stats.connections.total || 0}
-          subtitle={`${stats.connections.pending || 0} pending`}
+          value={stats.connections.total ?? 0}
+          subtitle={`${stats.connections.pending ?? 0} pending`}
           icon="🔌"
           color="green"
         />
         <StatCard
           title="Revenue"
-          value={`$${(stats.recharges.total_paid || 0).toFixed(2)}`}
-          subtitle={`$${(stats.recharges.total_pending || 0).toFixed(2)} pending`}
+          value={`RS ${parseFloat(stats.recharges?.total_paid ?? 0).toFixed(2)}`}
+          subtitle={`RS ${parseFloat(stats.recharges?.total_pending ?? 0).toFixed(2)} pending`}
           icon="💰"
           color="yellow"
         />
         <StatCard
           title="Profit/Loss"
-          value={`$${profitLoss.toFixed(2)}`}
-          subtitle={`Income: $${(stats.transactions.total_income || 0).toFixed(2)}`}
+          value={`RS ${profitLoss.toFixed(2)}`}
+          subtitle={`Income: RS ${parseFloat(stats.transactions?.total_income ?? 0).toFixed(2)}`}
           icon="📊"
           color={profitLoss >= 0 ? 'green' : 'red'}
         />
@@ -116,11 +115,11 @@ const DashboardPage = () => {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Total Items:</span>
-              <span className="font-semibold">{stats.stock.total_items || 0}</span>
+              <span className="font-semibold">{stats.stock.total_items ?? 0}</span>
             </div>
             <div className="flex justify-between">
               <span>Total Value:</span>
-              <span className="font-semibold">${(stats.stock.total_value || 0).toFixed(2)}</span>
+              <span className="font-semibold">RS {parseFloat(stats.stock?.total_value ?? 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -131,19 +130,19 @@ const DashboardPage = () => {
             <div className="flex justify-between">
               <span>Total Income:</span>
               <span className="font-semibold text-green-600">
-                ${(stats.transactions.total_income || 0).toFixed(2)}
+                RS {parseFloat(stats.transactions?.total_income ?? 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Total Expenses:</span>
               <span className="font-semibold text-red-600">
-                ${(stats.transactions.total_expense || 0).toFixed(2)}
+                RS {parseFloat(stats.transactions?.total_expense ?? 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between pt-2 border-t">
               <span>Net Profit:</span>
               <span className={`font-semibold ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ${profitLoss.toFixed(2)}
+                RS {profitLoss.toFixed(2)}
               </span>
             </div>
           </div>
@@ -175,7 +174,7 @@ const DashboardPage = () => {
                 dataKey="revenue" 
                 stroke="#3B82F6" 
                 strokeWidth={2}
-                name="Revenue ($)"
+                name="Revenue (RS)"
               />
             </LineChart>
           </ResponsiveContainer>

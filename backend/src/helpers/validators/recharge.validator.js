@@ -3,11 +3,13 @@ const { RECHARGE_STATUS, PAYMENT_METHODS } = require('../constants');
 
 const validateRecharge = [
   body('customer_id')
+    .optional({ nullable: true, checkFalsy: true })
     .notEmpty()
     .withMessage('Customer ID is required')
     .isUUID()
     .withMessage('Invalid customer ID format'),
   body('amount')
+    .optional({ nullable: true, checkFalsy: true })
     .notEmpty()
     .withMessage('Amount is required')
     .isFloat({ min: 0.01 })

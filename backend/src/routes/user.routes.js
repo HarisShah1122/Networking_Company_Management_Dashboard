@@ -23,6 +23,10 @@ router.put(
   handleValidationErrors,
   userController.update
 );
+router.delete(
+  '/:id',
+  userController.delete
+);
 
 module.exports = router;
 

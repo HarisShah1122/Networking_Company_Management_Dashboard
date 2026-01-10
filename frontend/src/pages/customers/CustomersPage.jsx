@@ -44,8 +44,7 @@ const CustomersPage = () => {
       }
       setCustomers(customersList);
     } catch (error) {
-      console.error('Error loading customers:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Failed to load customers';
+      const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load customers';
       toast.error(errorMsg);
       setCustomers([]);
     } finally {

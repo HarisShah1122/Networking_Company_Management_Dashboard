@@ -28,7 +28,6 @@ const LoginPage = () => {
       }
     } catch (error) {
       // Error is handled by the store
-      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }

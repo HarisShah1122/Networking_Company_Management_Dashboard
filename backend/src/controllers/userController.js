@@ -100,10 +100,40 @@ const update = async (req, res, next) => {
   }
 };
 
+const deleteUser = async (req, res, next) => {
+  try {
+    const user = await UserService.getById(req.params.id);
+    
+    if (!user) {
+      return ApiResponse.notFound(res, 'User');
+    }
+
+    const username = user.username;
+    const deleted = await UserService.delete(req.params.id);
+
+    if (!deleted) {
+      return ApiResponse.error(res, 'Failed to delete user', 500);
+    }
+
+    // Log activity (non-blocking)
+    ActivityLogService.logActivity(
+      req.user.id,
+      'delete',
+      'users',
+      `Deleted user: ${username}`
+    );
+
+    return ApiResponse.success(res, null, 'User deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
+  delete: deleteUser,
   validateUser
 };

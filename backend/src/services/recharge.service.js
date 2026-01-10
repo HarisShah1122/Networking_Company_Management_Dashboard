@@ -51,6 +51,14 @@ class RechargeService {
     return await this.getById(id);
   }
 
+  static async delete(id) {
+    const recharge = await Recharge.findByPk(id);
+    if (!recharge) return false;
+
+    await recharge.destroy();
+    return true;
+  }
+
   static async getDuePayments() {
     const today = new Date().toISOString().split('T')[0];
     

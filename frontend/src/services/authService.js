@@ -16,7 +16,7 @@ export const authService = {
   getMe: async () => {
     const response = await apiClient.get('/auth/me');
     // Backend returns { success, message, data: { user } }
-    return response.data.data || response.data;
+    return response.data.data ?? response.data;
   },
 };
 

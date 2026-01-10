@@ -48,7 +48,7 @@ const create = async (req, res, next) => {
       req.user.id,
       'create',
       'transactions',
-      `Created ${transaction.type}: $${transaction.amount}`
+      `Created ${transaction.type}: RS ${transaction.amount}`
     );
 
     return ApiResponse.success(res, { transaction }, 'Transaction created successfully', 201);
@@ -75,7 +75,7 @@ const update = async (req, res, next) => {
       req.user.id,
       'update',
       'transactions',
-      `Updated transaction: $${transaction.amount}`
+      `Updated transaction: RS ${transaction.amount}`
     );
 
     return ApiResponse.success(res, { transaction }, 'Transaction updated successfully');
@@ -104,7 +104,7 @@ const deleteTransaction = async (req, res, next) => {
       req.user.id,
       'delete',
       'transactions',
-      `Deleted transaction: $${amount}`
+      `Deleted transaction: RS ${amount}`
     );
 
     return ApiResponse.success(res, null, 'Transaction deleted successfully');

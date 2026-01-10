@@ -5,7 +5,6 @@ let ComplaintService;
 try {
   ComplaintService = require('../services/complaint.service');
 } catch (error) {
-  console.error('Error loading complaint service:', error);
   throw error;
 }
 

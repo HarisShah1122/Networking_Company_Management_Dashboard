@@ -27,7 +27,6 @@ const RegisterPage = () => {
         navigate('/dashboard', { replace: true });
       }
     } catch (error) {
-      console.error('Registration error:', error);
     } finally {
       setIsLoading(false);
     }

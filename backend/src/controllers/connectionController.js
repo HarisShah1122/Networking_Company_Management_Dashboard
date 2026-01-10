@@ -82,6 +82,35 @@ const update = async (req, res, next) => {
   }
 };
 
+const deleteConnection = async (req, res, next) => {
+  try {
+    const connection = await ConnectionService.getById(req.params.id);
+    
+    if (!connection) {
+      return ApiResponse.notFound(res, 'Connection');
+    }
+
+    const connectionType = connection.connection_type;
+    const deleted = await ConnectionService.delete(req.params.id);
+
+    if (!deleted) {
+      return ApiResponse.error(res, 'Failed to delete connection', 500);
+    }
+
+    // Log activity (non-blocking)
+    ActivityLogService.logActivity(
+      req.user.id,
+      'delete',
+      'connections',
+      `Deleted connection: ${connectionType}`
+    );
+
+    return ApiResponse.success(res, null, 'Connection deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getStats = async (req, res, next) => {
   try {
     const stats = await ConnectionService.getStats();
@@ -96,6 +125,7 @@ module.exports = {
   getById,
   create,
   update,
+  delete: deleteConnection,
   getStats,
   validateConnection
 };
