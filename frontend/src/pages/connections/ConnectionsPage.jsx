@@ -8,6 +8,7 @@ import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import Loader from '../../components/common/Loader';
 
 const ConnectionsPage = () => {
@@ -17,7 +18,9 @@ const ConnectionsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingConnection, setEditingConnection] = useState(null);
+  const [connectionToDelete, setConnectionToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const debounceTimer = useRef(null);
@@ -226,16 +229,23 @@ const ConnectionsPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this connection?')) {
-      try {
-        await connectionService.delete(id);
-        toast.success('Connection deleted successfully!');
-        await loadConnections(searchTerm, statusFilter, false);
-      } catch (error) {
-        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete connection';
-        toast.error(errorMsg);
-      }
+  const handleDelete = (connection) => {
+    setConnectionToDelete(connection);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!connectionToDelete) return;
+
+    try {
+      await connectionService.delete(connectionToDelete.id);
+      toast.success('Connection deleted successfully!');
+      setShowDeleteModal(false);
+      setConnectionToDelete(null);
+      await loadConnections(searchTerm, statusFilter, false);
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete connection';
+      toast.error(errorMsg);
     }
   };
 
@@ -336,7 +346,7 @@ const ConnectionsPage = () => {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(connection.id)}
+                          onClick={() => handleDelete(connection)}
                           className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                           title="Delete"
                         >
@@ -457,6 +467,19 @@ const ConnectionsPage = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setConnectionToDelete(null);
+        }}
+        title="Delete Connection"
+        itemName={connectionToDelete ? `${connectionToDelete.customer_name ?? 'Connection'} - ${connectionToDelete.connection_type ?? ''}` : ''}
+        onConfirm={handleConfirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

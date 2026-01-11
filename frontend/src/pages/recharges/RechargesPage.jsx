@@ -8,6 +8,7 @@ import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import Loader from '../../components/common/Loader';
 
 const RechargesPage = () => {
@@ -18,7 +19,9 @@ const RechargesPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingRecharge, setEditingRecharge] = useState(null);
+  const [rechargeToDelete, setRechargeToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -267,17 +270,24 @@ const RechargesPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this recharge?')) {
-      try {
-        await rechargeService.delete(id);
-        toast.success('Recharge deleted successfully!');
-        await loadRecharges(searchTerm, statusFilter, false);
-        await loadDuePayments();
-      } catch (error) {
-        const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to delete recharge';
-        toast.error(errorMsg);
-      }
+  const handleDelete = (recharge) => {
+    setRechargeToDelete(recharge);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!rechargeToDelete) return;
+
+    try {
+      await rechargeService.delete(rechargeToDelete.id);
+      toast.success('Recharge deleted successfully!');
+      setShowDeleteModal(false);
+      setRechargeToDelete(null);
+      await loadRecharges(searchTerm, statusFilter, false);
+      await loadDuePayments();
+    } catch (error) {
+      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to delete recharge';
+      toast.error(errorMsg);
     }
   };
 
@@ -481,7 +491,7 @@ const RechargesPage = () => {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(recharge.id)}
+                          onClick={() => handleDelete(recharge)}
                           className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                           title="Delete"
                         >
@@ -647,6 +657,19 @@ const RechargesPage = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setRechargeToDelete(null);
+        }}
+        title="Delete Recharge"
+        itemName={rechargeToDelete ? `${rechargeToDelete.customer_name ?? 'Recharge'} - RS ${parseFloat(rechargeToDelete.amount || 0).toFixed(2)}` : ''}
+        onConfirm={handleConfirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };
