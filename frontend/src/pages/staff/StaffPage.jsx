@@ -5,6 +5,7 @@ import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import Loader from '../../components/common/Loader';
 
 const StaffPage = () => {
@@ -13,7 +14,9 @@ const StaffPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [userToDelete, setUserToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const debounceTimer = useRef(null);
@@ -154,16 +157,23 @@ const StaffPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      try {
-        await userService.delete(id);
-        toast.success('User deleted successfully!');
-        await loadUsers(searchTerm, roleFilter, false);
-      } catch (error) {
-        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete user';
-        toast.error(errorMsg);
-      }
+  const handleDelete = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    try {
+      await userService.delete(userToDelete.id);
+      toast.success('User deleted successfully!');
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      await loadUsers(searchTerm, roleFilter, false);
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete user';
+      toast.error(errorMsg);
     }
   };
 
@@ -264,7 +274,7 @@ const StaffPage = () => {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => handleDelete(user)}
                           className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                           title="Delete"
                         >
@@ -356,6 +366,19 @@ const StaffPage = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setUserToDelete(null);
+        }}
+        title="Delete User"
+        itemName={userToDelete?.username || userToDelete?.email}
+        onConfirm={handleConfirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

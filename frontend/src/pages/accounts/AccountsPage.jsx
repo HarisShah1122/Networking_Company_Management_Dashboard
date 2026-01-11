@@ -7,6 +7,7 @@ import { transactionService } from '../../services/transactionService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import Loader from '../../components/common/Loader';
 
 const AccountsPage = () => {
@@ -16,7 +17,9 @@ const AccountsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [transactionToDelete, setTransactionToDelete] = useState(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const debounceTimer = useRef(null);
@@ -170,17 +173,24 @@ const AccountsPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this transaction?')) {
-      try {
-        await transactionService.delete(id);
-        toast.success('Transaction deleted successfully!');
-        await loadTransactions(searchTerm, typeFilter, false);
-        await loadSummary();
-      } catch (error) {
-        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete transaction';
-        toast.error(errorMsg);
-      }
+  const handleDelete = (transaction) => {
+    setTransactionToDelete(transaction);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!transactionToDelete) return;
+
+    try {
+      await transactionService.delete(transactionToDelete.id);
+      toast.success('Transaction deleted successfully!');
+      setShowDeleteModal(false);
+      setTransactionToDelete(null);
+      await loadTransactions(searchTerm, typeFilter, false);
+      await loadSummary();
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete transaction';
+      toast.error(errorMsg);
     }
   };
 
@@ -303,7 +313,7 @@ const AccountsPage = () => {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(transaction.id)}
+                          onClick={() => handleDelete(transaction)}
                           className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                           title="Delete"
                         >
@@ -403,6 +413,19 @@ const AccountsPage = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setTransactionToDelete(null);
+        }}
+        title="Delete Transaction"
+        itemName={transactionToDelete ? `${transactionToDelete.type} - RS ${parseFloat(transactionToDelete.amount || 0).toFixed(2)}` : ''}
+        onConfirm={handleConfirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { stockService } from '../../services/stockService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import Loader from '../../components/common/Loader';
 
 const StockPage = () => {
@@ -14,7 +15,9 @@ const StockPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const debounceTimer = useRef(null);
@@ -155,16 +158,23 @@ const StockPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this stock item?')) {
-      try {
-        await stockService.delete(id);
-        toast.success('Stock item deleted successfully!');
-        await loadStock(searchTerm, categoryFilter, false);
-      } catch (error) {
-        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete stock item';
-        toast.error(errorMsg);
-      }
+  const handleDelete = (item) => {
+    setItemToDelete(item);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+
+    try {
+      await stockService.delete(itemToDelete.id);
+      toast.success('Stock item deleted successfully!');
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+      await loadStock(searchTerm, categoryFilter, false);
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete stock item';
+      toast.error(errorMsg);
     }
   };
 
@@ -253,7 +263,7 @@ const StockPage = () => {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => handleDelete(item)}
                           className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                           title="Delete"
                         >
@@ -367,6 +377,19 @@ const StockPage = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setItemToDelete(null);
+        }}
+        title="Delete Stock Item"
+        itemName={itemToDelete?.name}
+        onConfirm={handleConfirmDelete}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 };
