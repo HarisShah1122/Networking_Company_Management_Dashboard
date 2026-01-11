@@ -42,7 +42,15 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'transactions',
     timestamps: true,
-    underscored: true
+    underscored: true,
+    indexes: [
+      { fields: ['created_by'] },
+      { fields: ['type'] },
+      { fields: ['date'] },
+      { fields: ['created_at'] },
+      { fields: ['type', 'date'] },
+      { fields: ['date', 'type'] }
+    ]
   });
 
   return Transaction;

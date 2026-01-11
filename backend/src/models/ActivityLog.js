@@ -24,7 +24,13 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'activity_logs',
     timestamps: true,
-    underscored: true
+    underscored: true,
+    indexes: [
+      { fields: ['user_id'] },
+      { fields: ['created_at'] },
+      { fields: ['user_id', 'created_at'] },
+      { fields: ['model', 'created_at'] }
+    ]
   });
 
   ActivityLog.associate = (models) => {

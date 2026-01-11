@@ -45,7 +45,15 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'customers',
     timestamps: true,
-    underscored: true
+    underscored: true,
+    indexes: [
+      { fields: ['phone'] },
+      { fields: ['email'] },
+      { fields: ['status'] },
+      { fields: ['name'] },
+      { fields: ['created_at'] },
+      { fields: ['status', 'created_at'] }
+    ]
   });
 
   return Customer;

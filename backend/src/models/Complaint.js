@@ -60,7 +60,17 @@ module.exports = (sequelize, DataTypes) => {
     }, {
       tableName: 'complaints',
       timestamps: true,
-      underscored: true
+      underscored: true,
+      indexes: [
+        { fields: ['customerId'] },
+        { fields: ['connectionId'] },
+        { fields: ['assignedTo'] },
+        { fields: ['status'] },
+        { fields: ['priority'] },
+        { fields: ['createdAt'] },
+        { fields: ['status', 'priority'] },
+        { fields: ['customerId', 'status'] }
+      ]
     });
   
     Complaint.associate = (models) => {

@@ -39,7 +39,13 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'connections',
     timestamps: true,
-    underscored: true
+    underscored: true,
+    indexes: [
+      { fields: ['customer_id'] },
+      { fields: ['status'] },
+      { fields: ['created_at'] },
+      { fields: ['customer_id', 'status'] }
+    ]
   });
 
   return Connection;
