@@ -62,7 +62,15 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'recharges',
     timestamps: true,
-    underscored: true
+    underscored: true,
+    indexes: [
+      { fields: ['customer_id'] },
+      { fields: ['status'] },
+      { fields: ['due_date'] },
+      { fields: ['created_at'] },
+      { fields: ['customer_id', 'status'] },
+      { fields: ['status', 'due_date'] }
+    ]
   });
 
   return Recharge;

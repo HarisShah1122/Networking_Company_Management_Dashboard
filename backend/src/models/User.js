@@ -43,6 +43,11 @@ module.exports = (sequelize) => {
     tableName: 'users',
     timestamps: true,
     underscored: true,
+    indexes: [
+      { fields: ['role'] },
+      { fields: ['status'] },
+      { fields: ['role', 'status'] }
+    ],
     hooks: {
       beforeCreate: async (user) => {
         // If password_hash is already provided, use it

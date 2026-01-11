@@ -43,7 +43,13 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'stock_items',
     timestamps: true,
-    underscored: true
+    underscored: true,
+    indexes: [
+      { fields: ['category'] },
+      { fields: ['name'] },
+      { fields: ['created_at'] },
+      { fields: ['category', 'name'] }
+    ]
   });
 
   return Stock;
