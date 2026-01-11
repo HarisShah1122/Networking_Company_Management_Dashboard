@@ -25,13 +25,28 @@ const getAll = async (filters = {}) => {
     // Get total count
     const total = await Customer.count({ where });
 
-    // Get paginated data - only select columns that exist in database
+    // Get paginated data using raw: true to get direct database values
     const customers = await Customer.findAll({
       where,
-      attributes: ['id', 'name', 'phone', 'status', 'createdAt', 'updatedAt'],
-      order: [['created_at', 'DESC']],
+      attributes: ['id', 'name', 'phone', 'email', 'address', 'status', 'createdAt', 'updatedAt'],
+      order: [['createdAt', 'DESC']],
       limit: limitNum,
-      offset: offset
+      offset: offset,
+      raw: true
+    });
+
+    // Map to ensure proper field names and preserve email/address
+    const customersData = customers.map(customer => {
+      return {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email ?? null,
+        address: customer.address ?? null,
+        status: customer.status,
+        createdAt: customer.createdAt || customer.created_at,
+        updatedAt: customer.updatedAt || customer.updated_at
+      };
     });
 
     // Calculate pagination metadata
@@ -40,7 +55,7 @@ const getAll = async (filters = {}) => {
     const has_prev = pageNum > 1;
 
     return {
-      data: customers,
+      data: customersData,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -67,16 +82,32 @@ const getAll = async (filters = {}) => {
         const limitNum = Math.min(parseInt(limit) || 10, 100);
         const offset = (pageNum - 1) * limitNum;
         const total = await Customer.count({ where });
-        const customers = await Customer.findAll({
-          where,
-          attributes: ['id', 'name', 'phone', 'status', 'createdAt', 'updatedAt'],
-          order: [['created_at', 'DESC']],
-          limit: limitNum,
-          offset: offset
-        });
+         const customers = await Customer.findAll({
+           where,
+           attributes: ['id', 'name', 'phone', 'email', 'address', 'status', 'createdAt', 'updatedAt'],
+           order: [['createdAt', 'DESC']],
+           limit: limitNum,
+           offset: offset,
+           raw: true
+         });
+         
+         // Map to ensure proper field names and preserve email/address
+         const customersData = customers.map(customer => {
+           return {
+             id: customer.id,
+             name: customer.name,
+             phone: customer.phone,
+             email: customer.email ?? null,
+             address: customer.address ?? null,
+             status: customer.status,
+             createdAt: customer.createdAt || customer.created_at,
+             updatedAt: customer.updatedAt || customer.updated_at
+           };
+         });
+        
         const total_pages = Math.ceil(total / limitNum);
         return {
-          data: customers,
+          data: customersData,
           pagination: {
             page: pageNum,
             limit: limitNum,
@@ -96,30 +127,51 @@ const getAll = async (filters = {}) => {
 
 const getById = async (id) => {
   try {
-    return await Customer.findByPk(id, {
-      attributes: ['id', 'name', 'phone', 'status', 'createdAt', 'updatedAt']
+    const customer = await Customer.findByPk(id, {
+      attributes: ['id', 'name', 'phone', 'email', 'address', 'status', 'createdAt', 'updatedAt'],
+      raw: true
     });
+    if (!customer) return null;
+    return {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email ?? null,
+      address: customer.address ?? null,
+      status: customer.status,
+      createdAt: customer.createdAt || customer.created_at,
+      updatedAt: customer.updatedAt || customer.updated_at
+    };
   } catch (error) {
-    // If error, try without attributes
-    try {
-      return await Customer.findByPk(id);
-    } catch (fallbackError) {
-      throw fallbackError;
-    }
+    throw error;
   }
 };
 
 const create = async (data) => {
   try {
-    // Remove fields that might not exist in database
-    const { whatsapp_number, address, father_name, gender, email, ...safeData } = data;
-    return await Customer.create(safeData);
+    // Include all valid fields from Customer model
+    const customerData = {
+      name: data.name,
+      phone: data.phone,
+      email: data.email ?? null,
+      address: data.address ?? null,
+      father_name: data.father_name ?? null,
+      gender: data.gender ?? null,
+      whatsapp_number: data.whatsapp_number ?? null,
+      status: data.status ?? 'active'
+    };
+    return await Customer.create(customerData);
   } catch (error) {
     // If error about missing columns, try with only core fields
     if (error.message && (error.message.includes('Unknown column') || error.message.includes('doesn\'t exist') || error.message.includes('ER_BAD_FIELD_ERROR'))) {
       try {
-        const { whatsapp_number, address, father_name, gender, email, ...safeData } = data;
-        return await Customer.create(safeData);
+        const customerData = {
+          name: data.name,
+          phone: data.phone,
+          email: data.email ?? null,
+          status: data.status ?? 'active'
+        };
+        return await Customer.create(customerData);
       } catch (fallbackError) {
         throw fallbackError;
       }
@@ -133,9 +185,18 @@ const update = async (id, data) => {
     const customer = await Customer.findByPk(id);
     if (!customer) return null;
 
-    // Remove fields that might not exist in database
-    const { whatsapp_number, address, father_name, gender, email, ...safeData } = data;
-    await customer.update(safeData);
+    // Include all valid fields from Customer model
+    const updateData = {
+      name: data.name ?? customer.name,
+      phone: data.phone ?? customer.phone,
+      email: data.email ?? customer.email ?? null,
+      address: data.address ?? customer.address ?? null,
+      father_name: data.father_name ?? customer.father_name ?? null,
+      gender: data.gender ?? customer.gender ?? null,
+      whatsapp_number: data.whatsapp_number ?? customer.whatsapp_number ?? null,
+      status: data.status ?? customer.status ?? 'active'
+    };
+    await customer.update(updateData);
     return customer;
   } catch (error) {
     // If error about missing columns, try with only core fields
@@ -143,8 +204,13 @@ const update = async (id, data) => {
       try {
         const customer = await Customer.findByPk(id);
         if (!customer) return null;
-        const { whatsapp_number, address, father_name, gender, email, ...safeData } = data;
-        await customer.update(safeData);
+        const updateData = {
+          name: data.name ?? customer.name,
+          phone: data.phone ?? customer.phone,
+          email: data.email ?? customer.email ?? null,
+          status: data.status ?? customer.status ?? 'active'
+        };
+        await customer.update(updateData);
         return customer;
       } catch (fallbackError) {
         throw fallbackError;

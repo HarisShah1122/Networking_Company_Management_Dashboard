@@ -53,6 +53,19 @@ const CustomersPage = () => {
         }
       }
       
+      // Ensure email and address are properly mapped - preserve existing values
+      customersData = customersData.map(customer => {
+        // Preserve email and address if they exist, otherwise set to null
+        const email = customer.email ?? customer.Email ?? customer.email_address ?? null;
+        const address = customer.address ?? customer.Address ?? customer.customer_address ?? null;
+        
+        return {
+          ...customer,
+          email: email,
+          address: address
+        };
+      });
+      
       setCustomers(customersData);
 
       if (backendPagination) {
@@ -245,6 +258,7 @@ const CustomersPage = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -252,7 +266,7 @@ const CustomersPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {customers.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                   No customers found.
                 </td>
               </tr>
@@ -269,6 +283,7 @@ const CustomersPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{customer.phone}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{customer.email ?? '-'}</td>
+                  <td className="px-6 py-4">{customer.address ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
                       customer.status === 'active' ? 'bg-green-600 text-white' :
