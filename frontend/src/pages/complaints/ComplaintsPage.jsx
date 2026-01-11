@@ -50,13 +50,23 @@ const ComplaintsPage = () => {
       // Ensure all complaints have required properties
       complaintsList = complaintsList.map(complaint => {
         // Extract name and whatsapp_number with multiple fallback options
-        const name = complaint.name ?? complaint.Name ?? null;
-        const whatsapp_number = complaint.whatsapp_number ?? complaint.whatsappNumber ?? null;
+        let name = complaint.name ?? complaint.Name ?? null;
+        let whatsapp_number = complaint.whatsapp_number ?? complaint.whatsappNumber ?? null;
+        
+        // If name or whatsapp_number is missing, try to get from customers list
+        const customerId = complaint.customerId ?? complaint.customer_id ?? null;
+        if ((!name || !whatsapp_number) && customerId && customers.length > 0) {
+          const customer = customers.find(c => String(c.id) === String(customerId));
+          if (customer) {
+            name = name || customer.name || null;
+            whatsapp_number = whatsapp_number || customer.whatsapp_number || customer.phone || null;
+          }
+        }
         
         return {
           ...complaint,
           id: complaint.id ?? '',
-          customerId: complaint.customerId ?? complaint.customer_id ?? null,
+          customerId: customerId,
           name: name,
           address: complaint.address ?? complaint.Address ?? null,
           whatsapp_number: whatsapp_number,
@@ -89,7 +99,7 @@ const ComplaintsPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, []);
+  }, [customers]);
 
   const loadCustomers = useCallback(async () => {
     try {

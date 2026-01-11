@@ -306,7 +306,7 @@ const ConnectionsPage = () => {
             ) : (
               connections.map((connection) => (
                 <tr key={connection.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{connection.customer_name || connection.customer_id || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{connection.customer_name ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{connection.connection_type}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${

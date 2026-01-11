@@ -9,27 +9,44 @@ if (!Complaint) {
 
 const create = async (data, userId) => {
   try {
+    let name = data.name ?? null;
+    let whatsapp_number = data.whatsapp_number ?? null;
+    
+    // If name or whatsapp_number not provided, fetch from customer
+    if ((!name || !whatsapp_number) && data.customerId) {
+      const customerData = await fetchCustomerData(data.customerId);
+      name = name ?? customerData.name ?? null;
+      whatsapp_number = whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null;
+    }
+    
     const complaintData = {
-      customerId: data.customerId || null,
-      connectionId: data.connectionId || null,
-      title: data.title || '',
-      description: data.description || '',
-      status: data.status || 'open',
-      priority: data.priority || 'medium',
-      assignedTo: data.assignedTo || null
+      customerId: data.customerId ?? null,
+      connectionId: data.connectionId ?? null,
+      title: data.title ?? '',
+      description: data.description ?? '',
+      status: data.status ?? 'open',
+      priority: data.priority ?? 'medium',
+      assignedTo: data.assignedTo ?? null,
+      name: name,
+      whatsapp_number: whatsapp_number
     };
     
     const complaint = await Complaint.create(complaintData);
     activityLogService.logActivity(userId, 'create_complaint', 'complaint', `Complaint #${complaint.id}`);
     
     const complaintJson = complaint.toJSON ? complaint.toJSON() : complaint;
-    const customerData = await fetchCustomerData(complaintJson.customerId);
     
-    return {
-      ...complaintJson,
-      name: customerData.name,
-      whatsapp_number: customerData.phone
-    };
+    // Ensure name and whatsapp_number are returned even if not in DB
+    if (!complaintJson.name || !complaintJson.whatsapp_number) {
+      const customerData = await fetchCustomerData(complaintJson.customerId);
+      return {
+        ...complaintJson,
+        name: complaintJson.name ?? customerData.name ?? null,
+        whatsapp_number: complaintJson.whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null
+      };
+    }
+    
+    return complaintJson;
   } catch (error) {
     throw error;
   }
@@ -38,19 +55,28 @@ const create = async (data, userId) => {
 const getAll = async () => {
   try {
     const complaints = await Complaint.findAll({
-      attributes: ['id', 'customerId', 'connectionId', 'title', 'description', 'status', 'priority', 'assignedTo', 'createdAt', 'updatedAt'],
-      order: [['created_at', 'DESC']],
+      attributes: ['id', 'customerId', 'connectionId', 'title', 'description', 'status', 'priority', 'assignedTo', 'name', 'whatsapp_number', 'createdAt', 'updatedAt'],
+      order: [['createdAt', 'DESC']],
       raw: false
     });
     
     const complaintsWithNames = await Promise.all(complaints.map(async (complaint) => {
       const complaintData = complaint.toJSON ? complaint.toJSON() : complaint;
-      const customerData = await fetchCustomerData(complaintData.customerId);
+      
+      // Use stored name and whatsapp_number if available, otherwise fetch from customer
+      let name = complaintData.name;
+      let whatsapp_number = complaintData.whatsapp_number;
+      
+      if (!name || !whatsapp_number) {
+        const customerData = await fetchCustomerData(complaintData.customerId);
+        name = name ?? customerData.name ?? null;
+        whatsapp_number = whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null;
+      }
       
       return {
         ...complaintData,
-        name: customerData.name,
-        whatsapp_number: customerData.phone
+        name: name,
+        whatsapp_number: whatsapp_number
       };
     }));
     
@@ -58,9 +84,10 @@ const getAll = async () => {
   } catch (error) {
     if (error.message && (error.message.includes('Unknown column') || error.message.includes('doesn\'t exist') || error.message.includes('ER_BAD_FIELD_ERROR'))) {
       try {
+        // Fallback: try without name and whatsapp_number in attributes
         const complaints = await Complaint.findAll({
           attributes: ['id', 'customerId', 'connectionId', 'title', 'description', 'status', 'priority', 'assignedTo', 'createdAt', 'updatedAt'],
-          order: [['created_at', 'DESC']],
+          order: [['createdAt', 'DESC']],
           raw: false
         });
         
@@ -70,8 +97,8 @@ const getAll = async () => {
           
           return {
             ...complaintData,
-            name: customerData.name,
-            whatsapp_number: customerData.phone
+            name: customerData.name ?? null,
+            whatsapp_number: customerData.phone ?? customerData.whatsapp_number ?? null
           };
         }));
         
@@ -89,27 +116,40 @@ const update = async (id, data, userId) => {
     const complaint = await Complaint.findByPk(id);
     if (!complaint) throw new Error('Complaint not found');
     
+    const complaintJson = complaint.toJSON ? complaint.toJSON() : complaint;
+    const customerId = data.customerId ?? complaintJson.customerId;
+    
+    let name = data.name ?? complaintJson.name ?? null;
+    let whatsapp_number = data.whatsapp_number ?? complaintJson.whatsapp_number ?? null;
+    
+    // If name or whatsapp_number not available, fetch from customer
+    if ((!name || !whatsapp_number) && customerId) {
+      const customerData = await fetchCustomerData(customerId);
+      name = name ?? customerData.name ?? null;
+      whatsapp_number = whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null;
+    }
+    
     const updateData = {
-      customerId: data.customerId ?? complaint.customerId,
-      connectionId: data.connectionId ?? complaint.connectionId,
-      title: data.title ?? complaint.title,
-      description: data.description ?? complaint.description,
-      status: data.status ?? complaint.status,
-      priority: data.priority ?? complaint.priority,
-      assignedTo: data.assignedTo ?? complaint.assignedTo
+      customerId: customerId,
+      connectionId: data.connectionId ?? complaintJson.connectionId,
+      title: data.title ?? complaintJson.title,
+      description: data.description ?? complaintJson.description,
+      status: data.status ?? complaintJson.status,
+      priority: data.priority ?? complaintJson.priority,
+      assignedTo: data.assignedTo ?? complaintJson.assignedTo,
+      name: name,
+      whatsapp_number: whatsapp_number
     };
     
     await complaint.update(updateData);
     activityLogService.logActivity(userId, 'update_complaint', 'complaint', `Updated complaint #${id}`);
     
-    const complaintJson = complaint.toJSON ? complaint.toJSON() : complaint;
-    const customerId = updateData.customerId ?? complaintJson.customerId;
-    const customerData = await fetchCustomerData(customerId);
+    const updatedComplaint = complaint.toJSON ? complaint.toJSON() : complaint;
     
     return {
-      ...complaintJson,
-      name: customerData.name,
-      whatsapp_number: customerData.phone
+      ...updatedComplaint,
+      name: updatedComplaint.name ?? name ?? null,
+      whatsapp_number: updatedComplaint.whatsapp_number ?? whatsapp_number ?? null
     };
   } catch (error) {
     throw error;

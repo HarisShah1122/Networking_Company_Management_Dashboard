@@ -442,7 +442,7 @@ const RechargesPage = () => {
             ) : (
               recharges.map((recharge) => (
                 <tr key={recharge.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name || recharge.customer_id || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(recharge.amount).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{recharge.payment_method}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
