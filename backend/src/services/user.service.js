@@ -16,21 +16,24 @@ const getById = async (id) => {
 };
 
 const getByEmail = async (email) => {
-  return await User.findByEmail(email);
+  return await User.findOne({ where: { email } });
 };
 
 const getByUsername = async (username) => {
-  return await User.findByUsername(username);
+  return await User.findOne({ where: { username } });
 };
 
 const create = async (data) => {
-  if (!data.password) {
-    throw new Error('Password is required');
+  // data.password → plain text password (already checked in auth service)
+  if (!data.password || !data.password.trim()) {
+    throw new Error('Password is required for new user');
   }
+
   const password_hash = await bcrypt.hash(data.password, 10);
+
   return await User.create({
-    email: data.email,
-    username: data.username,
+    email: data.email?.trim(),
+    username: data.username?.trim(),
     password_hash,
     role: data.role || 'Staff',
     status: data.status || 'active'

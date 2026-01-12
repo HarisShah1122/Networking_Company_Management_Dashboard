@@ -43,7 +43,11 @@ const login = async (email, password) => {
 const register = async (userData) => {
   const { email, username, password, role } = userData;
 
-  if (!password || password.trim() === '') {
+  // Let express-validator handle empty/missing password
+  // We only do minimal sanitization here
+
+  const trimmedPassword = String(password || '').trim();
+  if (!trimmedPassword) {
     throw new Error('Password is required');
   }
 
@@ -57,22 +61,19 @@ const register = async (userData) => {
     throw new Error('Username already exists');
   }
 
-  const password_hash = await bcrypt.hash(password, 10);
-  
-  if (!password_hash) {
-    throw new Error('Failed to hash password');
-  }
+  const password_hash = await bcrypt.hash(trimmedPassword, 10);
 
   const allowedRoles = ['CEO', 'Manager', 'Staff'];
   const userRole = role && allowedRoles.includes(role) ? role : 'Staff';
-  
+
   const user = await userService.create({ 
     email, 
     username, 
-    password_hash,
+    password: trimmedPassword,   // ← pass plain password here
     role: userRole,
     status: 'active'
   });
+
   const token = generateToken(user.id);
 
   activityLogService.logActivity(user.id, 'register', 'auth', `New user registered: ${user.username}`);
