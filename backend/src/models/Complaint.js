@@ -8,18 +8,12 @@ module.exports = (sequelize, DataTypes) => {
       customerId: {
         type: DataTypes.UUID,
         allowNull: true,
-        references: {
-          model: 'customers',
-          key: 'id'
-        }
+        field: 'customer_id'
       },
       connectionId: {
         type: DataTypes.UUID,
         allowNull: true,
-        references: {
-          model: 'connections',
-          key: 'id'
-        }
+        field: 'connection_id'
       },
       title: {
         type: DataTypes.STRING(255),
@@ -71,10 +65,19 @@ module.exports = (sequelize, DataTypes) => {
     });
   
     Complaint.associate = (models) => {
-      Complaint.belongsTo(models.Customer, { foreignKey: 'customerId' });
-      Complaint.belongsTo(models.Connection, { foreignKey: 'connectionId' });
-      Complaint.belongsTo(models.User, { as: 'Assignee', foreignKey: 'assignedTo' });
-      Complaint.belongsTo(models.User, { as: 'Reporter', foreignKey: 'customerId' }); 
+      Complaint.belongsTo(models.Customer, { 
+        foreignKey: 'customerId',
+        constraints: false
+      });
+      Complaint.belongsTo(models.Connection, { 
+        foreignKey: 'connectionId',
+        constraints: false
+      });
+      Complaint.belongsTo(models.User, { 
+        as: 'Assignee', 
+        foreignKey: 'assignedTo',
+        constraints: false
+      });
     };
   
     return Complaint;
