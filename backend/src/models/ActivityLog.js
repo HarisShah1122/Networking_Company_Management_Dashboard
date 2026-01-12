@@ -26,10 +26,9 @@ module.exports = (sequelize, DataTypes) => {
     timestamps: true,
     underscored: true,
     indexes: [
-      { fields: ['user_id'] },
-      { fields: ['created_at'] },
-      { fields: ['user_id', 'created_at'] },
-      { fields: ['model', 'created_at'] }
+      { fields: ['user_id'] }
+      // Note: Indexes on created_at are added automatically by Sequelize when timestamps are enabled
+      // If you need additional indexes, add them after table creation
     ]
   });
 

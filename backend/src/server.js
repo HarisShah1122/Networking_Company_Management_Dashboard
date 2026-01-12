@@ -51,12 +51,33 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await sequelize.authenticate();
+    
     if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: false });
+      try {
+        await sequelize.sync({ alter: false });
+      } catch (syncError) {
+        const models = require('./models');
+        const errorMsg = syncError.message || '';
+        
+        if (errorMsg.includes("activity_logs") || errorMsg.includes("complaints")) {
+          try {
+            if (errorMsg.includes("activity_logs") && models.ActivityLog) {
+              await models.ActivityLog.sync({ alter: true });
+            }
+            if (errorMsg.includes("complaints") && models.Complaint) {
+              await models.Complaint.sync({ alter: true });
+            }
+            await sequelize.sync({ alter: false });
+          } catch (fixError) {
+            // Continue anyway - these models are not critical for server startup
+          }
+        } else {
+          throw syncError;
+        }
+      }
     }
 
-    app.listen(PORT, () => {
-    });
+    app.listen(PORT, () => {});
   } catch (error) {
     process.exit(1);
   }

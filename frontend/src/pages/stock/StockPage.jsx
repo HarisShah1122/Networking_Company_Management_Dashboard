@@ -6,6 +6,7 @@ import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
 const StockPage = () => {
@@ -20,6 +21,8 @@ const StockPage = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -99,6 +102,7 @@ const StockPage = () => {
     
     debounceTimer.current = setTimeout(() => {
       loadStock(searchTerm, categoryFilter, false);
+      setCurrentPage(1);
     }, 500);
 
     return () => {
@@ -243,7 +247,7 @@ const StockPage = () => {
                 </td>
               </tr>
             ) : (
-              stock.map((item) => (
+              stock.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap font-medium">{item.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.category || '-'}</td>
@@ -279,6 +283,24 @@ const StockPage = () => {
             )}
           </tbody>
         </table>
+        {stock.length > 0 && (
+          <div className="px-6 py-4 bg-gray-50 border-t">
+            <TablePagination
+              pagination={{
+                currentPage,
+                totalPages: Math.ceil(stock.length / pageSize),
+                totalCount: stock.length,
+              }}
+              onPageChange={(page) => setCurrentPage(page)}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+              pageSize={pageSize}
+              isFetching={searching}
+            />
+          </div>
+        )}
       </div>
 
       {showModal && canManage && (

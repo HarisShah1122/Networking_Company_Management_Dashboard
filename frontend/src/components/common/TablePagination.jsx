@@ -103,16 +103,12 @@ const TablePagination = ({
     return pages;
   };
 
-  if (!pagination) {
-    return null;
-  }
-  
-  if (totalPages <= 1 && totalCount <= pageSize) {
+  if (!pagination || totalCount === 0) {
     return null;
   }
 
   return (
-    <div className="flex justify-between items-center pt-4 border-t">
+    <div className="flex justify-between items-center">
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-600">Show</span>
         <select

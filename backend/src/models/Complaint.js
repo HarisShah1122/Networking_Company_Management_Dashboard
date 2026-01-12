@@ -62,14 +62,11 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true,
       underscored: true,
       indexes: [
-        { fields: ['customerId'] },
-        { fields: ['connectionId'] },
-        { fields: ['assignedTo'] },
+        { fields: ['customer_id'] },
+        { fields: ['connection_id'] },
+        { fields: ['assigned_to'] },
         { fields: ['status'] },
-        { fields: ['priority'] },
-        { fields: ['createdAt'] },
-        { fields: ['status', 'priority'] },
-        { fields: ['customerId', 'status'] }
+        { fields: ['priority'] }
       ]
     });
   

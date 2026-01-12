@@ -9,6 +9,7 @@ import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
 const ConnectionsPage = () => {
@@ -23,6 +24,8 @@ const ConnectionsPage = () => {
   const [connectionToDelete, setConnectionToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -146,6 +149,7 @@ const ConnectionsPage = () => {
     
     debounceTimer.current = setTimeout(() => {
       loadConnections(searchTerm, statusFilter, false);
+      setCurrentPage(1);
     }, 500);
 
     return () => {
@@ -314,7 +318,7 @@ const ConnectionsPage = () => {
                 </td>
               </tr>
             ) : (
-              connections.map((connection) => (
+              connections.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((connection) => (
                 <tr key={connection.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">{connection.customer_name ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{connection.connection_type}</td>
@@ -362,6 +366,24 @@ const ConnectionsPage = () => {
             )}
           </tbody>
         </table>
+        {connections.length > 0 && (
+          <div className="px-6 py-4 bg-gray-50 border-t">
+            <TablePagination
+              pagination={{
+                currentPage,
+                totalPages: Math.ceil(connections.length / pageSize),
+                totalCount: connections.length,
+              }}
+              onPageChange={(page) => setCurrentPage(page)}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+              pageSize={pageSize}
+              isFetching={searching}
+            />
+          </div>
+        )}
       </div>
 
       {showModal && canManage && (
