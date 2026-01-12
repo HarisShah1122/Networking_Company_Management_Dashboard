@@ -9,6 +9,7 @@ import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
 const RechargesPage = () => {
@@ -25,6 +26,8 @@ const RechargesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -158,6 +161,7 @@ const RechargesPage = () => {
     
     debounceTimer.current = setTimeout(() => {
       loadRecharges(searchTerm, statusFilter, false);
+      setCurrentPage(1);
     }, 500);
 
     return () => {
@@ -450,7 +454,7 @@ const RechargesPage = () => {
                 </td>
               </tr>
             ) : (
-              recharges.map((recharge) => (
+              recharges.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((recharge) => (
                 <tr key={recharge.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(recharge.amount).toFixed(2)}</td>
@@ -507,6 +511,24 @@ const RechargesPage = () => {
             )}
           </tbody>
         </table>
+        {recharges.length > 0 && (
+          <div className="px-6 py-4 bg-gray-50 border-t">
+            <TablePagination
+              pagination={{
+                currentPage,
+                totalPages: Math.ceil(recharges.length / pageSize),
+                totalCount: recharges.length,
+              }}
+              onPageChange={(page) => setCurrentPage(page)}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+              pageSize={pageSize}
+              isFetching={searching}
+            />
+          </div>
+        )}
       </div>
 
       {showModal && canManage && (

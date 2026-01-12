@@ -332,13 +332,15 @@ const CustomersPage = () => {
         </div>
         
         {pagination && pagination.totalPages > 0 && (
-          <TablePagination
-            pagination={pagination}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
-            pageSize={paginationState.pageSize}
-            isFetching={searching}
-          />
+          <div className="px-6 py-4 bg-gray-50 border-t">
+            <TablePagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              pageSize={paginationState.pageSize}
+              isFetching={searching}
+            />
+          </div>
         )}
       </div>
 

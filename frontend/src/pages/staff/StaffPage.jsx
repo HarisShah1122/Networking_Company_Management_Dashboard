@@ -6,6 +6,7 @@ import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
 const StaffPage = () => {
@@ -19,6 +20,8 @@ const StaffPage = () => {
   const [userToDelete, setUserToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -91,6 +94,7 @@ const StaffPage = () => {
     
     debounceTimer.current = setTimeout(() => {
       loadUsers(searchTerm, roleFilter, false);
+      setCurrentPage(1);
     }, 500);
 
     return () => {
@@ -242,7 +246,7 @@ const StaffPage = () => {
                 </td>
               </tr>
             ) : (
-              users.map((user) => (
+              users.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap font-medium">{user.username}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
@@ -290,6 +294,24 @@ const StaffPage = () => {
             )}
           </tbody>
         </table>
+        {users.length > 0 && (
+          <div className="px-6 py-4 bg-gray-50 border-t">
+            <TablePagination
+              pagination={{
+                currentPage,
+                totalPages: Math.ceil(users.length / pageSize),
+                totalCount: users.length,
+              }}
+              onPageChange={(page) => setCurrentPage(page)}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+              pageSize={pageSize}
+              isFetching={searching}
+            />
+          </div>
+        )}
       </div>
 
       {showModal && canManage && (
