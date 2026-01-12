@@ -1,23 +1,28 @@
 import { useState, useCallback } from 'react';
 
-export const useModal = (initialState = false) => {
-  const [isOpen, setIsOpen] = useState(initialState);
-  const [editingItem, setEditingItem] = useState(null);
+export const useModal = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [data, setData] = useState(null);
 
-  const open = useCallback((item = null) => {
-    setEditingItem(item);
+  const openModal = useCallback((modalData = null) => {
+    setData(modalData);
     setIsOpen(true);
   }, []);
 
-  const close = useCallback(() => {
+  const closeModal = useCallback(() => {
     setIsOpen(false);
-    setEditingItem(null);
+    setData(null);
   }, []);
 
-  const reset = useCallback(() => {
-    setEditingItem(null);
+  const toggleModal = useCallback(() => {
+    setIsOpen(prev => !prev);
   }, []);
 
-  return { isOpen, editingItem, open, close, reset, setEditingItem };
+  return {
+    isOpen,
+    data,
+    openModal,
+    closeModal,
+    toggleModal,
+  };
 };
-

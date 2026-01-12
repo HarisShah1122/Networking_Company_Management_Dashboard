@@ -114,19 +114,21 @@ const StaffPage = () => {
         status: data.status ?? 'active',
       };
 
-      // Only include password if provided (for new users or updates)
-      if (data.password && data.password.trim()) {
-        submitData.password = data.password.trim();
-      }
-
       if (editingUser) {
+        // For updates, only include password if it's provided and not empty
+        if (data.password && data.password.trim()) {
+          submitData.password = data.password.trim();
+        }
+        // Don't send password field at all if it's empty - this preserves existing password_hash
         await userService.update(editingUser.id, submitData);
         toast.success('User updated successfully!');
       } else {
+        // For new users, password is required
         if (!data.password || !data.password.trim()) {
           toast.error('Password is required for new users');
           return;
         }
+        submitData.password = data.password.trim();
         await userService.create(submitData);
         toast.success('User created successfully!');
       }

@@ -50,17 +50,8 @@ module.exports = (sequelize) => {
     ],
     hooks: {
       beforeCreate: async (user) => {
-        // If password_hash is already provided, use it
-        if (user.password_hash) {
-          return; // Skip hashing if password_hash is already set
-        }
-        // Otherwise, hash the password if provided
-        if (user.password) {
+        if (!user.password_hash && user.password) {
           user.password_hash = await bcrypt.hash(user.password, 10);
-        }
-        // Ensure password_hash is set (validation requirement)
-        if (!user.password_hash) {
-          throw new Error('Password hash is required');
         }
       },
       beforeUpdate: async (user) => {

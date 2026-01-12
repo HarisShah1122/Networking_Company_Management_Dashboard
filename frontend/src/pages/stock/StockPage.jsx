@@ -1,108 +1,52 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { stockService } from '../../services/stockService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
+import { usePagination } from '../../hooks/usePagination';
+import { useModal } from '../../hooks/useModal';
+import { useStockList, useStockCategories, useCreateStock, useUpdateStock, useDeleteStock } from '../../hooks/queries/useStockQueries';
 
 const StockPage = () => {
   const { user } = useAuthStore();
-  const [stock, setStock] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [itemToDelete, setItemToDelete] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceTimer = useRef(null);
-  const isInitialMount = useRef(true);
+  const [editingItem, setEditingItem] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  
+  // Custom hooks
+  const { currentPage, pageSize, handlePageChange, handlePageSizeChange, resetPagination, getPaginatedData, getPaginationInfo } = usePagination();
+  const editModal = useModal();
+  const deleteModal = useModal();
+  
+  // TanStack Query hooks
+  const { data: stock = [], isLoading, isFetching } = useStockList({ 
+    category: categoryFilter, 
+    search: debouncedSearch 
+  });
+  const { data: categories = [] } = useStockCategories();
+  const createMutation = useCreateStock();
+  const updateMutation = useUpdateStock();
+  const deleteMutation = useDeleteStock();
 
-  const loadStock = useCallback(async (search = '', category = '', isInitialLoad = false) => {
-    try {
-      if (isInitialLoad) {
-        setLoading(true);
-      } else {
-        setSearching(true);
-      }
-      const response = await stockService.getAll({ category, search });
-      let stockList = [];
-      if (Array.isArray(response)) {
-        stockList = response;
-      } else if (response?.stock && Array.isArray(response.stock)) {
-        stockList = response.stock;
-      } else if (response?.data?.stock && Array.isArray(response.data.stock)) {
-        stockList = response.data.stock;
-      } else if (response?.data && Array.isArray(response.data)) {
-        stockList = response.data;
-      }
-      setStock(stockList);
-    } catch (error) {
-      const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load stock';
-      toast.error(errorMsg);
-      setStock([]);
-    } finally {
-      setLoading(false);
-      setSearching(false);
-    }
-  }, []);
 
-  const loadCategories = useCallback(async () => {
-    try {
-      const response = await stockService.getCategories();
-      let categoriesList = [];
-      if (Array.isArray(response)) {
-        categoriesList = response;
-      } else if (response?.categories && Array.isArray(response.categories)) {
-        categoriesList = response.categories;
-      } else if (response?.data?.categories && Array.isArray(response.data.categories)) {
-        categoriesList = response.data.categories;
-      } else if (response?.data && Array.isArray(response.data)) {
-        categoriesList = response.data;
-      }
-      setCategories(categoriesList);
-    } catch (error) {
-      toast.error('Failed to load categories');
-      setCategories([]);
-    }
-  }, []);
-
-  // Initial load
+  // Debounce search term
   useEffect(() => {
-    if (isInitialMount.current) {
-      loadStock('', '', true);
-      loadCategories();
-      isInitialMount.current = false;
-    }
-  }, [loadStock, loadCategories]);
-
-  // Debounce search term and category filter
-  useEffect(() => {
-    if (isInitialMount.current) {
-      return;
-    }
-
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
     
-    if (searchTerm || categoryFilter) {
-      setSearching(true);
-    }
-    
     debounceTimer.current = setTimeout(() => {
-      loadStock(searchTerm, categoryFilter, false);
-      setCurrentPage(1);
+      setDebouncedSearch(searchTerm);
+      resetPagination();
     }, 500);
 
     return () => {
@@ -110,44 +54,34 @@ const StockPage = () => {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [searchTerm, categoryFilter, loadStock]);
+  }, [searchTerm, resetPagination]);
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    resetPagination();
+  }, [categoryFilter, resetPagination]);
 
   const onSubmit = async (data) => {
-    try {
-      // Prepare submit data
-      const submitData = {
-        name: data.name?.trim() ?? '',
-        category: data.category?.trim() ?? null,
-        quantity_available: data.quantity_available ? parseInt(data.quantity_available, 10) : 0,
-        quantity_used: data.quantity_used ? parseInt(data.quantity_used, 10) : 0,
-        unit_price: data.unit_price ? parseFloat(data.unit_price) : 0,
-        description: data.description?.trim() ?? null,
-      };
+    const submitData = {
+      name: data.name?.trim() ?? '',
+      category: data.category?.trim() ?? null,
+      quantity_available: data.quantity_available ? parseInt(data.quantity_available, 10) : 0,
+      quantity_used: data.quantity_used ? parseInt(data.quantity_used, 10) : 0,
+      unit_price: data.unit_price ? parseFloat(data.unit_price) : 0,
+      description: data.description?.trim() ?? null,
+    };
 
+    try {
       if (editingItem) {
-        await stockService.update(editingItem.id, submitData);
-        toast.success('Stock item updated successfully!');
+        await updateMutation.mutateAsync({ id: editingItem.id, data: submitData });
       } else {
-        await stockService.create(submitData);
-        toast.success('Stock item created successfully!');
+        await createMutation.mutateAsync(submitData);
       }
       reset();
-      setShowModal(false);
+      editModal.closeModal();
       setEditingItem(null);
-      await loadStock(searchTerm, categoryFilter, false);
     } catch (error) {
-      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-        const validationErrors = error.response.data.errors
-          .map(err => err.msg ?? err.message ?? JSON.stringify(err))
-          .filter((msg, index, self) => self.indexOf(msg) === index)
-          .join(', ');
-        toast.error(`Validation Error: ${validationErrors}`, { autoClose: 5000 });
-      } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else {
-        const errorMsg = error.response?.data?.error ?? error.message ?? 'Failed to save stock item';
-        toast.error(errorMsg);
-      }
+      // Error handling is done in the mutation hooks
     }
   };
 
@@ -159,32 +93,28 @@ const StockPage = () => {
       quantity_used: item.quantity_used || 0,
       unit_price: item.unit_price || 0,
     });
-    setShowModal(true);
+    editModal.openModal();
   };
 
   const handleDelete = (item) => {
     setItemToDelete(item);
-    setShowDeleteModal(true);
+    deleteModal.openModal();
   };
 
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
-
     try {
-      await stockService.delete(itemToDelete.id);
-      toast.success('Stock item deleted successfully!');
-      setShowDeleteModal(false);
+      await deleteMutation.mutateAsync(itemToDelete.id);
+      deleteModal.closeModal();
       setItemToDelete(null);
-      await loadStock(searchTerm, categoryFilter, false);
     } catch (error) {
-      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete stock item';
-      toast.error(errorMsg);
+      // Error handling is done in the mutation hook
     }
   };
 
   const canManage = isManager(user?.role);
 
-  if (loading) return <Loader />;
+  if (isLoading) return <Loader />;
 
   return (
     <div className="space-y-6">
@@ -201,7 +131,7 @@ const StockPage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          {searching && (
+          {isFetching && (
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
             </div>
@@ -219,7 +149,7 @@ const StockPage = () => {
         </select>
         {canManage && (
           <button
-            onClick={() => { reset(); setEditingItem(null); setShowModal(true); }}
+            onClick={() => { reset(); setEditingItem(null); editModal.openModal(); }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
           >
             Add Stock Item
@@ -247,7 +177,7 @@ const StockPage = () => {
                 </td>
               </tr>
             ) : (
-              stock.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((item) => (
+              getPaginatedData(stock).map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap font-medium">{item.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.category || '-'}</td>
@@ -286,27 +216,20 @@ const StockPage = () => {
         {stock.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
             <TablePagination
-              pagination={{
-                currentPage,
-                totalPages: Math.ceil(stock.length / pageSize),
-                totalCount: stock.length,
-              }}
-              onPageChange={(page) => setCurrentPage(page)}
-              onPageSizeChange={(size) => {
-                setPageSize(size);
-                setCurrentPage(1);
-              }}
+              pagination={getPaginationInfo(stock.length)}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
               pageSize={pageSize}
-              isFetching={searching}
+              isFetching={isFetching}
             />
           </div>
         )}
       </div>
 
-      {showModal && canManage && (
+      {editModal.isOpen && canManage && (
         <Modal
-          isOpen={showModal}
-          onClose={() => { setShowModal(false); reset(); setEditingItem(null); }}
+          isOpen={editModal.isOpen}
+          onClose={() => { editModal.closeModal(); reset(); setEditingItem(null); }}
           title={editingItem ? 'Edit Stock Item' : 'Add Stock Item'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -387,13 +310,18 @@ const StockPage = () => {
               <div className="flex gap-4">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); reset(); setEditingItem(null); }}
+                  onClick={() => { editModal.closeModal(); reset(); setEditingItem(null); }}
                   className="flex-1 px-4 py-2 border rounded-lg"
+                  disabled={createMutation.isPending || updateMutation.isPending}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
-                  Save
+                <button 
+                  type="submit" 
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
+                  {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>
@@ -401,9 +329,9 @@ const StockPage = () => {
       )}
 
       <ConfirmModal
-        isOpen={showDeleteModal}
+        isOpen={deleteModal.isOpen}
         onClose={() => {
-          setShowDeleteModal(false);
+          deleteModal.closeModal();
           setItemToDelete(null);
         }}
         title="Delete Stock Item"
