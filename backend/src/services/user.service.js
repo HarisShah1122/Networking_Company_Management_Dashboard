@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const bcrypt = require('bcrypt');
 const { User } = require('../models');
 
 const getAll = async () => {
@@ -23,20 +24,50 @@ const getByUsername = async (username) => {
 };
 
 const create = async (data) => {
-  if (data.password_hash) {
-    const user = User.build(data);
-    user.setDataValue('password_hash', data.password_hash);
-    await user.save();
-    return user;
+  if (!data.password) {
+    throw new Error('Password is required');
   }
-  return await User.create(data);
+  const password_hash = await bcrypt.hash(data.password, 10);
+  return await User.create({
+    email: data.email,
+    username: data.username,
+    password_hash,
+    role: data.role || 'Staff',
+    status: data.status || 'active'
+  });
 };
 
 const update = async (id, data) => {
   const user = await User.findByPk(id);
   if (!user) return null;
 
-  await user.update(data);
+  const fields = [];
+  
+  if (data.email !== undefined) {
+    user.email = data.email;
+    fields.push('email');
+  }
+  if (data.username !== undefined) {
+    user.username = data.username;
+    fields.push('username');
+  }
+  if (data.role !== undefined) {
+    user.role = data.role;
+    fields.push('role');
+  }
+  if (data.status !== undefined) {
+    user.status = data.status;
+    fields.push('status');
+  }
+  if (data.password && data.password.trim()) {
+    user.password = data.password.trim();
+    fields.push('password');
+  }
+
+  if (fields.length > 0) {
+    await user.save({ fields });
+  }
+  
   return await getById(id);
 };
 
