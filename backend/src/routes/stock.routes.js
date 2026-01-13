@@ -25,11 +25,11 @@ router.put(
   handleValidationErrors,
   stockController.update
 );
-router.delete(
-  '/:id',
-  requireRole('CEO', 'Manager'),
-  stockController.delete
-);
+// router.delete(
+//   '/:id',
+//   requireRole('CEO', 'Manager'),
+//   stockController.delete
+// );
 
 module.exports = router;
 

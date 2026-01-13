@@ -25,11 +25,11 @@ router.put(
   handleValidationErrors,
   transactionController.update
 );
-router.delete(
-  '/:id',
-  requireRole('CEO', 'Manager'),
-  transactionController.delete
-);
+// router.delete(
+//   '/:id',
+//   requireRole('CEO', 'Manager'),
+//   transactionController.delete
+// );
 
 module.exports = router;
 

@@ -16,17 +16,23 @@ class ApiResponse {
     };
 
     if (errors) {
-      response.errors = errors;
+      response.errors = Array.isArray(errors) ? errors : [errors];
     }
 
     return res.status(statusCode).json(response);
   }
 
   static validationError(res, errors) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+    // Format for frontend dirty forms: { field, message }
+    const formattedErrors = errors.map(err => ({
+      field: err.param || err.path || 'unknown',
+      message: err.msg || err.message || 'Invalid value'
+    }));
+
+    return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY || 422).json({
       success: false,
       message: 'Validation failed',
-      errors
+      errors: formattedErrors
     });
   }
 
@@ -59,21 +65,25 @@ class ApiResponse {
   }
 
   static paginated(res, data = [], pagination = {}, message = 'Data retrieved successfully', statusCode = HTTP_STATUS.OK) {
+    const page = parseInt(pagination.page) || 1;
+    const limit = parseInt(pagination.limit) || 10;
+    const total = pagination.total || 0;
+    const totalPages = Math.ceil(total / limit);
+
     return res.status(statusCode).json({
       success: true,
       message,
       data,
       pagination: {
-        page: pagination.page ?? 1,
-        limit: pagination.limit ?? 10,
-        total: pagination.total ?? 0,
-        total_pages: pagination.total_pages ?? 1,
-        has_next: pagination.has_next ?? false,
-        has_prev: pagination.has_prev ?? false
+        page,
+        limit,
+        total,
+        total_pages: totalPages,
+        has_next: page < totalPages,
+        has_prev: page > 1
       }
     });
   }
 }
 
 module.exports = ApiResponse;
-

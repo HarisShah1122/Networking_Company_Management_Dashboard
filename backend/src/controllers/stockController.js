@@ -41,7 +41,6 @@ const create = async (req, res, next) => {
 
     const item = await StockService.create(req.body);
     
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'create',
@@ -68,7 +67,6 @@ const update = async (req, res, next) => {
       return ApiResponse.notFound(res, 'Stock item');
     }
 
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'update',
@@ -77,35 +75,6 @@ const update = async (req, res, next) => {
     );
 
     return ApiResponse.success(res, { item }, 'Stock item updated successfully');
-  } catch (error) {
-    next(error);
-  }
-};
-
-const deleteStock = async (req, res, next) => {
-  try {
-    const item = await StockService.getById(req.params.id);
-    
-    if (!item) {
-      return ApiResponse.notFound(res, 'Stock item');
-    }
-
-    const itemName = item.name;
-    const deleted = await StockService.delete(req.params.id);
-
-    if (!deleted) {
-      return ApiResponse.error(res, 'Failed to delete stock item', 500);
-    }
-
-    // Log activity (non-blocking)
-    activityLogService.logActivity(
-      req.user.id,
-      'delete',
-      'stock',
-      `Deleted stock item: ${itemName}`
-    );
-
-    return ApiResponse.success(res, null, 'Stock item deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -134,7 +103,6 @@ module.exports = {
   getById,
   create,
   update,
-  delete: deleteStock,
   getCategories,
   getStats,
   validateStock
