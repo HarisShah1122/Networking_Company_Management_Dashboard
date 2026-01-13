@@ -48,7 +48,7 @@ const startServer = async () => {
 
     if (NODE_ENV === 'development') {
       // Sync all models without forcing drop
-      await sequelize.sync({ alter: true });
+      // await sequelize.sync({ alter: true });
       console.log('All models synced with database');
     }
 

@@ -43,10 +43,10 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true
   });
 
-  PackageRenewal.associate = (models) => {
-    PackageRenewal.belongsTo(models.Connection, { foreignKey: 'connectionId' });
-    PackageRenewal.belongsTo(models.User, { as: 'Renewer', foreignKey: 'renewedBy' });
-  };
+  // PackageRenewal.associate = (models) => {
+  //   PackageRenewal.belongsTo(models.Connection, { foreignKey: 'connectionId' });
+  //   PackageRenewal.belongsTo(models.User, { as: 'Renewer', foreignKey: 'renewedBy' });
+  // };
 
   return PackageRenewal;
 };

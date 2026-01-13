@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
     description: { type: DataTypes.TEXT, allowNull: true },
     category: { type: DataTypes.STRING(100), allowNull: true },
     date: { type: DataTypes.DATEONLY, allowNull: false },
-    created_by: { type: DataTypes.UUID, allowNull: true, references: { model: 'users', key: 'id' }, onDelete: 'SET NULL' }
+    created_by: { type: DataTypes.UUID, allowNull: true }
   }, {
     tableName: 'transactions',
     timestamps: true,

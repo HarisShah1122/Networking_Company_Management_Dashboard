@@ -12,17 +12,17 @@ const ActivityLog = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
 const Complaint = require('./Complaint')(sequelize, Sequelize.DataTypes);
 const Area = require('./Area')(sequelize, Sequelize.DataTypes);
 // Define associations
-Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
-Customer.hasMany(Connection, { foreignKey: 'customer_id', as: 'connections' });
+// Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+// Customer.hasMany(Connection, { foreignKey: 'customer_id', as: 'connections' });
 
-Recharge.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
-Customer.hasMany(Recharge, { foreignKey: 'customer_id', as: 'recharges' });
+// Recharge.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+// Customer.hasMany(Recharge, { foreignKey: 'customer_id', as: 'recharges' });
 
-Transaction.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
-User.hasMany(Transaction, { foreignKey: 'created_by', as: 'transactions' });
+// Transaction.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+// User.hasMany(Transaction, { foreignKey: 'created_by', as: 'transactions' });
 
-ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
+// ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+// User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
 
 // Initialize Complaint associations
 const models = {
