@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const { PORT, CORS_ORIGIN } = require('./config/env');
+const { PORT, CORS_ORIGIN, NODE_ENV } = require('./config/env');
 const { errorHandler } = require('./middleware/error.middleware');
-const { sequelize } = require('./models');
+const { sequelize, User, Customer, Connection, Recharge, Stock, Transaction, ActivityLog, Complaint, Payment, PackageRenewal } = require('./models');
 
 const authRoutes = require('./routes/auth.routes');
 const customerRoutes = require('./routes/customer.routes');
@@ -15,21 +15,15 @@ const userRoutes = require('./routes/user.routes');
 const complaintRoutes = require('./routes/complaint.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const packageRenewalRoutes = require('./routes/packageRenewal.routes');
+
 const app = express();
 
 app.use(helmet());
-
-app.use(cors({
-  origin: CORS_ORIGIN,
-  credentials: true
-}));
-
+app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
@@ -42,43 +36,25 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/package-renewals', packageRenewalRoutes);
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
+app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use(errorHandler);
 
 const startServer = async () => {
   try {
     await sequelize.authenticate();
-    
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        await sequelize.sync({ alter: false });
-      } catch (syncError) {
-        const models = require('./models');
-        const errorMsg = syncError.message || '';
-        
-        if (errorMsg.includes("activity_logs") || errorMsg.includes("complaints")) {
-          try {
-            if (errorMsg.includes("activity_logs") && models.ActivityLog) {
-              await models.ActivityLog.sync({ alter: true });
-            }
-            if (errorMsg.includes("complaints") && models.Complaint) {
-              await models.Complaint.sync({ alter: true });
-            }
-            await sequelize.sync({ alter: false });
-          } catch (fixError) {
-            // Continue anyway - these models are not critical for server startup
-          }
-        } else {
-          throw syncError;
-        }
-      }
+    console.log('Database connected successfully');
+
+    if (NODE_ENV === 'development') {
+      // Sync all models without forcing drop
+      await sequelize.sync({ alter: true });
+      console.log('All models synced with database');
     }
 
-    app.listen(PORT, () => {});
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   } catch (error) {
+    console.error('Unable to start server:', error);
     process.exit(1);
   }
 };
@@ -86,4 +62,3 @@ const startServer = async () => {
 startServer();
 
 module.exports = app;
-
