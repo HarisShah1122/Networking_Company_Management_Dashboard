@@ -36,13 +36,11 @@ const create = async (req, res, next) => {
 
     const { email, username } = req.body;
 
-    // Check if email exists
     const existingEmail = await UserService.getByEmail(email);
     if (existingEmail) {
       return ApiResponse.conflict(res, 'Email already exists');
     }
 
-    // Check if username exists
     const existingUsername = await UserService.getByUsername(username);
     if (existingUsername) {
       return ApiResponse.conflict(res, 'Username already exists');
@@ -50,7 +48,6 @@ const create = async (req, res, next) => {
 
     const user = await UserService.create(req.body);
     
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'create',
@@ -86,7 +83,6 @@ const update = async (req, res, next) => {
       return ApiResponse.notFound(res, 'User');
     }
 
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'update',
@@ -100,40 +96,10 @@ const update = async (req, res, next) => {
   }
 };
 
-const deleteUser = async (req, res, next) => {
-  try {
-    const user = await UserService.getById(req.params.id);
-    
-    if (!user) {
-      return ApiResponse.notFound(res, 'User');
-    }
-
-    const username = user.username;
-    const deleted = await UserService.delete(req.params.id);
-
-    if (!deleted) {
-      return ApiResponse.error(res, 'Failed to delete user', 500);
-    }
-
-    // Log activity (non-blocking)
-    activityLogService.logActivity(
-      req.user.id,
-      'delete',
-      'users',
-      `Deleted user: ${username}`
-    );
-
-    return ApiResponse.success(res, null, 'User deleted successfully');
-  } catch (error) {
-    next(error);
-  }
-};
-
 module.exports = {
   getAll,
   getById,
   create,
   update,
-  delete: deleteUser,
   validateUser
 };

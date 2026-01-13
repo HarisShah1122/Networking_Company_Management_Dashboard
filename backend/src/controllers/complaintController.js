@@ -53,19 +53,9 @@ const updateComplaint = async (req, res, next) => {
   }
 };
 
-const deleteComplaint = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    await ComplaintService.delete(id, req.user.id);
-    return ApiResponse.success(res, null, 'Complaint deleted successfully');
-  } catch (error) {
-    next(error);
-  }
-};
 
 module.exports = {
   createComplaint,
   getAllComplaints,
-  updateComplaint,
-  deleteComplaint
+  updateComplaint
 };

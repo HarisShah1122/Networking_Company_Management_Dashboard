@@ -23,7 +23,7 @@ const getById = async (req, res, next) => {
     const recharge = await RechargeService.getById(req.params.id);
     
     if (!recharge) {
-      return ApiResponse.notFound(res, 'Recharge');
+      return ApiResponse.notFound(res, 'Recharge not found');
     }
 
     return ApiResponse.success(res, { recharge }, 'Recharge retrieved successfully');
@@ -41,7 +41,6 @@ const create = async (req, res, next) => {
 
     const recharge = await RechargeService.create(req.body);
     
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'create',
@@ -65,10 +64,9 @@ const update = async (req, res, next) => {
     const recharge = await RechargeService.update(req.params.id, req.body);
     
     if (!recharge) {
-      return ApiResponse.notFound(res, 'Recharge');
+      return ApiResponse.notFound(res, 'Recharge not found');
     }
 
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'update',
@@ -91,35 +89,6 @@ const getDuePayments = async (req, res, next) => {
   }
 };
 
-const deleteRecharge = async (req, res, next) => {
-  try {
-    const recharge = await RechargeService.getById(req.params.id);
-    
-    if (!recharge) {
-      return ApiResponse.notFound(res, 'Recharge');
-    }
-
-    const amount = recharge.amount;
-    const deleted = await RechargeService.delete(req.params.id);
-
-    if (!deleted) {
-      return ApiResponse.error(res, 'Failed to delete recharge', 500);
-    }
-
-    // Log activity (non-blocking)
-    activityLogService.logActivity(
-      req.user.id,
-      'delete',
-      'recharges',
-      `Deleted recharge: RS ${amount}`
-    );
-
-    return ApiResponse.success(res, null, 'Recharge deleted successfully');
-  } catch (error) {
-    next(error);
-  }
-};
-
 const getStats = async (req, res, next) => {
   try {
     const stats = await RechargeService.getStats();
@@ -134,8 +103,6 @@ module.exports = {
   getById,
   create,
   update,
-  delete: deleteRecharge,
   getDuePayments,
   getStats,
-  validateRecharge
 };
