@@ -10,7 +10,7 @@ const Stock = require('./Stock')(sequelize, Sequelize.DataTypes);
 const Transaction = require('./Transaction')(sequelize, Sequelize.DataTypes);
 const ActivityLog = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
 const Complaint = require('./Complaint')(sequelize, Sequelize.DataTypes);
-
+const Area = require('./Area')(sequelize, Sequelize.DataTypes);
 // Define associations
 Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
 Customer.hasMany(Connection, { foreignKey: 'customer_id', as: 'connections' });
@@ -33,10 +33,12 @@ const models = {
   Stock,
   Transaction,
   ActivityLog,
-  Complaint
+  Complaint,
+  Area
 };
 if (Complaint.associate) {
   Complaint.associate(models);
+  if (Area.associate) Area.associate(models);
 }
 
 module.exports = {
@@ -48,5 +50,6 @@ module.exports = {
   Stock,
   Transaction,
   ActivityLog,
-  Complaint
+  Complaint,
+  Area
 };
