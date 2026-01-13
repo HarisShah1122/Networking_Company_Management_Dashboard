@@ -15,6 +15,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/stock', label: 'Stock', icon: '📦', roles: ['CEO', 'Manager'] },
     { path: '/accounts', label: 'Accounts', icon: '💼', roles: ['CEO', 'Manager'] },
     { path: '/staff', label: 'Staff', icon: '👤', roles: ['CEO'] },
+    { path: '/areas', label: 'Areas', icon: '🌐', roles: ['CEO', 'Manager'] },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
