@@ -5,10 +5,11 @@ const authController = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
-
+const { loginLimiter } = require('../middleware/rateLimit.middleware');
 // Public routes
 router.post(
   '/login',
+  loginLimiter,
   authController.validateLogin,
   handleValidationErrors,
   authController.login
