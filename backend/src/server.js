@@ -15,6 +15,7 @@ const userRoutes = require('./routes/user.routes');
 const complaintRoutes = require('./routes/complaint.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const packageRenewalRoutes = require('./routes/packageRenewal.routes');
+const areaRoutes = require('./routes/area.routes');
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/package-renewals', packageRenewalRoutes);
+app.use('/api/areas', areaRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use(errorHandler);

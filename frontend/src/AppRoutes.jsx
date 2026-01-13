@@ -13,6 +13,7 @@ import StockPage from './pages/stock/StockPage';
 import AccountsPage from './pages/accounts/AccountsPage';
 import StaffPage from './pages/staff/StaffPage';
 import ComplaintsPage from './pages/complaints/ComplaintsPage';
+import AreasPage from './pages/areas/AreasPage';
 import MainLayout from './components/layout/MainLayout';
 
 const AppRoutes = () => {
@@ -137,7 +138,16 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
+          <Route
+          path="/areas"
+          element={
+            <ProtectedRoute allowedRoles={['CEO', 'Manager']}>
+              <MainLayout>
+                <AreasPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
