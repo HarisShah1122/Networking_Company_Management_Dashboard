@@ -43,7 +43,6 @@ const create = async (req, res, next) => {
 
     const transaction = await TransactionService.create(req.body, req.user.id);
     
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'create',
@@ -70,7 +69,6 @@ const update = async (req, res, next) => {
       return ApiResponse.notFound(res, 'Transaction');
     }
 
-    // Log activity (non-blocking)
     activityLogService.logActivity(
       req.user.id,
       'update',
@@ -79,35 +77,6 @@ const update = async (req, res, next) => {
     );
 
     return ApiResponse.success(res, { transaction }, 'Transaction updated successfully');
-  } catch (error) {
-    next(error);
-  }
-};
-
-const deleteTransaction = async (req, res, next) => {
-  try {
-    const transaction = await TransactionService.getById(req.params.id);
-    
-    if (!transaction) {
-      return ApiResponse.notFound(res, 'Transaction');
-    }
-
-    const amount = transaction.amount;
-    const deleted = await TransactionService.delete(req.params.id);
-
-    if (!deleted) {
-      return ApiResponse.error(res, 'Failed to delete transaction', 500);
-    }
-
-    // Log activity (non-blocking)
-    activityLogService.logActivity(
-      req.user.id,
-      'delete',
-      'transactions',
-      `Deleted transaction: RS ${amount}`
-    );
-
-    return ApiResponse.success(res, null, 'Transaction deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -146,7 +115,6 @@ module.exports = {
   getById,
   create,
   update,
-  delete: deleteTransaction,
   getSummary,
   getByCategory,
   validateTransaction

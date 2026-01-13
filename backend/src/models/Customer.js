@@ -14,9 +14,7 @@ module.exports = (sequelize) => {
     email: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      validate: {
-        isEmail: true
-      }
+      validate: { isEmail: true }
     },
     phone: {
       type: DataTypes.STRING(20),
@@ -38,6 +36,16 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(20),
       allowNull: true
     },
+    pace_user_id: {          // ← NEW FIELD
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      unique: true
+    },
+    areaId: {                // ← NEW FOREIGN KEY
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'area_id'
+    },
     status: {
       type: DataTypes.ENUM('active', 'inactive', 'suspended'),
       defaultValue: 'active'
@@ -45,16 +53,13 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'customers',
     timestamps: true,
-    underscored: true,
-    indexes: [
-      { fields: ['phone'] },
-      { fields: ['email'] },
-      { fields: ['status'] },
-      { fields: ['name'] },
-      { fields: ['created_at'] },
-      { fields: ['status', 'created_at'] }
-    ]
+    underscored: true
   });
+
+  Customer.associate = (models) => {
+    Customer.belongsTo(models.Area, { foreignKey: 'areaId' });
+  
+  };
 
   return Customer;
 };

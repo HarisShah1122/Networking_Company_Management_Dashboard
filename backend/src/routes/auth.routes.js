@@ -6,7 +6,8 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
 const { loginLimiter } = require('../middleware/rateLimit.middleware');
-// Public routes
+
+// Public login
 router.post(
   '/login',
   loginLimiter,
@@ -15,7 +16,7 @@ router.post(
   authController.login
 );
 
-// Public registration route - NO AUTHENTICATION REQUIRED
+// Public register
 router.post(
   '/register',
   authController.validateRegister,
@@ -23,7 +24,7 @@ router.post(
   authController.register
 );
 
-// CEO only route for admin registration
+// CEO-only admin creation
 router.post(
   '/register-admin',
   authenticate,
@@ -33,7 +34,7 @@ router.post(
   authController.register
 );
 
-// Protected route
+// Get logged-in user
 router.get('/me', authenticate, authController.getMe);
 
 module.exports = router;

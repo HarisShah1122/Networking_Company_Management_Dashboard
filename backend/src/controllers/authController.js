@@ -12,6 +12,7 @@ const login = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
+
     const result = await AuthService.login(email, password);
 
     return ApiResponse.success(res, result, 'Login successful');
@@ -28,14 +29,16 @@ const login = async (req, res, next) => {
 
 const register = async (req, res, next) => {
   try {
-    // This is a public route - no authentication required
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      const errorMessages = errors.array().map(err => err.msg || err.message);
-      return ApiResponse.validationError(res, errorMessages);
+      return ApiResponse.validationError(
+        res,
+        errors.array().map(e => e.msg)
+      );
     }
 
     const result = await AuthService.register(req.body);
+
     return ApiResponse.success(res, result, 'User registered successfully', 201);
   } catch (error) {
     if (error.message.includes('already exists')) {
