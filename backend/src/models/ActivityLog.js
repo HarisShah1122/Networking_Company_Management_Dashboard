@@ -13,9 +13,9 @@ module.exports = (sequelize) => {
     underscored: true
   });
 
-  ActivityLog.associate = (models) => {
-    ActivityLog.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
-  };
+  // ActivityLog.associate = (models) => {
+  //   ActivityLog.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
+  // };
 
   return ActivityLog;
 };
