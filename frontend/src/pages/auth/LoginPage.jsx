@@ -5,18 +5,18 @@ import useAuthStore from '../../stores/authStore';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, error, clearError, isInitializing } = useAuthStore();
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    // Redirect if already authenticated
-    if (isAuthenticated) {
+    // Only redirect if auth check is complete and user is authenticated
+    if (!isInitializing && isAuthenticated) {
       navigate('/dashboard', { replace: true });
     }
     return () => clearError();
-  }, [isAuthenticated, navigate, clearError]);
+  }, [isAuthenticated, isInitializing, navigate, clearError]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -32,6 +32,15 @@ const LoginPage = () => {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (isInitializing) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4 sm:px-6 lg:px-8">

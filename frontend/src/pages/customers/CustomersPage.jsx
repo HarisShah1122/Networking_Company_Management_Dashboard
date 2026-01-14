@@ -6,7 +6,6 @@ import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import { transformBackendPagination } from '../../utils/pagination.utils';
 import Loader from '../../components/common/Loader';
@@ -19,9 +18,7 @@ const CustomersPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
-  const [customerToDelete, setCustomerToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [paginationState, setPaginationState] = useState({ page: 1, pageSize: 10 });
@@ -29,7 +26,7 @@ const CustomersPage = () => {
   const isInitialMount = useRef(true);
   const isManualReload = useRef(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
   const loadCustomers = useCallback(async (search = '', status = '', page = 1, pageSize = 10, isInitialLoad = false) => {
     try {
@@ -185,27 +182,6 @@ const CustomersPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (customer) => {
-    setCustomerToDelete(customer);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!customerToDelete) return;
-
-    try {
-      await customerService.delete(customerToDelete.id);
-      toast.success('Customer deleted successfully!');
-      setShowDeleteModal(false);
-      setCustomerToDelete(null);
-      isManualReload.current = true;
-      await loadCustomers(searchTerm, statusFilter, paginationState.page, paginationState.pageSize, false);
-    } catch (error) {
-      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to delete customer';
-      toast.error(errorMsg);
-    }
-  };
-
   const canManage = isManager(user?.role);
 
   if (loading) return <Loader />;
@@ -312,15 +288,6 @@ const CustomersPage = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => handleDelete(customer)}
-                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </div>
                     )}
                   </td>
@@ -356,20 +323,22 @@ const CustomersPage = () => {
                   <label className="block text-sm font-medium text-gray-700">Name *</label>
                   <input
                     {...register('name', { required: 'Name is required' })}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.name && touchedFields.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+                  {errors.name && touchedFields.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Father Name</label>
                   <input
                     {...register('father_name')}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Gender</label>
-                  <select {...register('gender')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                  <select {...register('gender')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                     <option value="">Select Gender</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -382,15 +351,17 @@ const CustomersPage = () => {
                   <label className="block text-sm font-medium text-gray-700">Phone *</label>
                   <input
                     {...register('phone', { required: 'Phone is required' })}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.phone && touchedFields.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
+                  {errors.phone && touchedFields.phone && <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
                   <input
                     {...register('whatsapp_number')}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 </div>
                 <div>
@@ -398,9 +369,11 @@ const CustomersPage = () => {
                   <input
                     {...register('email', { pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
                     type="email"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.email && touchedFields.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+                  {errors.email && touchedFields.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -408,13 +381,13 @@ const CustomersPage = () => {
                   <label className="block text-sm font-medium text-gray-700">Address</label>
                   <textarea
                     {...register('address')}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                     rows="3"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                     <option value="suspended">Suspended</option>
@@ -437,18 +410,6 @@ const CustomersPage = () => {
         </Modal>
       )}
 
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setCustomerToDelete(null);
-        }}
-        title="Delete Customer"
-        itemName={customerToDelete?.name}
-        onConfirm={handleConfirmDelete}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
     </div>
   );
 };

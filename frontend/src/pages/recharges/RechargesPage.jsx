@@ -8,7 +8,6 @@ import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
@@ -20,9 +19,7 @@ const RechargesPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingRecharge, setEditingRecharge] = useState(null);
-  const [rechargeToDelete, setRechargeToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -31,7 +28,7 @@ const RechargesPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, control, watch, formState: { errors, touchedFields } } = useForm();
   const watchedCustomerId = watch('customer_id');
 
   const loadRecharges = useCallback(async (search = '', status = '', isInitialLoad = false) => {
@@ -274,26 +271,6 @@ const RechargesPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (recharge) => {
-    setRechargeToDelete(recharge);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!rechargeToDelete) return;
-
-    try {
-      await rechargeService.delete(rechargeToDelete.id);
-      toast.success('Recharge deleted successfully!');
-      setShowDeleteModal(false);
-      setRechargeToDelete(null);
-      await loadRecharges(searchTerm, statusFilter, false);
-      await loadDuePayments();
-    } catch (error) {
-      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to delete recharge';
-      toast.error(errorMsg);
-    }
-  };
 
   const handleMarkPaid = async (id) => {
     try {
@@ -494,15 +471,6 @@ const RechargesPage = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => handleDelete(recharge)}
-                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </div>
                     )}
                   </td>
@@ -550,7 +518,9 @@ const RechargesPage = () => {
                       return true;
                     }
                   })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.customer_id && touchedFields.customer_id ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 >
                   <option value="">Select User ID</option>
                   {customers.map((customer) => (
@@ -559,7 +529,7 @@ const RechargesPage = () => {
                     </option>
                   ))}
                 </select>
-                {errors.customer_id && <p className="text-red-500 text-sm mt-1">{errors.customer_id.message}</p>}
+                {errors.customer_id && touchedFields.customer_id && <p className="text-red-500 text-sm mt-1">{errors.customer_id.message}</p>}
               </div>
               {selectedCustomer && (
                 <div className="bg-gray-50 p-4 rounded-md">
@@ -588,7 +558,7 @@ const RechargesPage = () => {
                 <label className="block text-sm font-medium text-gray-700">Package</label>
                 <input
                   {...register('package')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="Enter package name"
                 />
               </div>
@@ -599,13 +569,15 @@ const RechargesPage = () => {
                     {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
                     type="number"
                     step="0.01"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
+                  {errors.amount && touchedFields.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                  <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                  <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                     <option value="cash">Cash</option>
                     <option value="card">Card</option>
                     <option value="online">Online</option>
@@ -614,7 +586,7 @@ const RechargesPage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
                     <option value="overdue">Overdue</option>
@@ -658,7 +630,7 @@ const RechargesPage = () => {
                   <label className="block text-sm font-medium text-gray-700">Notes</label>
                   <textarea
                     {...register('notes')}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                     rows="3"
                     placeholder="Enter notes"
                   />
@@ -680,18 +652,6 @@ const RechargesPage = () => {
         </Modal>
       )}
 
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setRechargeToDelete(null);
-        }}
-        title="Delete Recharge"
-        itemName={rechargeToDelete ? `${rechargeToDelete.customer_name ?? 'Recharge'} - RS ${parseFloat(rechargeToDelete.amount || 0).toFixed(2)}` : ''}
-        onConfirm={handleConfirmDelete}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
     </div>
   );
 };

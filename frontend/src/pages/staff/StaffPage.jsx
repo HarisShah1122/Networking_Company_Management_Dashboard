@@ -5,7 +5,6 @@ import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
@@ -15,9 +14,7 @@ const StaffPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [userToDelete, setUserToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,7 +22,7 @@ const StaffPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
   const loadUsers = useCallback(async (search = '', role = '', isInitialLoad = false) => {
     try {
@@ -163,25 +160,6 @@ const StaffPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (user) => {
-    setUserToDelete(user);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!userToDelete) return;
-
-    try {
-      await userService.delete(userToDelete.id);
-      toast.success('User deleted successfully!');
-      setShowDeleteModal(false);
-      setUserToDelete(null);
-      await loadUsers(searchTerm, roleFilter, false);
-    } catch (error) {
-      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete user';
-      toast.error(errorMsg);
-    }
-  };
 
   const canManage = isManager(user?.role);
 
@@ -279,15 +257,6 @@ const StaffPage = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => handleDelete(user)}
-                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </div>
                     )}
                   </td>
@@ -329,17 +298,21 @@ const StaffPage = () => {
                   <input
                     {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
                     type="email"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.email && touchedFields.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+                  {errors.email && touchedFields.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Username *</label>
                   <input
                     {...register('username', { required: 'Username is required', minLength: { value: 3, message: 'Username must be at least 3 characters' } })}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.username && touchedFields.username ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.username && <p className="text-red-500 text-sm">{errors.username.message}</p>}
+                  {errors.username && touchedFields.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
                 </div>
               </div>
               {!editingUser && (
@@ -348,9 +321,11 @@ const StaffPage = () => {
                   <input
                     {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
                     type="password"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.password && touchedFields.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
+                  {errors.password && touchedFields.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
@@ -358,7 +333,9 @@ const StaffPage = () => {
                   <label className="block text-sm font-medium text-gray-700">Role *</label>
                   <select
                     {...register('role', { required: 'Role is required' })}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.role && touchedFields.role ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="Staff">Staff</option>
                     <option value="Manager">Manager</option>
@@ -368,7 +345,7 @@ const StaffPage = () => {
                 {editingUser && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Status</label>
-                    <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                    <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
                     </select>
@@ -391,18 +368,6 @@ const StaffPage = () => {
         </Modal>
       )}
 
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setUserToDelete(null);
-        }}
-        title="Delete User"
-        itemName={userToDelete?.username || userToDelete?.email}
-        onConfirm={handleConfirmDelete}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
     </div>
   );
 };

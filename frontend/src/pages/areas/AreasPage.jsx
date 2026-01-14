@@ -5,7 +5,6 @@ import { areaService } from '../../services/areaService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
@@ -16,9 +15,7 @@ const AreasPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingArea, setEditingArea] = useState(null);
-  const [areaToDelete, setAreaToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -26,7 +23,7 @@ const AreasPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
   const loadAreas = useCallback(async (search = '', isInitial = false) => {
     try {
@@ -112,17 +109,6 @@ const AreasPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (area) => {
-    setAreaToDelete(area);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!areaToDelete) return;
-    toast.info('Delete endpoint not implemented yet. Area remains in list.');
-    setShowDeleteModal(false);
-    setAreaToDelete(null);
-  };
 
   const canManage = isManager(user?.role);
 
@@ -186,7 +172,6 @@ const AreasPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-3">
                         <button onClick={() => handleEdit(area)} className="text-indigo-600 hover:text-indigo-900" title="Edit">Edit</button>
-                        <button onClick={() => handleDelete(area)} className="text-red-600 hover:text-red-900" title="Delete">Delete</button>
                       </div>
                     </td>
                   )}
@@ -215,16 +200,18 @@ const AreasPage = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
-              <input {...register('name', { required: 'Name is required' })} className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-              {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+              <input {...register('name', { required: 'Name is required' })} className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                errors.name && touchedFields.name ? 'border-red-500' : 'border-gray-300'
+              }`} />
+              {errors.name && touchedFields.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Code</label>
-              <input {...register('code')} className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <input {...register('code')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea {...register('description')} rows={3} className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <textarea {...register('description')} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
             <div className="flex gap-4 pt-4">
               <button type="button" onClick={() => { setShowModal(false); reset(); setEditingArea(null); }} className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
@@ -235,7 +222,6 @@ const AreasPage = () => {
       )}
 
       {/* Delete Modal */}
-      <ConfirmModal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setAreaToDelete(null); }} title="Delete Area" itemName={areaToDelete?.name} onConfirm={handleConfirmDelete} confirmText="Delete" cancelText="Cancel" />
     </div>
   );
 };

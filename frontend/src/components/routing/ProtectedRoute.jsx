@@ -1,9 +1,16 @@
 import { Navigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
+import Loader from '../common/Loader';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isInitializing } = useAuthStore();
 
+  // Show loading while checking authentication
+  if (isInitializing) {
+    return <Loader />;
+  }
+
+  // Only redirect if auth check is complete and user is not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
