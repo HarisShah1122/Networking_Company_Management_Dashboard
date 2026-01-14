@@ -11,9 +11,9 @@ const login = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    const result = await AuthService.login(email, password);
+    const result = await AuthService.login(username, password);
 
     return ApiResponse.success(res, result, 'Login successful');
   } catch (error) {
@@ -31,32 +31,26 @@ const register = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return ApiResponse.validationError(
-        res,
-        errors.array().map(e => e.msg)
-      );
+      return ApiResponse.validationError(res, errors.array());
     }
 
     const result = await AuthService.register(req.body);
 
     return ApiResponse.success(res, result, 'User registered successfully', 201);
   } catch (error) {
-    if (error.message.includes('already exists')) {
-      return ApiResponse.conflict(res, error.message);
-    }
     next(error);
   }
 };
 
 const getMe = async (req, res, next) => {
   try {
-    const user = await UserService.getById(req.user.id);
+    const user = await UserService.getById(req.user.userId);
 
     if (!user) {
       return ApiResponse.notFound(res, 'User');
     }
 
-    return ApiResponse.success(res, { user }, 'User retrieved successfully');
+    return ApiResponse.success(res, { user });
   } catch (error) {
     next(error);
   }
