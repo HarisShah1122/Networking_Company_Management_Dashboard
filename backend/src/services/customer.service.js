@@ -35,6 +35,15 @@ const getById = async (id) => {
 };
 
 const create = async (data) => {
+  if (data.pace_user_id) {
+    const existing = await Customer.findOne({ where: { pace_user_id: data.pace_user_id.trim() } });
+    if (existing) {
+      const err = new Error('PACE USER ID already exists');
+      err.status = 409;
+      throw err;
+    }
+  }
+
   return await Customer.create({
     name: data.name.trim(),
     email: data.email?.trim(),

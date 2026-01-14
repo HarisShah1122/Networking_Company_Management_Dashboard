@@ -89,9 +89,19 @@ const update = async (req, res, next) => {
   }
 };
 
+const getStats = async (req, res, next) => {
+  try {
+    const stats = await CustomerService.getStats();
+    return ApiResponse.success(res, { stats }, 'Statistics retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   create,
-  update
+  update,
+  getStats
 };
