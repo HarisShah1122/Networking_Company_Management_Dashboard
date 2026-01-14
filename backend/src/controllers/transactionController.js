@@ -110,6 +110,15 @@ const getByCategory = async (req, res, next) => {
   }
 };
 
+const getRevenueGrowth = async (req, res, next) => {
+  try {
+    const data = await TransactionService.getRevenueGrowthLast6Months();
+    return ApiResponse.success(res, { data }, 'Revenue growth retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -117,5 +126,6 @@ module.exports = {
   update,
   getSummary,
   getByCategory,
+  getRevenueGrowth,
   validateTransaction
 };

@@ -117,6 +117,36 @@ const getByCategory = async (filters = {}) => {
   });
 };
 
+const getRevenueGrowthLast6Months = async () => {
+  // Sum income per month for last 6 months (including current month)
+  // MySQL DATE_FORMAT on `date` column (DATEONLY)
+  const rows = await Transaction.findAll({
+    attributes: [
+      [Transaction.sequelize.fn('DATE_FORMAT', Transaction.sequelize.col('date'), '%Y-%m'), 'month'],
+      [Transaction.sequelize.fn('SUM', Transaction.sequelize.literal("CASE WHEN type = 'income' THEN amount ELSE 0 END")), 'revenue']
+    ],
+    where: {
+      date: {
+        [Op.gte]: Transaction.sequelize.literal("DATE_SUB(CURDATE(), INTERVAL 5 MONTH)")
+      }
+    },
+    group: [Transaction.sequelize.fn('DATE_FORMAT', Transaction.sequelize.col('date'), '%Y-%m')],
+    order: [[Transaction.sequelize.literal('month'), 'ASC']],
+    raw: true
+  });
+
+  // Ensure we always return exactly 6 months (fill missing months with 0)
+  const monthMap = new Map(rows.map(r => [r.month, parseFloat(r.revenue || 0)]));
+  const result = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    result.push({ month: key, revenue: monthMap.get(key) ?? 0 });
+  }
+  return result;
+};
+
 module.exports = {
   getAll,
   getById,
@@ -124,5 +154,6 @@ module.exports = {
   update,
   delete: deleteTransaction,
   getSummary,
-  getByCategory
+  getByCategory,
+  getRevenueGrowthLast6Months
 };

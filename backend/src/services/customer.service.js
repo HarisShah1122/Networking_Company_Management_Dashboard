@@ -65,4 +65,13 @@ const update = async (id, data) => {
   return customer;
 };
 
-module.exports = { getAll, getById, create, update };
+const getStats = async () => {
+  const [total, active] = await Promise.all([
+    Customer.count(),
+    Customer.count({ where: { status: 'active' } })
+  ]);
+
+  return { total, active };
+};
+
+module.exports = { getAll, getById, create, update, getStats };

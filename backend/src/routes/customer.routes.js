@@ -12,9 +12,8 @@ router.use(authenticate);
 
 // Publicly accessible (but authenticated)
 router.get('/', customerController.getAll);
+router.get('/stats', customerController.getStats);
 router.get('/:id', customerController.getById);
-
-// router.get('/stats', customerController.getStats);
 
 
 router.post(

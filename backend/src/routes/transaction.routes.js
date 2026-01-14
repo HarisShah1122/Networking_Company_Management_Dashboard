@@ -10,6 +10,7 @@ router.use(authenticate);
 router.get('/', transactionController.getAll);
 router.get('/summary', transactionController.getSummary);
 router.get('/by-category', transactionController.getByCategory);
+router.get('/revenue-growth', transactionController.getRevenueGrowth);
 router.get('/:id', transactionController.getById);
 router.post(
   '/',

@@ -47,6 +47,20 @@ const validateCustomer = [
     .optional()
     .isIn(Object.values(CUSTOMER_STATUS))
     .withMessage(`Status must be one of: ${Object.values(CUSTOMER_STATUS).join(', ')}`)
+  ,
+  body('pace_user_id')
+    .optional({ nullable: true, checkFalsy: true })
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('PACE USER ID must not exceed 50 characters'),
+  body('areaId')
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') return true;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(String(value));
+    })
+    .withMessage('Invalid areaId format')
 ];
 
 module.exports = {
