@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { customerService } from '../../services/customerService';
+import { areaService } from '../../services/areaService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
@@ -14,6 +15,7 @@ const CustomersPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [customers, setCustomers] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -27,6 +29,15 @@ const CustomersPage = () => {
   const isManualReload = useRef(false);
 
   const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
+
+  const loadAreas = useCallback(async () => {
+    try {
+      const list = await areaService.getAll();
+      setAreas(Array.isArray(list) ? list : []);
+    } catch (e) {
+      setAreas([]);
+    }
+  }, []);
 
   const loadCustomers = useCallback(async (search = '', status = '', page = 1, pageSize = 10, isInitialLoad = false) => {
     try {
@@ -97,10 +108,11 @@ const CustomersPage = () => {
 
   useEffect(() => {
     if (isInitialMount.current) {
+      loadAreas();
       loadCustomers('', '', 1, 10, true);
       isInitialMount.current = false;
     }
-  }, [loadCustomers]);
+  }, [loadCustomers, loadAreas]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -178,7 +190,11 @@ const CustomersPage = () => {
 
   const handleEdit = (customer) => {
     setEditingCustomer(customer);
-    reset(customer);
+    // Ensure areaId is present for the select
+    reset({
+      ...customer,
+      areaId: customer.areaId ?? customer.area_id ?? customer.AreaId ?? '',
+    });
     setShowModal(true);
   };
 
@@ -330,11 +346,39 @@ const CustomersPage = () => {
                   {errors.name && touchedFields.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">PACE USER ID</label>
+                  <input
+                    {...register('pace_user_id')}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="e.g., PACE-12345"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Father Name</label>
                   <input
                     {...register('father_name')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Area *</label>
+                  <select
+                    {...register('areaId', { required: 'Area is required' })}
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.areaId && touchedFields.areaId ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    defaultValue=""
+                  >
+                    <option value="">Select Area</option>
+                    {areas.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}{a.code ? ` (${a.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.areaId && touchedFields.areaId && <p className="text-red-500 text-sm mt-1">{errors.areaId.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Gender</label>
@@ -344,6 +388,13 @@ const CustomersPage = () => {
                     <option value="female">Female</option>
                     <option value="other">Other</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                  <input
+                    {...register('whatsapp_number')}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -356,13 +407,6 @@ const CustomersPage = () => {
                     }`}
                   />
                   {errors.phone && touchedFields.phone && <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
-                  <input
-                    {...register('whatsapp_number')}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>

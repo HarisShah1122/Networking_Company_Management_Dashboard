@@ -43,5 +43,9 @@ export const transactionService = {
     const response = await apiClient.get(`/transactions/by-category${queryString ? `?${queryString}` : ''}`);
     return response.data.data ?? response.data;
   },
+  getRevenueGrowth: async () => {
+    const response = await apiClient.get('/transactions/revenue-growth');
+    return response.data.data ?? response.data;
+  },
 };
 
