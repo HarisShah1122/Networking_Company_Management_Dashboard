@@ -4,12 +4,11 @@ import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 import { usePagination } from '../../hooks/usePagination';
 import { useModal } from '../../hooks/useModal';
-import { useStockList, useStockCategories, useCreateStock, useUpdateStock, useDeleteStock } from '../../hooks/queries/useStockQueries';
+import { useStockList, useStockCategories, useCreateStock, useUpdateStock } from '../../hooks/queries/useStockQueries';
 
 const StockPage = () => {
   const { user } = useAuthStore();
@@ -18,14 +17,12 @@ const StockPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceTimer = useRef(null);
   const [editingItem, setEditingItem] = useState(null);
-  const [itemToDelete, setItemToDelete] = useState(null);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
   
   // Custom hooks
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange, resetPagination, getPaginatedData, getPaginationInfo } = usePagination();
   const editModal = useModal();
-  const deleteModal = useModal();
   
   // TanStack Query hooks
   const { data: stock = [], isLoading, isFetching } = useStockList({ 
@@ -35,7 +32,6 @@ const StockPage = () => {
   const { data: categories = [] } = useStockCategories();
   const createMutation = useCreateStock();
   const updateMutation = useUpdateStock();
-  const deleteMutation = useDeleteStock();
 
 
   // Debounce search term
@@ -96,21 +92,6 @@ const StockPage = () => {
     editModal.openModal();
   };
 
-  const handleDelete = (item) => {
-    setItemToDelete(item);
-    deleteModal.openModal();
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!itemToDelete) return;
-    try {
-      await deleteMutation.mutateAsync(itemToDelete.id);
-      deleteModal.closeModal();
-      setItemToDelete(null);
-    } catch (error) {
-      // Error handling is done in the mutation hook
-    }
-  };
 
   const canManage = isManager(user?.role);
 
@@ -196,15 +177,6 @@ const StockPage = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </div>
                     )}
                   </td>
@@ -238,15 +210,17 @@ const StockPage = () => {
                   <label className="block text-sm font-medium text-gray-700">Name *</label>
                   <input
                     {...register('name', { required: 'Name is required' })}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.name && touchedFields.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+                  {errors.name && touchedFields.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Category</label>
                   <input
                     {...register('category')}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                     placeholder="e.g., Cables, Equipment"
                   />
                 </div>
@@ -257,7 +231,7 @@ const StockPage = () => {
                   <input
                     {...register('quantity_available', { valueAsNumber: true, min: 0 })}
                     type="number"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                     defaultValue={0}
                   />
                 </div>
@@ -266,7 +240,7 @@ const StockPage = () => {
                   <input
                     {...register('quantity_used', { valueAsNumber: true, min: 0 })}
                     type="number"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                     defaultValue={0}
                   />
                 </div>
@@ -277,32 +251,14 @@ const StockPage = () => {
                   {...register('unit_price', { valueAsNumber: true, min: 0 })}
                   type="number"
                   step="0.01"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Location</label>
-                <input
-                  {...register('location')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                  placeholder="Storage location"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Unit Price</label>
-                <input
-                  {...register('unit_price', { valueAsNumber: true, min: 0 })}
-                  type="number"
-                  step="0.01"
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                  defaultValue={0}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>
                 <textarea
                   {...register('description')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   rows="3"
                   placeholder="Optional description..."
                 />
@@ -328,18 +284,6 @@ const StockPage = () => {
         </Modal>
       )}
 
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => {
-          deleteModal.closeModal();
-          setItemToDelete(null);
-        }}
-        title="Delete Stock Item"
-        itemName={itemToDelete?.name}
-        onConfirm={handleConfirmDelete}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
     </div>
   );
 };

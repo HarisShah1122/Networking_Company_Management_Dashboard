@@ -8,7 +8,8 @@ const useAuthStore = create((set, get) => {
     user: getUser(),
     token: getToken(),
     isAuthenticated: !!getToken(),
-    isLoading: false,
+    isLoading: true, // Start with loading true to prevent premature redirects
+    isInitializing: true, // Track initial auth check
     error: null,
   };
 
@@ -84,9 +85,10 @@ const useAuthStore = create((set, get) => {
     },
 
     checkAuth: async () => {
+      set({ isLoading: true, isInitializing: true });
       const token = getToken();
       if (!token) {
-        set({ isAuthenticated: false, user: null });
+        set({ isAuthenticated: false, user: null, isLoading: false, isInitializing: false });
         return;
       }
 
@@ -96,14 +98,14 @@ const useAuthStore = create((set, get) => {
         const user = response.user || response.data?.user;
         if (user) {
           setUser(user);
-          set({ user, isAuthenticated: true });
+          set({ user, isAuthenticated: true, isLoading: false, isInitializing: false });
         } else {
           throw new Error('Invalid user data');
         }
       } catch (error) {
         removeToken();
         removeUser();
-        set({ isAuthenticated: false, user: null, token: null });
+        set({ isAuthenticated: false, user: null, token: null, isLoading: false, isInitializing: false });
       }
     },
 

@@ -7,7 +7,6 @@ import { transactionService } from '../../services/transactionService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
@@ -18,9 +17,7 @@ const AccountsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [transactionToDelete, setTransactionToDelete] = useState(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -28,7 +25,7 @@ const AccountsPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, control, formState: { errors, touchedFields } } = useForm();
 
   const loadTransactions = useCallback(async (search = '', type = '', isInitialLoad = false) => {
     try {
@@ -177,26 +174,6 @@ const AccountsPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (transaction) => {
-    setTransactionToDelete(transaction);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!transactionToDelete) return;
-
-    try {
-      await transactionService.delete(transactionToDelete.id);
-      toast.success('Transaction deleted successfully!');
-      setShowDeleteModal(false);
-      setTransactionToDelete(null);
-      await loadTransactions(searchTerm, typeFilter, false);
-      await loadSummary();
-    } catch (error) {
-      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to delete transaction';
-      toast.error(errorMsg);
-    }
-  };
 
   const canManage = isManager(user?.role);
 
@@ -316,15 +293,6 @@ const AccountsPage = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => handleDelete(transaction)}
-                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </div>
                     )}
                   </td>
@@ -365,12 +333,14 @@ const AccountsPage = () => {
                   <label className="block text-sm font-medium text-gray-700">Type *</label>
                   <select
                     {...register('type', { required: 'Type is required' })}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.type && touchedFields.type ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="income">Income</option>
                     <option value="expense">Expense</option>
                   </select>
-                  {errors.type && <p className="text-red-500 text-sm">{errors.type.message}</p>}
+                  {errors.type && touchedFields.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Amount *</label>
@@ -378,9 +348,11 @@ const AccountsPage = () => {
                     {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
                     type="number"
                     step="0.01"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                      errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                  {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
+                  {errors.amount && touchedFields.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -400,13 +372,13 @@ const AccountsPage = () => {
                       />
                     )}
                   />
-                  {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
+                  {errors.date && touchedFields.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Category</label>
                   <input
                     {...register('category')}
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                     placeholder="e.g., Salary, Rent"
                   />
                 </div>
@@ -415,7 +387,7 @@ const AccountsPage = () => {
                 <label className="block text-sm font-medium text-gray-700">Description</label>
                 <textarea
                   {...register('description')}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   rows="3"
                   placeholder="Optional description..."
                 />
@@ -436,18 +408,6 @@ const AccountsPage = () => {
         </Modal>
       )}
 
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setTransactionToDelete(null);
-        }}
-        title="Delete Transaction"
-        itemName={transactionToDelete ? `${transactionToDelete.type} - RS ${parseFloat(transactionToDelete.amount || 0).toFixed(2)}` : ''}
-        onConfirm={handleConfirmDelete}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
     </div>
   );
 };

@@ -6,7 +6,6 @@ import { customerService } from '../../services/customerService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 
@@ -17,9 +16,7 @@ const ComplaintsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingComplaint, setEditingComplaint] = useState(null);
-  const [complaintToDelete, setComplaintToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -28,7 +25,7 @@ const ComplaintsPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, touchedFields } } = useForm();
   const watchedCustomerId = watch('customerId');
 
   const loadComplaints = useCallback(async (search = '', status = '', isInitialLoad = false) => {
@@ -254,25 +251,6 @@ const ComplaintsPage = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (complaint) => {
-    setComplaintToDelete(complaint);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!complaintToDelete) return;
-
-    try {
-      await complaintService.delete(complaintToDelete.id);
-      toast.success('Complaint deleted successfully!');
-      setShowDeleteModal(false);
-      setComplaintToDelete(null);
-      await loadComplaints(searchTerm, statusFilter, false);
-    } catch (error) {
-      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to delete complaint';
-      toast.error(errorMsg);
-    }
-  };
 
   const canManage = isManager(user?.role);
 
@@ -379,15 +357,6 @@ const ComplaintsPage = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button
-                            onClick={() => handleDelete(complaint)}
-                            className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                            title="Delete"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
                         </div>
                       )}
                     </td>
@@ -436,7 +405,9 @@ const ComplaintsPage = () => {
                       return true;
                     }
                   })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.customerId && touchedFields.customerId ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 >
                   <option value="">Select User ID</option>
                   {customers.map((customer) => (
@@ -445,7 +416,7 @@ const ComplaintsPage = () => {
                     </option>
                   ))}
                 </select>
-                {errors.customerId && <p className="text-red-500 text-sm mt-1">{errors.customerId.message}</p>}
+                {errors.customerId && touchedFields.customerId && <p className="text-red-500 text-sm mt-1">{errors.customerId.message}</p>}
               </div>
               {selectedCustomer && (
                 <div className="bg-gray-50 p-4 rounded-md">
@@ -474,25 +445,29 @@ const ComplaintsPage = () => {
                 <label className="block text-sm font-medium text-gray-700">Title *</label>
                 <input
                   {...register('title', { required: 'Title is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.title && touchedFields.title ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Enter complaint title"
                 />
-                {errors.title && <p className="text-red-500 text-sm">{errors.title.message}</p>}
+                {errors.title && touchedFields.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description *</label>
                 <textarea
                   {...register('description', { required: 'Description is required' })}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.description && touchedFields.description ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   rows="4"
                   placeholder="Enter complaint description"
                 />
-                {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
+                {errors.description && touchedFields.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border rounded-md">
+                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                     <option value="open">Open</option>
                     <option value="in_progress">In Progress</option>
                     <option value="resolved">Resolved</option>
@@ -525,18 +500,6 @@ const ComplaintsPage = () => {
         </Modal>
       )}
 
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setComplaintToDelete(null);
-        }}
-        title="Delete Complaint"
-        itemName={complaintToDelete?.title}
-        onConfirm={handleConfirmDelete}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
     </div>
   );
 };
