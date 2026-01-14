@@ -53,9 +53,19 @@ const updateComplaint = async (req, res, next) => {
   }
 };
 
+const getStats = async (req, res, next) => {
+  try {
+    const stats = await ComplaintService.getStatusStats();
+    return ApiResponse.success(res, { stats }, 'Complaint status statistics retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 module.exports = {
   createComplaint,
   getAllComplaints,
-  updateComplaint
+  updateComplaint,
+  getStats
 };

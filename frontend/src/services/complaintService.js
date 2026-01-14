@@ -23,5 +23,9 @@ export const complaintService = {
     const response = await apiClient.delete(`/complaints/${id}`);
     return extractData(response);
   },
+  getStats: async () => {
+    const response = await apiClient.get('/complaints/stats');
+    return extractData(response);
+  },
 };
 

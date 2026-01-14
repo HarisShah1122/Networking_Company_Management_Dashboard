@@ -5,6 +5,7 @@ import { connectionService } from '../../services/connectionService';
 import { rechargeService } from '../../services/rechargeService';
 import { stockService } from '../../services/stockService';
 import { transactionService } from '../../services/transactionService';
+import { complaintService } from '../../services/complaintService';
 import Loader from '../../components/common/Loader';
 
 const DashboardPage = () => {
@@ -25,12 +26,14 @@ const DashboardPage = () => {
 
   const loadStats = async () => {
     try {
-      const [customers, connections, recharges, stock, transactions] = await Promise.all([
+      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth] = await Promise.all([
         customerService.getStats(),
         connectionService.getStats(),
         rechargeService.getStats(),
         stockService.getStats(),
         transactionService.getSummary(),
+        complaintService.getStats(),
+        transactionService.getRevenueGrowth(),
       ]);
 
       const updatedStats = {
@@ -42,25 +45,20 @@ const DashboardPage = () => {
       };
       setStats(updatedStats);
 
-      // Generate revenue growth data for last 6 months
-      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'];
-      const baseRevenue = parseFloat(updatedStats.recharges?.total_paid ?? 0) / 6;
-      const revenueGrowthData = months.map((month, index) => ({
-        month,
-        revenue: Math.max(0, Math.round(baseRevenue * (1 + index * 0.15) + Math.random() * 500))
+      // Revenue Growth (real data - last 6 months)
+      const revenueGrowthData = (revenueGrowth?.data ?? []).map((row) => ({
+        month: row.month,
+        revenue: Number(row.revenue ?? 0),
       }));
       setRevenueData(revenueGrowthData);
 
-      // Generate complaint status data
-      const totalComplaints = (updatedStats.connections.pending ?? 0) + (updatedStats.connections.total ?? 0) ?? 124;
-      const resolved = Math.floor(totalComplaints * 0.5);
-      const pending = Math.floor(totalComplaints * 0.24);
-      const open = totalComplaints - resolved - pending;
-      
+      // Complaint Status (real data)
+      const cs = complaintStats?.stats ?? {};
       setComplaintData([
-        { name: 'Resolved', value: resolved, color: '#3B82F6' },
-        { name: 'Pending', value: pending, color: '#F97316' },
-        { name: 'Open', value: open, color: '#EF4444' }
+        { name: 'Open', value: Number(cs.open ?? 0), color: '#EF4444' },
+        { name: 'In Progress', value: Number(cs.in_progress ?? 0), color: '#F97316' },
+        { name: 'Resolved', value: Number(cs.resolved ?? 0), color: '#3B82F6' },
+        { name: 'Closed', value: Number(cs.closed ?? 0), color: '#22C55E' },
       ]);
     } catch (error) {
     } finally {

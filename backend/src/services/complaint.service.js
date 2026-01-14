@@ -212,9 +212,31 @@ const deleteComplaint = async (id, userId) => {
   }
 };
 
+const getStatusStats = async () => {
+  // Returns counts grouped by status: open, in_progress, resolved, closed
+  const rows = await Complaint.findAll({
+    attributes: [
+      'status',
+      [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+    ],
+    group: ['status'],
+    raw: true
+  });
+
+  const stats = { open: 0, in_progress: 0, resolved: 0, closed: 0 };
+  rows.forEach((r) => {
+    const status = r.status;
+    const count = parseInt(r.count, 10) || 0;
+    if (stats[status] !== undefined) stats[status] = count;
+  });
+
+  return stats;
+};
+
 module.exports = {
   create,
   getAll,
   update,
-  delete: deleteComplaint
+  delete: deleteComplaint,
+  getStatusStats
 };

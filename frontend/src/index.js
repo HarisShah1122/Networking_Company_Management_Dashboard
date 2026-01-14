@@ -69,8 +69,8 @@ console.warn = (...args) => {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  // NOTE: StrictMode can trigger ResizeObserver loop errors in some UI libs (double-invocation in dev).
+  // Removing it prevents the runtime overlay error on refresh/re-render.
+  <App />
 );
 
