@@ -1,19 +1,13 @@
 const { body } = require('express-validator');
 const { MESSAGES } = require('../constants');
-
 const validateLogin = [
-  body('email')
+  body('username')
     .trim()
     .notEmpty()
-    .withMessage('Email is required')
-    .isEmail()
-    .withMessage('Valid email is required')
-    .normalizeEmail(),
+    .withMessage('Username is required'),
   body('password')
     .notEmpty()
     .withMessage('Password is required')
-    .isLength({ min: 1 })
-    .withMessage('Password cannot be empty')
 ];
 
 const validateRegister = [
