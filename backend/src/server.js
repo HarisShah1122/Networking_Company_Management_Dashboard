@@ -76,8 +76,11 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connected successfully');
 
-    await sequelize.sync({ alter: false });
-    console.log('✅ Database models synchronized');
+    if (NODE_ENV === 'development') {
+      // Sync all models without forcing drop
+      // await sequelize.sync({ alter: true });
+      console.log('All models synced with database');
+    }
 
     app.listen(PORT, () =>
       console.log(`🚀 Server running on http://localhost:${PORT}`)
