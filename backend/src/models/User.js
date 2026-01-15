@@ -11,8 +11,13 @@ module.exports = (sequelize) => {
       set(value) { this.setDataValue('password', value); }
     },
     password_hash: { type: DataTypes.STRING(255), allowNull: false },
-    role: { type: DataTypes.ENUM('CEO', 'Manager', 'Staff'), defaultValue: 'Staff' },
-    status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' }
+    role: { type: DataTypes.ENUM('SuperAdmin', 'CEO', 'Manager', 'Staff'), defaultValue: 'Staff' },
+    status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
+    companyId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'company_id'
+    }
   }, {
     tableName: 'users',
     timestamps: true,

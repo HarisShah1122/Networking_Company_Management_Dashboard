@@ -1,17 +1,22 @@
 const Sequelize = require('sequelize');
 const sequelize = require('../config/database');
 
-// Import models and pass both `sequelize` and `Sequelize.DataTypes`
+const Company = require('./Company')(sequelize, Sequelize.DataTypes);
 const User = require('./User')(sequelize, Sequelize.DataTypes);
 const Customer = require('./Customer')(sequelize, Sequelize.DataTypes);
 const Connection = require('./Connection')(sequelize, Sequelize.DataTypes);
 const Recharge = require('./Recharge')(sequelize, Sequelize.DataTypes);
 const Stock = require('./Stock')(sequelize, Sequelize.DataTypes);
 const Transaction = require('./Transaction')(sequelize, Sequelize.DataTypes);
+const Payment = require('./Payment')(sequelize, Sequelize.DataTypes);
 const ActivityLog = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
 const Complaint = require('./Complaint')(sequelize, Sequelize.DataTypes);
 const Area = require('./Area')(sequelize, Sequelize.DataTypes);
-// Define associations
+const PackageRenewal = require('./PackageRenewal')(sequelize, Sequelize.DataTypes);
+
+Company.hasMany(User, { foreignKey: 'companyId', as: 'users' });
+User.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+
 Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
 Customer.hasMany(Connection, { foreignKey: 'customer_id', as: 'connections' });
 
@@ -21,35 +26,32 @@ Customer.hasMany(Recharge, { foreignKey: 'customer_id', as: 'recharges' });
 Transaction.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 User.hasMany(Transaction, { foreignKey: 'created_by', as: 'transactions' });
 
+Payment.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
+Customer.hasMany(Payment, { foreignKey: 'customerId', as: 'payments' });
+
 ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
 
-// Initialize Complaint associations
-const models = {
-  User,
-  Customer,
-  Connection,
-  Recharge,
-  Stock,
-  Transaction,
-  ActivityLog,
-  Complaint,
-  Area
-};
-if (Complaint.associate) {
-  Complaint.associate(models);
-  if (Area.associate) Area.associate(models);
-}
+Complaint.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
+Customer.hasMany(Complaint, { foreignKey: 'customerId', as: 'complaints' });
+Complaint.belongsTo(Connection, { foreignKey: 'connectionId', as: 'connection' });
+Connection.hasMany(Complaint, { foreignKey: 'connectionId', as: 'complaints' });
+
+if (Area.associate) Area.associate({ Customer, Connection });
 
 module.exports = {
   sequelize,
+  Sequelize,
+  Company,
   User,
   Customer,
   Connection,
   Recharge,
   Stock,
   Transaction,
+  Payment,
   ActivityLog,
   Complaint,
-  Area
+  Area,
+  PackageRenewal
 };

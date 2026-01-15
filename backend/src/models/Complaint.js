@@ -7,7 +7,7 @@ module.exports = (sequelize) => {
     connectionId: { type: DataTypes.UUID, allowNull: true, field: 'connection_id' },
     title: { type: DataTypes.STRING(255), allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: false },
-    status: { type: DataTypes.ENUM('open','in_progress','resolved','closed'), defaultValue: 'open' },
+    status: { type: DataTypes.ENUM('open','in_progress','on_hold','closed'), defaultValue: 'open' },
     priority: { type: DataTypes.ENUM('low','medium','high','urgent'), defaultValue: 'medium' },
     assignedTo: { type: DataTypes.UUID, allowNull: true },
     name: { type: DataTypes.STRING(255), allowNull: true },

@@ -1,4 +1,4 @@
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const bcrypt = require('bcrypt');
 const { User } = require('../models');
 
@@ -20,23 +20,35 @@ const getByEmail = async (email) => {
 };
 
 const getByUsername = async (username) => {
-  return await User.findOne({ where: { username } });
+  // Case-insensitive username lookup
+  return await User.findOne({ 
+    where: Sequelize.where(
+      Sequelize.fn('LOWER', Sequelize.col('username')), 
+      username.toLowerCase()
+    )
+  });
 };
 
 const create = async (data) => {
-  // data.password → plain text password (already checked in auth service)
-  if (!data.password || !data.password.trim()) {
+  // Accept either password (plain text) or password_hash
+  let password_hash = data.password_hash;
+  
+  if (!password_hash && data.password) {
+    // If password is provided, hash it
+    password_hash = await bcrypt.hash(data.password, 10);
+  }
+  
+  if (!password_hash) {
     throw new Error('Password is required for new user');
   }
-
-  const password_hash = await bcrypt.hash(data.password, 10);
 
   return await User.create({
     email: data.email?.trim(),
     username: data.username?.trim(),
     password_hash,
     role: data.role || 'Staff',
-    status: data.status || 'active'
+    status: data.status || 'active',
+    companyId: data.companyId || null
   });
 };
 

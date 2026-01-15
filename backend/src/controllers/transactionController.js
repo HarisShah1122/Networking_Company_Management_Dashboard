@@ -1,131 +1,102 @@
-const { validationResult } = require('express-validator');
-const TransactionService = require('../services/transaction.service');
-const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
-const { validateTransaction } = require('../helpers/validators');
+const { Transaction } = require('../models');
+const Sequelize = require('sequelize');
+const { Op } = Sequelize;
 
-const getAll = async (req, res, next) => {
+const getAll = async (req, res) => {
   try {
-    const filters = {
-      type: req.query.type,
-      category: req.query.category,
-      start_date: req.query.start_date,
-      end_date: req.query.end_date
-    };
-
-    const transactions = await TransactionService.getAll(filters);
-    return ApiResponse.success(res, { transactions }, 'Transactions retrieved successfully');
+    const { type } = req.query;
+    const where = type ? { type } : {};
+    const transactions = await Transaction.findAll({ where });
+    return ApiResponse.success(res, { transactions }, 'Transactions fetched');
   } catch (error) {
-    next(error);
+    return ApiResponse.error(res, error.message, 500);
   }
 };
 
-const getById = async (req, res, next) => {
+const getById = async (req, res) => {
   try {
-    const transaction = await TransactionService.getById(req.params.id);
-    
-    if (!transaction) {
-      return ApiResponse.notFound(res, 'Transaction');
-    }
-
-    return ApiResponse.success(res, { transaction }, 'Transaction retrieved successfully');
+    const transaction = await Transaction.findByPk(req.params.id);
+    if (!transaction) return ApiResponse.error(res, 'Transaction not found', 404);
+    return ApiResponse.success(res, transaction);
   } catch (error) {
-    next(error);
+    return ApiResponse.error(res, error.message, 500);
   }
 };
 
-const create = async (req, res, next) => {
+const getSummary = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return ApiResponse.validationError(res, errors.array());
-    }
-
-    const transaction = await TransactionService.create(req.body, req.user.id);
-    
-    activityLogService.logActivity(
-      req.user.id,
-      'create',
-      'transactions',
-      `Created ${transaction.type}: RS ${transaction.amount}`
-    );
-
-    return ApiResponse.success(res, { transaction }, 'Transaction created successfully', 201);
+    const summary = await Transaction.findAll({
+      attributes: [
+        [Sequelize.fn('SUM', Sequelize.literal("CASE WHEN type = 'income' THEN amount ELSE 0 END")), 'total_income'],
+        [Sequelize.fn('SUM', Sequelize.literal("CASE WHEN type = 'expense' THEN amount ELSE 0 END")), 'total_expense'],
+      ],
+    });
+    const { total_income, total_expense } = summary[0];
+    const profit_loss = (total_income || 0) - (total_expense || 0);
+    return ApiResponse.success(res, { summary: { total_income, total_expense, profit_loss } }, 'Summary fetched');
   } catch (error) {
-    next(error);
+    return ApiResponse.error(res, error.message, 500);
   }
 };
 
-const update = async (req, res, next) => {
+const getRevenueGrowth = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return ApiResponse.validationError(res, errors.array());
-    }
-
-    const transaction = await TransactionService.update(req.params.id, req.body);
-    
-    if (!transaction) {
-      return ApiResponse.notFound(res, 'Transaction');
-    }
-
-    activityLogService.logActivity(
-      req.user.id,
-      'update',
-      'transactions',
-      `Updated transaction: RS ${transaction.amount}`
-    );
-
-    return ApiResponse.success(res, { transaction }, 'Transaction updated successfully');
+    const revenue = await Transaction.findAll({
+      attributes: [
+        [Sequelize.fn('DATE_FORMAT', Sequelize.col('date'), '%Y-%m'), 'month'],
+        [Sequelize.fn('SUM', Sequelize.literal("CASE WHEN type = 'income' THEN amount ELSE 0 END")), 'revenue'],
+      ],
+      where: {
+        date: {
+          [Op.gte]: Sequelize.literal('DATE_SUB(CURDATE(), INTERVAL 6 MONTH)'),
+        },
+      },
+      group: ['month'],
+      order: [['month', 'ASC']],
+    });
+    return ApiResponse.success(res, { data: revenue }, 'Revenue growth fetched');
   } catch (error) {
-    next(error);
+    return ApiResponse.error(res, error.message, 500);
   }
 };
 
-const getSummary = async (req, res, next) => {
+const create = async (req, res) => {
   try {
-    const filters = {
-      start_date: req.query.start_date,
-      end_date: req.query.end_date
-    };
-
-    const summary = await TransactionService.getSummary(filters);
-    return ApiResponse.success(res, { summary }, 'Summary retrieved successfully');
+    const transaction = await Transaction.create(req.body);
+    return ApiResponse.success(res, transaction, 'Transaction created', 201);
   } catch (error) {
-    next(error);
+    return ApiResponse.error(res, error.message, 400);
   }
 };
 
-const getByCategory = async (req, res, next) => {
+const update = async (req, res) => {
   try {
-    const filters = {
-      start_date: req.query.start_date,
-      end_date: req.query.end_date
-    };
-
-    const byCategory = await TransactionService.getByCategory(filters);
-    return ApiResponse.success(res, { byCategory }, 'Category breakdown retrieved successfully');
+    const { id } = req.params;
+    const transaction = await Transaction.findByPk(id);
+    if (!transaction) return ApiResponse.error(res, 'Transaction not found', 404);
+    await transaction.update(req.body);
+    return ApiResponse.success(res, transaction, 'Transaction updated');
   } catch (error) {
-    next(error);
+    return ApiResponse.error(res, error.message, 400);
   }
 };
 
-const getRevenueGrowth = async (req, res, next) => {
+const searchTrx = async (req, res) => {
   try {
-    const data = await TransactionService.getRevenueGrowthLast6Months();
-    return ApiResponse.success(res, { data }, 'Revenue growth retrieved successfully');
+    const { query } = req.query;
+    const suggestions = await Transaction.findAll({
+      where: {
+        trxId: { [Op.like]: `%${query}%` },
+      },
+      attributes: ['trxId'],
+      limit: 5,
+    });
+    const existing = await Transaction.findOne({ where: { trxId: query } });
+    return ApiResponse.success(res, { suggestions: suggestions.map(s => s.trxId), existing: !!existing });
   } catch (error) {
-    next(error);
+    return ApiResponse.error(res, error.message, 500);
   }
 };
 
-module.exports = {
-  getAll,
-  getById,
-  create,
-  update,
-  getSummary,
-  getByCategory,
-  getRevenueGrowth,
-  validateTransaction
-};
+module.exports = { getAll, getById, getSummary, getRevenueGrowth, create, update, searchTrx };

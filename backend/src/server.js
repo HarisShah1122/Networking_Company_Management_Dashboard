@@ -6,6 +6,7 @@ const { errorHandler } = require('./middleware/error.middleware');
 const { sequelize, User, Customer, Connection, Recharge, Stock, Transaction, ActivityLog, Complaint, Payment, PackageRenewal } = require('./models');
 
 const authRoutes = require('./routes/auth.routes');
+const companyRoutes = require('./routes/company.routes');
 const customerRoutes = require('./routes/customer.routes');
 const connectionRoutes = require('./routes/connection.routes');
 const rechargeRoutes = require('./routes/recharge.routes');
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/companies', companyRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/api/recharges', rechargeRoutes);
@@ -47,9 +49,9 @@ const startServer = async () => {
     console.log('Database connected successfully');
 
     if (NODE_ENV === 'development') {
-      // Sync all models without forcing drop
-      await sequelize.sync({ alter: true });
-      console.log('All models synced with database');
+      // Sync all models without forcing drop and without creating duplicate indexes
+      await sequelize.sync({ alter: false });
+      console.log('Database models loaded');
     }
 
     app.listen(PORT, () => {
