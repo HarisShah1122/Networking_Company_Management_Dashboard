@@ -2,21 +2,46 @@ import apiClient from './api/apiClient';
 
 export const authService = {
   login: async (username, password, role, companyId) => {
-    // Send 'username' instead of 'email'
     const response = await apiClient.post('/auth/login', { username, password, role, companyId });
-    // Backend returns { success, message, data: { token, user, company } }
-    return response.data.data; 
+    const data = response?.data?.data;
+
+    if (!data || !data.token || !data.user) {
+      throw new Error('Invalid response from server'); // Only throw if token/user missing
+    }
+
+    return {
+      token: data.token,
+      user: data.user,
+      company: data.company || null,
+    };
   },
 
   register: async (userData) => {
     const response = await apiClient.post('/auth/register', userData);
-    // Backend returns { success, message, data: { token, user } }
-    return response.data.data;
+    const data = response?.data?.data;
+
+    if (!data || !data.token || !data.user) {
+      throw new Error('Invalid response from server');
+    }
+
+    return {
+      token: data.token,
+      user: data.user,
+      company: data.company || null,
+    };
   },
 
   getMe: async () => {
     const response = await apiClient.get('/auth/me');
-    // Backend returns { success, message, data: { user } }
-    return response.data.data ?? response.data;
+    const data = response?.data?.data;
+
+    if (!data || !data.user) {
+      throw new Error('Failed to fetch user');
+    }
+
+    return {
+      user: data.user,
+      company: data.company || null,
+    };
   },
 };

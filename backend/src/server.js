@@ -1,9 +1,18 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const { PORT, CORS_ORIGIN, NODE_ENV } = require('./config/env');
+const session = require('express-session');
+const SequelizeStore = require('connect-session-sequelize')(session.Store);
+
+const {
+  PORT,
+  CORS_ORIGIN,
+  NODE_ENV,
+  SESSION_SECRET,
+} = require('./config/env');
+
 const { errorHandler } = require('./middleware/error.middleware');
-const { sequelize, User, Customer, Connection, Recharge, Stock, Transaction, ActivityLog, Complaint, Payment, PackageRenewal } = require('./models');
+const { sequelize } = require('./models');
 
 const authRoutes = require('./routes/auth.routes');
 const companyRoutes = require('./routes/company.routes');
@@ -18,15 +27,33 @@ const paymentRoutes = require('./routes/payment.routes');
 const packageRenewalRoutes = require('./routes/packageRenewal.routes');
 const areaRoutes = require('./routes/area.routes');
 
-const app = express();
+/* ❌ Hard fail if secret missing */
+if (!SESSION_SECRET) throw new Error('SESSION_SECRET missing in .env');
 
+const app = express();
 app.use(helmet());
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+/* SESSION */
+app.use(
+  session({
+    name: 'pace.sid',
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store: new SequelizeStore({ db: sequelize, tableName: 'sessions' }),
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+      httpOnly: true,
+      secure: NODE_ENV === 'production',
+      sameSite: 'lax',
+    },
+  })
+);
 
+/* ROUTES */
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/customers', customerRoutes);
@@ -43,10 +70,11 @@ app.use('/api/areas', areaRoutes);
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use(errorHandler);
 
+/* START SERVER */
 const startServer = async () => {
   try {
     await sequelize.authenticate();
-    console.log('Database connected successfully');
+    console.log('✅ Database connected successfully');
 
     if (NODE_ENV === 'development') {
       // Sync all models without forcing drop
@@ -54,15 +82,14 @@ const startServer = async () => {
       console.log('All models synced with database');
     }
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on http://localhost:${PORT}`)
+    );
   } catch (error) {
-    console.log(error)
+    console.error(error);
     process.exit(1);
   }
 };
 
 startServer();
-
 module.exports = app;
