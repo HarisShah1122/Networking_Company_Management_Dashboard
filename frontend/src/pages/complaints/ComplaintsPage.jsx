@@ -285,7 +285,7 @@ const ComplaintsPage = () => {
           <option value="">All Status</option>
           <option value="open">Open</option>
           <option value="in_progress">In Progress</option>
-          <option value="resolved">Resolved</option>
+          <option value="on_hold">On Hold</option>
           <option value="closed">Closed</option>
         </select>
         {canManage && (
@@ -327,12 +327,12 @@ const ComplaintsPage = () => {
                     <td className="px-6 py-4">{complaint.title ?? '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
-                        complaint.status === 'resolved' ? 'bg-green-600 text-white' :
+                        complaint.status === 'on_hold' ? 'bg-orange-600 text-white' :
                         complaint.status === 'in_progress' ? 'bg-blue-600 text-white' :
                         complaint.status === 'closed' ? 'bg-gray-600 text-white' :
                         'bg-yellow-600 text-white'
                       }`}>
-                        {complaint.status ?? 'open'}
+                        {complaint.status === 'on_hold' ? 'On Hold' : (complaint.status ?? 'open')}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -412,7 +412,7 @@ const ComplaintsPage = () => {
                   <option value="">Select User ID</option>
                   {customers.map((customer) => (
                     <option key={customer.id} value={String(customer.id)}>
-                      {customer.name}
+                      {customer.name} {customer.pace_user_id ? `(PACE USER ID: ${customer.pace_user_id})` : ''}
                     </option>
                   ))}
                 </select>
@@ -434,9 +434,13 @@ const ComplaintsPage = () => {
                       <label className="block text-xs font-medium text-gray-600">WhatsApp No</label>
                       <p className="text-sm text-gray-900">{selectedCustomer.whatsapp_number || selectedCustomer.phone || '-'}</p>
                     </div>
-                    <div className="col-span-3">
-                      <label className="block text-xs font-medium text-gray-600">Address</label>
-                      <p className="text-sm text-gray-900">{selectedCustomer.address || '-'}</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">PACE USER ID</label>
+                      <p className="text-sm text-gray-900 font-mono">{selectedCustomer.pace_user_id || '-'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-gray-600">Area</label>
+                      <p className="text-sm text-gray-900">{selectedCustomer.area?.name || selectedCustomer.area_name || '-'}</p>
                     </div>
                   </div>
                 </div>

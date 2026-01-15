@@ -2,13 +2,51 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import useAuthStore from '../../stores/authStore';
+import { companyService } from '../../services/companyService';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated, error, clearError, isInitializing } = useAuthStore();
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [paceTelecomId, setPaceTelecomId] = useState(null);
+  const selectedRole = watch('role');
+
+  useEffect(() => {
+    // Load companies
+    const loadCompanies = async () => {
+      try {
+        const companiesList = await companyService.getAll();
+        setCompanies(companiesList);
+        // Find PACE TELECOM company and set it as default
+        const paceTelecom = companiesList.find(c => 
+          c.name.toLowerCase().includes('pace telecom') || 
+          c.name.toLowerCase().includes('pace')
+        );
+        if (paceTelecom) {
+          setPaceTelecomId(paceTelecom.id);
+        }
+      } catch (error) {
+        console.error('Failed to load companies:', error);
+      }
+    };
+    loadCompanies();
+  }, []);
+
+  // Auto-select PACE TELECOM when role is selected (not SuperAdmin)
+  useEffect(() => {
+    if (selectedRole && selectedRole !== 'SuperAdmin' && paceTelecomId) {
+      // Set PACE TELECOM as default when role is selected
+      const currentValue = watch('companyId');
+      if (!currentValue || currentValue === '') {
+        setValue('companyId', paceTelecomId, { shouldValidate: false, shouldDirty: true });
+      }
+    } else if (selectedRole === 'SuperAdmin') {
+      setValue('companyId', '');
+    }
+  }, [selectedRole, paceTelecomId, setValue, watch]);
 
   useEffect(() => {
     // Only redirect if auth check is complete and user is authenticated
@@ -22,8 +60,10 @@ const LoginPage = () => {
     setIsLoading(true);
     clearError();
     try {
-      const result = await login(data.username, data.password); // send username
+      // Company is optional - backend will use user's default company if not provided
+      const result = await login(data.username, data.password, data.role, data.companyId || null);
       if (result.success) {
+        // Always redirect to dashboard
         navigate('/dashboard', { replace: true });
       }
     } catch (err) {
@@ -108,6 +148,65 @@ const LoginPage = () => {
                   <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                 )}
               </div>
+
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-900 mb-2">
+                  Role *
+                </label>
+                <select
+                  {...register('role', { required: 'Role is required' })}
+                  onChange={(e) => {
+                    const roleValue = e.target.value;
+                    setValue('role', roleValue);
+                    // Auto-select PACE TELECOM when role is selected (not SuperAdmin)
+                    if (roleValue && roleValue !== 'SuperAdmin' && paceTelecomId) {
+                      // Immediately set PACE TELECOM when role is selected
+                      setValue('companyId', paceTelecomId, { shouldValidate: false, shouldDirty: true });
+                    } else if (roleValue === 'SuperAdmin') {
+                      setValue('companyId', '');
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 border border-gray-300 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Role</option>
+                  <option value="SuperAdmin">Super Admin</option>
+                  <option value="CEO">CEO</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Staff">Staff</option>
+                </select>
+                {errors.role && (
+                  <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
+                )}
+              </div>
+
+              {selectedRole && selectedRole !== 'SuperAdmin' && (
+                <div>
+                  <label htmlFor="companyId" className="block text-sm font-medium text-gray-900 mb-2">
+                    Company *
+                  </label>
+                  <select
+                    {...register('companyId', { 
+                      required: false // Not required since backend will use user's company if not provided
+                    })}
+                    value={watch('companyId') || (paceTelecomId && selectedRole && selectedRole !== 'SuperAdmin' ? paceTelecomId : '')}
+                    onChange={(e) => setValue('companyId', e.target.value, { shouldValidate: true })}
+                    className="w-full px-3 py-2.5 border border-gray-300 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Company</option>
+                    {companies.map((company) => (
+                      <option 
+                        key={company.id} 
+                        value={company.id}
+                      >
+                        {company.name} {company.company_id ? `(${company.company_id})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.companyId && (
+                    <p className="mt-1 text-sm text-red-600">{errors.companyId.message}</p>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center">

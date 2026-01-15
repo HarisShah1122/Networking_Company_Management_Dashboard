@@ -23,13 +23,7 @@ const RegisterPage = () => {
     setIsLoading(true);
     clearError();
     try {
-      // Ensure role is sent, default to 'Staff' if not provided
-      const registrationData = {
-        ...data,
-        role: data.role || 'Staff'
-      };
-      
-      const result = await registerUser(registrationData);
+      const result = await registerUser(data);
       if (result.success) {
         toast.success('Account created successfully!');
         navigate('/dashboard', { replace: true });
@@ -66,10 +60,9 @@ const RegisterPage = () => {
         <div className="max-w-md w-full my-auto">
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Pace Telecom</h1>
-              <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Register ISP</h1>
               <p className="mt-2 text-sm text-gray-500">
-                Please enter your details to create an account.
+                Please enter your details to register your Internet Service Provider.
               </p>
             </div>
 
@@ -81,14 +74,29 @@ const RegisterPage = () => {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>
+              <label htmlFor="companyName" className="block text-sm font-medium text-gray-900 mb-2">
+                Company Name *
+              </label>
+              <input
+                {...register('companyName', { required: 'Company name is required', minLength: { value: 2, message: 'Company name must be at least 2 characters' } })}
+                type="text"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter company name"
+              />
+              {errors.companyName && (
+                <p className="mt-1 text-sm text-red-600">{errors.companyName.message}</p>
+              )}
+            </div>
+
+            <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-2">
-                Email
+                CEO Email *
               </label>
               <input
                 {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
                 type="email"
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="name@company.com"
+                placeholder="ceo@company.com"
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -150,23 +158,6 @@ const RegisterPage = () => {
               )}
             </div>
 
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-900 mb-2">
-                Role
-              </label>
-              <select
-                {...register('role')}
-                defaultValue="Staff"
-                className="w-full px-3 py-2.5 border border-gray-300 bg-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Staff">Staff</option>
-                <option value="Manager">Manager</option>
-                <option value="CEO">CEO</option>
-              </select>
-              {errors.role && (
-                <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
-              )}
-            </div>
 
               <button
                 type="submit"

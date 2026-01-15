@@ -336,6 +336,14 @@ const CustomersPage = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">PACE USER ID</label>
+                  <input
+                    {...register('pace_user_id')}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="e.g., PACE-12345"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Name *</label>
                   <input
                     {...register('name', { required: 'Name is required' })}
@@ -344,14 +352,6 @@ const CustomersPage = () => {
                     }`}
                   />
                   {errors.name && touchedFields.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PACE USER ID</label>
-                  <input
-                    {...register('pace_user_id')}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="e.g., PACE-12345"
-                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Father Name</label>

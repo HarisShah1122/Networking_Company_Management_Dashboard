@@ -16,14 +16,14 @@ const useAuthStore = create((set, get) => {
   return {
     ...initState,
 
-    login: async (username, password) => {
+    login: async (username, password, role, companyId) => {
       set({ isLoading: true, error: null });
       try {
-        const { token, user } = await authService.login(username, password); // <- send username
+        const { token, user, company } = await authService.login(username, password, role, companyId);
         if (token && user) {
           setToken(token);
-          setUser(user);
-          set({ user, token, isAuthenticated: true, isLoading: false });
+          setUser({ ...user, company });
+          set({ user: { ...user, company }, token, isAuthenticated: true, isLoading: false });
           return { success: true };
         } else {
           throw new Error('Invalid response from server');
