@@ -2,115 +2,74 @@ import { create } from 'zustand';
 import { getToken, setToken, removeToken, getUser, setUser, removeUser } from '../utils/storage.utils';
 import { authService } from '../services/authService';
 
-const useAuthStore = create((set, get) => {
-  // Initialize from localStorage
-  const initState = {
-    user: getUser(),
-    token: getToken(),
-    isAuthenticated: !!getToken(),
-    isLoading: true, // Start with loading true to prevent premature redirects
-    isInitializing: true, // Track initial auth check
-    error: null,
-  };
+const useAuthStore = create((set) => ({
+  user: getUser(),
+  token: getToken(),
+  isAuthenticated: !!getToken(),
+  isInitializing: true,
+  isLoading: false,
+  error: null,
 
-  return {
-    ...initState,
+  login: async (username, password, role, companyId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { token, user, company } = await authService.login(username, password, role, companyId);
 
-    login: async (username, password, role, companyId) => {
-      set({ isLoading: true, error: null });
-      try {
-        const { token, user, company } = await authService.login(username, password, role, companyId);
-        if (token && user) {
-          setToken(token);
-          setUser({ ...user, company });
-          set({ user: { ...user, company }, token, isAuthenticated: true, isLoading: false });
-          return { success: true };
-        } else {
-          throw new Error('Invalid response from server');
-        }
-      } catch (error) {
-        const errorMessage =
-          error.response?.data?.message ||
-          error.response?.data?.error ||
-          error.message ||
-          'Login failed';
-        set({ error: errorMessage, isLoading: false, isAuthenticated: false });
-        return { success: false, error: errorMessage };
-      }
-    },
+      const userWithCompany = { ...user, company };
+      setToken(token);
+      setUser(userWithCompany);
+      set({
+        user: userWithCompany,
+        token,
+        isAuthenticated: true,
+        isLoading: false,
+        isInitializing: false,
+      });
 
-    register: async (userData) => {
-      set({ isLoading: true, error: null });
-      try {
-        const { token, user } = await authService.register(userData);
-        if (token && user) {
-          setToken(token);
-          setUser(user);
-          set({ user, token, isAuthenticated: true, isLoading: false });
-          return { success: true };
-        } else {
-          throw new Error('Invalid response from server');
-        }
-      } catch (error) {
-        let errorMessage = 'Registration failed';
+      return { success: true };
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        'Login failed';
+      set({ error: errorMessage, isLoading: false, isAuthenticated: false, isInitializing: false });
+      return { success: false, error: errorMessage };
+    }
+  },
 
-        if (error.response?.data?.errors) {
-          const errors = error.response.data.errors;
-          errorMessage = Array.isArray(errors)
-            ? errors.map(e => typeof e === 'string' ? e : (e.msg || e.message || JSON.stringify(e))).join(', ')
-            : errors;
-        } else if (error.response?.data?.message) {
-          errorMessage = Array.isArray(error.response.data.message)
-            ? error.response.data.message.join(', ')
-            : error.response.data.message;
-        } else if (error.response?.data?.error) {
-          errorMessage = Array.isArray(error.response.data.error)
-            ? error.response.data.error.join(', ')
-            : error.response.data.error;
-        } else if (error.response?.statusText) {
-          errorMessage = error.response.statusText;
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
+  logout: () => {
+    removeToken();
+    removeUser();
+    set({ user: null, token: null, isAuthenticated: false, error: null });
+  },
 
-        set({ error: errorMessage, isLoading: false, isAuthenticated: false });
-        return { success: false, error: errorMessage };
-      }
-    },
+  checkAuth: async () => {
+    set({ isInitializing: true, isLoading: true });
+    const token = getToken();
+    if (!token) {
+      set({ isAuthenticated: false, user: null, isInitializing: false, isLoading: false });
+      return;
+    }
 
-    logout: () => {
+    try {
+      const { user, company } = await authService.getMe();
+      const userWithCompany = { ...user, company };
+      setUser(userWithCompany);
+      set({
+        user: userWithCompany,
+        isAuthenticated: true,
+        isInitializing: false,
+        isLoading: false,
+      });
+    } catch {
       removeToken();
       removeUser();
-      set({ user: null, token: null, isAuthenticated: false, error: null });
-    },
+      set({ user: null, token: null, isAuthenticated: false, isInitializing: false, isLoading: false });
+    }
+  },
 
-    checkAuth: async () => {
-      set({ isLoading: true, isInitializing: true });
-      const token = getToken();
-      if (!token) {
-        set({ isAuthenticated: false, user: null, isLoading: false, isInitializing: false });
-        return;
-      }
-
-      try {
-        const response = await authService.getMe();
-        // Backend returns { user: {...} } in the response
-        const user = response.user || response.data?.user;
-        if (user) {
-          setUser(user);
-          set({ user, isAuthenticated: true, isLoading: false, isInitializing: false });
-        } else {
-          throw new Error('Invalid user data');
-        }
-      } catch (error) {
-        removeToken();
-        removeUser();
-        set({ isAuthenticated: false, user: null, token: null, isLoading: false, isInitializing: false });
-      }
-    },
-
-    clearError: () => set({ error: null }),
-  };
-});
+  clearError: () => set({ error: null }),
+}));
 
 export default useAuthStore;
