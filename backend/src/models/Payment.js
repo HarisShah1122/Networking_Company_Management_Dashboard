@@ -33,6 +33,15 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       allowNull: false
     },
+    trxId: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      unique: true
+    },
+    receiptImage: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     notes: {
       type: DataTypes.TEXT,
       allowNull: true

@@ -33,21 +33,12 @@ const validateRegister = [
     .withMessage('Password must be at least 6 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
-  body('role')
-    .optional({ nullable: true, checkFalsy: true })
+  body('companyName')
     .trim()
-    .custom((value) => {
-      // Allow empty/undefined (will default to Staff in service)
-      if (!value || value === '' || value === null || value === undefined) {
-        return true;
-      }
-      // Validate if provided
-      const trimmedValue = String(value).trim();
-      if (!['CEO', 'Manager', 'Staff'].includes(trimmedValue)) {
-        throw new Error('Invalid role. Must be CEO, Manager, or Staff');
-      }
-      return true;
-    })
+    .notEmpty()
+    .withMessage('Company name is required')
+    .isLength({ min: 2, max: 255 })
+    .withMessage('Company name must be between 2 and 255 characters')
 ];
 
 module.exports = {

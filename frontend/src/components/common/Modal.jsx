@@ -1,4 +1,4 @@
-const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-2xl' }) => {
+const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-4xl' }) => {
   if (!isOpen) return null;
 
   return (

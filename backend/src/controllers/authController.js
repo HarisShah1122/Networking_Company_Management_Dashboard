@@ -11,15 +11,17 @@ const login = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const { username, password } = req.body;
+    const { username, password, role, companyId } = req.body;
 
-    const result = await AuthService.login(username, password);
+    const result = await AuthService.login(username, password, role, companyId);
 
     return ApiResponse.success(res, result, 'Login successful');
   } catch (error) {
     if (
       error.message === 'Invalid credentials' ||
-      error.message === 'Account is inactive'
+      error.message === 'Account is inactive' ||
+      error.message === 'Invalid role selected' ||
+      error.message === 'Invalid company selected'
     ) {
       return ApiResponse.unauthorized(res, error.message);
     }

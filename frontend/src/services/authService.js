@@ -1,10 +1,10 @@
 import apiClient from './api/apiClient';
 
 export const authService = {
-  login: async (username, password) => {
+  login: async (username, password, role, companyId) => {
     // Send 'username' instead of 'email'
-    const response = await apiClient.post('/auth/login', { username, password });
-    // Backend returns { success, message, data: { token, user } }
+    const response = await apiClient.post('/auth/login', { username, password, role, companyId });
+    // Backend returns { success, message, data: { token, user, company } }
     return response.data.data; 
   },
 

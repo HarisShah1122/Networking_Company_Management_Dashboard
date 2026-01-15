@@ -2,7 +2,7 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const sequelize = require('../src/config/database');
-const { User, Customer, Connection, Recharge, Stock, Transaction, Complaint, Area } = require('../src/models');
+const { User, Customer, Connection, Recharge, Stock, Transaction, Complaint, Area, Payment } = require('../src/models');
 
 // Pakistani names for seeding
 const pakistaniNames = [
@@ -46,54 +46,41 @@ async function seedDatabase() {
     await sequelize.authenticate();
     console.log('Database connected successfully');
 
-    // Sync models
     await sequelize.sync({ alter: false });
     console.log('Models synced');
 
-    // Clear existing data (optional - comment out if you want to keep existing data)
     console.log('Clearing existing seed data...');
+    // Delete in order to respect foreign key constraints
+    if (Payment) {
+      await Payment.destroy({ where: {}, force: true });
+    }
     await Transaction.destroy({ where: {}, force: true });
     await Complaint.destroy({ where: {}, force: true });
     await Recharge.destroy({ where: {}, force: true });
     await Connection.destroy({ where: {}, force: true });
     await Customer.destroy({ where: {}, force: true });
     await Stock.destroy({ where: {}, force: true });
-    // Keep Areas and Users (Admin user)
+
     const existingAreas = await Area.findAll();
     const existingUsers = await User.findAll();
 
     console.log('Creating Areas...');
-    let katlangArea, mardanArea;
-    
-    // Create or find Katlang area
-    const katlangExisting = existingAreas.find(a => a.name === 'Katlang');
-    if (katlangExisting) {
-      katlangArea = katlangExisting;
-    } else {
-      katlangArea = await Area.create({
-        id: uuidv4(),
-        name: 'Katlang',
-        code: 'KTL-001',
-        description: 'Katlang area, Mardan District'
-      });
-    }
+    let katlangArea = existingAreas.find(a => a.name === 'Katlang') || await Area.create({
+      id: uuidv4(),
+      name: 'Katlang',
+      code: 'KTL-001',
+      description: 'Katlang area, Mardan District'
+    });
 
-    // Create or find Mardan area
-    const mardanExisting = existingAreas.find(a => a.name === 'Mardan');
-    if (mardanExisting) {
-      mardanArea = mardanExisting;
-    } else {
-      mardanArea = await Area.create({
-        id: uuidv4(),
-        name: 'Mardan',
-        code: 'MRD-001',
-        description: 'Mardan City area, Mardan District'
-      });
-    }
+    let mardanArea = existingAreas.find(a => a.name === 'Mardan') || await Area.create({
+      id: uuidv4(),
+      name: 'Mardan',
+      code: 'MRD-001',
+      description: 'Mardan City area, Mardan District'
+    });
 
     console.log('Areas created/found');
 
-    // Create CEO user if doesn't exist
     let ceoUser = existingUsers.find(u => u.role === 'CEO');
     if (!ceoUser) {
       const passwordHash = await bcrypt.hash('admin123', 10);
@@ -114,8 +101,8 @@ async function seedDatabase() {
     const customers = [];
     for (let i = 0; i < 12; i++) {
       const nameData = pakistaniNames[i];
-      const area = i < 6 ? katlangArea : mardanArea; // First 6 in Katlang, last 6 in Mardan
-      
+      const area = i < 6 ? katlangArea : mardanArea;
+
       const customer = await Customer.create({
         id: uuidv4(),
         name: nameData.name,
@@ -126,7 +113,7 @@ async function seedDatabase() {
         gender: nameData.gender,
         whatsapp_number: nameData.whatsapp,
         areaId: area.id,
-        status: i % 3 === 0 ? 'active' : (i % 3 === 1 ? 'active' : 'active')
+        status: 'active'
       });
       customers.push(customer);
     }
@@ -148,7 +135,7 @@ async function seedDatabase() {
         connection_type: connectionType,
         installation_date: installationDate.toISOString().split('T')[0],
         activation_date: activationDate.toISOString().split('T')[0],
-        status: i % 4 === 0 ? 'pending' : (i % 4 === 1 ? 'completed' : 'completed'),
+        status: i % 4 === 0 ? 'pending' : 'completed',
         notes: `Connection installed in ${customer.address}`
       });
       connections.push(connection);
@@ -162,7 +149,7 @@ async function seedDatabase() {
       const amount = 1000 + (i * 500);
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + (i + 1) * 7);
-      
+
       const recharge = await Recharge.create({
         id: uuidv4(),
         customer_id: customer.id,
@@ -208,6 +195,7 @@ async function seedDatabase() {
 
       const transaction = await Transaction.create({
         id: uuidv4(),
+        trxId: `TRX-${Date.now()}-${i}`, // <-- Fixed trxId
         type: type,
         amount: amount,
         description: `Transaction ${i + 1} - ${transactionCategories[i % transactionCategories.length]}`,
@@ -235,11 +223,11 @@ async function seedDatabase() {
       'Network Coverage Issue',
       'Customer Service Complaint'
     ];
-    
+
     for (let i = 0; i < 12; i++) {
       const customer = customers[i];
       const connection = connections[i];
-      const statusOptions = ['open', 'in_progress', 'resolved', 'closed'];
+      const statusOptions = ['open', 'in_progress', 'on_hold', 'closed'];
       const priorityOptions = ['low', 'medium', 'high', 'urgent'];
 
       const complaint = await Complaint.create({
@@ -278,4 +266,3 @@ async function seedDatabase() {
 
 // Run seeder
 seedDatabase();
-

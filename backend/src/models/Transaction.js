@@ -12,7 +12,6 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'transactions',
     timestamps: true,
-    underscored: true
   });
 
   return Transaction;
