@@ -49,9 +49,9 @@ const startServer = async () => {
     console.log('Database connected successfully');
 
     if (NODE_ENV === 'development') {
-      // Sync all models without forcing drop and without creating duplicate indexes
-      await sequelize.sync({ alter: false });
-      console.log('Database models loaded');
+      // Sync all models without forcing drop
+      // await sequelize.sync({ alter: true });
+      console.log('All models synced with database');
     }
 
     app.listen(PORT, () => {

@@ -52,12 +52,12 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true
   });
 
-  Payment.associate = (models) => {
-    Payment.belongsTo(models.Customer, { foreignKey: 'customerId' });
-    Payment.belongsTo(models.Connection, { foreignKey: 'connectionId' });
-    Payment.belongsTo(models.Recharge, { foreignKey: 'rechargeId' });
-    Payment.belongsTo(models.User, { as: 'Receiver', foreignKey: 'receivedBy' });
-  };
+  // Payment.associate = (models) => {
+  //   Payment.belongsTo(models.Customer, { foreignKey: 'customerId' });
+  //   Payment.belongsTo(models.Connection, { foreignKey: 'connectionId' });
+  //   Payment.belongsTo(models.Recharge, { foreignKey: 'rechargeId' });
+  //   Payment.belongsTo(models.User, { as: 'Receiver', foreignKey: 'receivedBy' });
+  // };
 
   return Payment;
 };

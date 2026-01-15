@@ -56,10 +56,10 @@ module.exports = (sequelize) => {
     underscored: true
   });
 
-  Customer.associate = (models) => {
-    Customer.belongsTo(models.Area, { foreignKey: 'areaId' });
+  // Customer.associate = (models) => {
+  //   Customer.belongsTo(models.Area, { foreignKey: 'areaId' });
   
-  };
+  // };
 
   return Customer;
 };
