@@ -53,7 +53,7 @@ const create = async (data) => {
     gender: data.gender,
     whatsapp_number: data.whatsapp_number?.trim(),
     pace_user_id: data.pace_user_id?.trim(),
-    areaId: data.areaId || null,
+    area_id: data.area_id || null,
     status: data.status || 'active'
   });
 };
@@ -62,7 +62,7 @@ const update = async (id, data) => {
   const customer = await Customer.findByPk(id);
   if (!customer) return null;
 
-  const allowed = ['name', 'email', 'phone', 'address', 'father_name', 'gender', 'whatsapp_number', 'pace_user_id', 'areaId', 'status'];
+  const allowed = ['name', 'email', 'phone', 'address', 'father_name', 'gender', 'whatsapp_number', 'pace_user_id', 'area_id', 'status'];
 
   allowed.forEach(key => {
     if (data[key] !== undefined) {

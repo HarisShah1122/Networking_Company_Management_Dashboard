@@ -53,7 +53,7 @@ const validateCustomer = [
     .trim()
     .isLength({ max: 50 })
     .withMessage('PACE USER ID must not exceed 50 characters'),
-  body('areaId')
+  body('area_id')
     .notEmpty()
     .withMessage('Area is required')
     .bail()
@@ -61,7 +61,7 @@ const validateCustomer = [
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       return uuidRegex.test(String(value));
     })
-    .withMessage('Invalid areaId format')
+    .withMessage('Invalid area_id format')
 ];
 
 module.exports = {

@@ -41,7 +41,7 @@ module.exports = (sequelize) => {
       allowNull: true,
       unique: true
     },
-    areaId: {                // ← NEW FOREIGN KEY
+    area_id: {                // ← NEW FOREIGN KEY
       type: DataTypes.UUID,
       allowNull: true,
       field: 'area_id'
@@ -57,7 +57,7 @@ module.exports = (sequelize) => {
   });
 
   Customer.associate = (models) => {
-    Customer.belongsTo(models.Area, { foreignKey: 'areaId' });
+    Customer.belongsTo(models.Area, { foreignKey: 'area_id' });
   
   };
 
