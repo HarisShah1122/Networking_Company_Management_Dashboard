@@ -45,27 +45,44 @@ const useAuthStore = create((set) => ({
   },
 
   checkAuth: async () => {
-    set({ isInitializing: true, isLoading: true });
     const token = getToken();
     if (!token) {
       set({ isAuthenticated: false, user: null, isInitializing: false, isLoading: false });
       return;
     }
 
+    // Only set initializing if we have a token to check
+    set({ isInitializing: true, isLoading: true });
+    
     try {
       const { user, company } = await authService.getMe();
       const userWithCompany = { ...user, company };
       setUser(userWithCompany);
       set({
         user: userWithCompany,
+        token,
         isAuthenticated: true,
         isInitializing: false,
         isLoading: false,
       });
-    } catch {
-      removeToken();
-      removeUser();
-      set({ user: null, token: null, isAuthenticated: false, isInitializing: false, isLoading: false });
+    } catch (error) {
+      // Only remove token if it's actually invalid (not a network error)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        removeToken();
+        removeUser();
+        set({ user: null, token: null, isAuthenticated: false, isInitializing: false, isLoading: false });
+      } else {
+        // For network errors, keep the token and user but mark as initialized
+        // This prevents redirect on temporary network issues
+        const existingUser = getUser();
+        set({
+          user: existingUser,
+          token,
+          isAuthenticated: !!existingUser,
+          isInitializing: false,
+          isLoading: false,
+        });
+      }
     }
   },
 

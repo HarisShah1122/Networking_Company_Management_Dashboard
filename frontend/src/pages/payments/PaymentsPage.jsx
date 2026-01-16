@@ -142,7 +142,7 @@ const PaymentsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {payment.receiptImage ? (
                         <a
-                          href={`http://localhost:5000${payment.receiptImage}`}
+                          href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${payment.receiptImage.startsWith('/') ? payment.receiptImage : `/${payment.receiptImage}`}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-indigo-600 hover:text-indigo-900"

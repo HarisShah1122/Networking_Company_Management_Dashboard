@@ -26,41 +26,51 @@ const DashboardPage = () => {
 
   const loadStats = async () => {
     try {
-      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth] = await Promise.all([
-        customerService.getStats(),
-        connectionService.getStats(),
-        rechargeService.getStats(),
-        stockService.getStats(),
-        transactionService.getSummary(),
-        complaintService.getStats(),
-        transactionService.getRevenueGrowth(),
+      setLoading(true);
+      // Use Promise.allSettled to handle partial failures gracefully
+      const results = await Promise.allSettled([
+        customerService.getStats().catch(() => ({ stats: {} })),
+        connectionService.getStats().catch(() => ({ stats: {} })),
+        rechargeService.getStats().catch(() => ({ stats: {} })),
+        stockService.getStats().catch(() => ({ stats: {} })),
+        transactionService.getSummary().catch(() => ({ summary: {} })),
+        complaintService.getStats().catch(() => ({ stats: {} })),
+        transactionService.getRevenueGrowth().catch(() => ({ data: [] })),
       ]);
 
+      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth] = results.map(r => 
+        r.status === 'fulfilled' ? r.value : (r.reason || {})
+      );
+
       const updatedStats = {
-        customers: customers.stats ?? {},
-        connections: connections.stats ?? {},
-        recharges: recharges.stats ?? {},
-        stock: stock.stats ?? {},
-        transactions: transactions.summary ?? {},
+        customers: customers?.stats ?? customers ?? {},
+        connections: connections?.stats ?? connections ?? {},
+        recharges: recharges?.stats ?? recharges ?? {},
+        stock: stock?.stats ?? stock ?? {},
+        transactions: transactions?.summary ?? transactions ?? {},
       };
       setStats(updatedStats);
 
       // Revenue Growth (real data - last 6 months)
       const revenueGrowthData = (revenueGrowth?.data ?? []).map((row) => ({
-        month: row.month,
-        revenue: Number(row.revenue ?? 0),
+        month: row.month || row.month_name || '',
+        revenue: Number(row.revenue ?? row.total_revenue ?? 0),
       }));
-      setRevenueData(revenueGrowthData);
+      setRevenueData(revenueGrowthData.length > 0 ? revenueGrowthData : [
+        { month: 'No Data', revenue: 0 }
+      ]);
 
       // Complaint Status (real data)
-      const cs = complaintStats?.stats ?? {};
+      const cs = complaintStats?.stats ?? complaintStats ?? {};
       setComplaintData([
-        { name: 'Open', value: Number(cs.open ?? 0), color: '#EF4444' },
-        { name: 'In Progress', value: Number(cs.in_progress ?? 0), color: '#F97316' },
-        { name: 'Resolved', value: Number(cs.resolved ?? 0), color: '#3B82F6' },
-        { name: 'Closed', value: Number(cs.closed ?? 0), color: '#22C55E' },
+        { name: 'Open', value: Number(cs.open ?? cs.Open ?? 0), color: '#EF4444' },
+        { name: 'In Progress', value: Number(cs.in_progress ?? cs.inProgress ?? 0), color: '#F97316' },
+        { name: 'On Hold', value: Number(cs.on_hold ?? cs.onHold ?? 0), color: '#F59E0B' },
+        { name: 'Closed', value: Number(cs.closed ?? cs.Closed ?? 0), color: '#22C55E' },
       ]);
     } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+      // Keep default values on error
     } finally {
       setLoading(false);
     }

@@ -474,7 +474,7 @@ const ComplaintsPage = () => {
                   <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                     <option value="open">Open</option>
                     <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
+                    <option value="on_hold">On Hold</option>
                     <option value="closed">Closed</option>
                   </select>
                 </div>

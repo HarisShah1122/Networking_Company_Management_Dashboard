@@ -594,35 +594,49 @@ const RechargesPage = () => {
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
                   <Controller
                     name="due_date"
                     control={control}
                     render={({ field }) => (
-                      <DatePickerInput
-                        {...field}
-                        value={field.value ? dayjs(field.value).toDate() : null}
-                        onChange={(date) => field.onChange(date)}
-                        placeholder="Select due date"
-                        className="w-full"
-                      />
+                      <div className="w-full" style={{ minWidth: 0 }}>
+                        <DatePickerInput
+                          {...field}
+                          value={field.value ? dayjs(field.value).toDate() : null}
+                          onChange={(date) => field.onChange(date)}
+                          placeholder="Select due date"
+                          className="w-full"
+                          style={{ width: '100%' }}
+                          dropdownType="popover"
+                          clearable
+                          valueFormat="DD/MM/YYYY"
+                          popoverProps={{ withinPortal: true, zIndex: 12000 }}
+                        />
+                      </div>
                     )}
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
                   <Controller
                     name="payment_date"
                     control={control}
                     render={({ field }) => (
-                      <DatePickerInput
-                        {...field}
-                        value={field.value ? dayjs(field.value).toDate() : null}
-                        onChange={(date) => field.onChange(date)}
-                        placeholder="Select payment date"
-                        className="w-full"
-                      />
+                      <div className="w-full" style={{ minWidth: 0 }}>
+                        <DatePickerInput
+                          {...field}
+                          value={field.value ? dayjs(field.value).toDate() : null}
+                          onChange={(date) => field.onChange(date)}
+                          placeholder="Select payment date"
+                          className="w-full"
+                          style={{ width: '100%' }}
+                          dropdownType="popover"
+                          clearable
+                          valueFormat="DD/MM/YYYY"
+                          popoverProps={{ withinPortal: true, zIndex: 12000 }}
+                        />
+                      </div>
                     )}
                   />
                 </div>
