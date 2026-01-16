@@ -12,25 +12,18 @@ const Payment = require('./Payment')(sequelize, Sequelize.DataTypes);
 const ActivityLog = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
 const Complaint = require('./Complaint')(sequelize, Sequelize.DataTypes);
 const Area = require('./Area')(sequelize, Sequelize.DataTypes);
-const PackageRenewal = require('./PackageRenewal')(sequelize, Sequelize.DataTypes);
+// Define associations
+// Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+// Customer.hasMany(Connection, { foreignKey: 'customer_id', as: 'connections' });
 
-Company.hasMany(User, { foreignKey: 'companyId', as: 'users' });
-User.belongsTo(Company, { foreignKey: 'companyId', as: 'company' });
+// Recharge.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+// Customer.hasMany(Recharge, { foreignKey: 'customer_id', as: 'recharges' });
 
-Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
-Customer.hasMany(Connection, { foreignKey: 'customer_id', as: 'connections' });
+// Transaction.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+// User.hasMany(Transaction, { foreignKey: 'created_by', as: 'transactions' });
 
-Recharge.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
-Customer.hasMany(Recharge, { foreignKey: 'customer_id', as: 'recharges' });
-
-Transaction.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
-User.hasMany(Transaction, { foreignKey: 'created_by', as: 'transactions' });
-
-Payment.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
-Customer.hasMany(Payment, { foreignKey: 'customerId', as: 'payments' });
-
-ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
+// ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+// User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
 
 Complaint.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
 Customer.hasMany(Complaint, { foreignKey: 'customerId', as: 'complaints' });
