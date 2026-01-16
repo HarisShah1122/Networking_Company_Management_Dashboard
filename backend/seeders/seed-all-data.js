@@ -112,7 +112,7 @@ async function seedDatabase() {
         father_name: nameData.father,
         gender: nameData.gender,
         whatsapp_number: nameData.whatsapp,
-        areaId: area.id,
+        area_id: area.id,
         status: 'active'
       });
       customers.push(customer);
