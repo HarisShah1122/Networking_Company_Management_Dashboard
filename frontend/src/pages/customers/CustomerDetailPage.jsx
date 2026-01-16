@@ -73,25 +73,51 @@ const CustomerDetailPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-4">Connections ({connections.length})</h2>
-          <div className="space-y-2">
-            {connections.map((conn) => (
-              <div key={conn.id} className="border rounded p-3">
-                <div className="flex justify-between">
-                  <span className="font-medium">{conn.connection_type}</span>
-                  <span className={`px-2 py-1 text-xs rounded ${
-                    conn.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    conn.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {conn.status}
-                  </span>
+          {connections.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">No connections found</p>
+          ) : (
+            <div className="space-y-3">
+              {connections.map((conn) => (
+                <div key={conn.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className="font-semibold text-lg">{conn.connection_type || 'N/A'}</span>
+                      {conn.notes && (
+                        <p className="text-sm text-gray-600 mt-1">{conn.notes}</p>
+                      )}
+                    </div>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                      conn.status === 'completed' ? 'bg-green-600 text-white' :
+                      conn.status === 'pending' ? 'bg-yellow-600 text-white' :
+                      'bg-red-600 text-white'
+                    }`}>
+                      {conn.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+                    {conn.installation_date && (
+                      <div>
+                        <span className="text-gray-600">Registration:</span>
+                        <span className="ml-2 font-medium">{new Date(conn.installation_date).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {conn.activation_date && (
+                      <div>
+                        <span className="text-gray-600">Activation:</span>
+                        <span className="ml-2 font-medium">{new Date(conn.activation_date).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {conn.created_at && (
+                      <div>
+                        <span className="text-gray-600">Created:</span>
+                        <span className="ml-2 font-medium">{new Date(conn.created_at).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {conn.installation_date && (
-                  <p className="text-sm text-gray-600">Installed: {new Date(conn.installation_date).toLocaleDateString()}</p>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">

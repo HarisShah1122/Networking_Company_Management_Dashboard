@@ -356,20 +356,27 @@ const AccountsPage = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
                   <Controller
                     name="date"
                     control={control}
                     rules={{ required: 'Date is required' }}
                     render={({ field }) => (
-                      <DatePickerInput
-                        {...field}
-                        value={field.value ? dayjs(field.value).toDate() : null}
-                        onChange={(date) => field.onChange(date)}
-                        placeholder="Select date"
-                        className="w-full"
-                      />
+                      <div className="w-full" style={{ minWidth: 0 }}>
+                        <DatePickerInput
+                          {...field}
+                          value={field.value ? dayjs(field.value).toDate() : null}
+                          onChange={(date) => field.onChange(date)}
+                          placeholder="Select date"
+                          className="w-full"
+                          style={{ width: '100%' }}
+                          dropdownType="popover"
+                          clearable
+                          valueFormat="DD/MM/YYYY"
+                          popoverProps={{ withinPortal: true, zIndex: 12000 }}
+                        />
+                      </div>
                     )}
                   />
                   {errors.date && touchedFields.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
