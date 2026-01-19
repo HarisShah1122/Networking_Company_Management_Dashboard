@@ -5,38 +5,37 @@ import useAuthStore from '../../stores/authStore';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, error, clearError, isInitializing } = useAuthStore();
+
+  const login = useAuthStore((state) => state.login);
+  const clearError = useAuthStore((state) => state.clearError);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
+  const error = useAuthStore((state) => state.error);
+
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    // Only redirect if auth check is complete and user is authenticated
+    // Redirect only after initialization
     if (!isInitializing && isAuthenticated) {
       navigate('/dashboard', { replace: true });
     }
-    return () => clearError();
-  }, [isAuthenticated, isInitializing, navigate, clearError]);
+  }, [isAuthenticated, isInitializing, navigate]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
     clearError();
-    try {
-      // Login with just username and password; backend handles role/company
-      const result = await login(data.username, data.password);
-      console.log(result);
-      if (result.success) {
-        // Always redirect to dashboard
-        navigate('/dashboard', { replace: true });
-      }
-    } catch (err) {
-      // error handled by store
-    } finally {
-      setIsLoading(false);
+
+    const result = await login(data.username, data.password);
+
+    if (result?.success) {
+      navigate('/dashboard', { replace: true });
     }
+
+    setIsLoading(false);
   };
 
-  // Show loading while checking authentication
   if (isInitializing) {
     return (
       <div className="bg-gray-50 min-h-screen flex items-center justify-center">
@@ -74,9 +73,7 @@ const LoginPage = () => {
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter your username"
                 />
-                {errors.username && (
-                  <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
-                )}
+                {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>}
               </div>
 
               <div>
@@ -107,28 +104,7 @@ const LoginPage = () => {
                     )}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-500">
-                    Remember me
-                  </label>
-                </div>
-                <div className="text-sm">
-                  <Link to="#" className="font-medium text-blue-600 hover:text-blue-500">
-                    Forgot password?
-                  </Link>
-                </div>
+                {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
               </div>
 
               <button
