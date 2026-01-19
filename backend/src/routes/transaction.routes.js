@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const transactionController = require('../controllers/transactionController');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
 const { validateTransaction } = require('../helpers/validators/transaction.validator');
+
+const transactionController = require('../controllers/transactionController');
 
 router.use(authenticate);
 
@@ -27,10 +28,5 @@ router.put(
   handleValidationErrors,
   transactionController.update
 );
-// router.delete(
-//   '/:id',
-//   requireRole('CEO', 'Manager'),
-//   transactionController.delete
-// );
 
 module.exports = router;
