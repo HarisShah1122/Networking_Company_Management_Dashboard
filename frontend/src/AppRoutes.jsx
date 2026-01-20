@@ -1,6 +1,5 @@
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
-import useAuthStore from './stores/authStore';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
@@ -18,18 +17,14 @@ import PaymentsPage from './pages/payments/PaymentsPage';
 import MainLayout from './components/layout/MainLayout';
 
 const AppRoutes = () => {
-  const { checkAuth, isAuthenticated } = useAuthStore();
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        
+
+        {/* Protected routes */}
         <Route
           path="/"
           element={
@@ -40,7 +35,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/dashboard"
           element={
@@ -51,7 +45,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/customers"
           element={
@@ -62,7 +55,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/customers/:id"
           element={
@@ -73,7 +65,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/connections"
           element={
@@ -84,7 +75,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/recharges"
           element={
@@ -95,7 +85,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/stock"
           element={
@@ -106,7 +95,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/accounts"
           element={
@@ -117,7 +105,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/staff"
           element={
@@ -128,7 +115,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
         <Route
           path="/complaints"
           element={
@@ -139,7 +125,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-          <Route
+        <Route
           path="/areas"
           element={
             <ProtectedRoute allowedRoles={['CEO', 'Manager']}>
@@ -159,6 +145,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
@@ -166,4 +154,3 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
-

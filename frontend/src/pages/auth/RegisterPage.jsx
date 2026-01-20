@@ -22,8 +22,22 @@ const RegisterPage = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     clearError();
+  
     try {
-      const result = await registerUser(data);
+      // Prepare payload
+      const payload = {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        role: 'CEO', // assuming this is for company creation
+        company: {
+          name: data.companyName,
+          email: data.email, // must provide company email
+        },
+      };
+  
+      const result = await registerUser(payload);
+  
       if (result.success) {
         toast.success('Account created successfully!');
         navigate('/dashboard', { replace: true });
@@ -53,6 +67,7 @@ const RegisterPage = () => {
       setIsLoading(false);
     }
   };
+  
 
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4 sm:px-6 lg:px-8">
