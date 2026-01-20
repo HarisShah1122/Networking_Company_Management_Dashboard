@@ -12,6 +12,7 @@ const Payment = require('./Payment')(sequelize, Sequelize.DataTypes);
 const ActivityLog = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
 const Complaint = require('./Complaint')(sequelize, Sequelize.DataTypes);
 const Area = require('./Area')(sequelize, Sequelize.DataTypes);
+const PackageRenewal = require('./PackageRenewal')(sequelize, Sequelize.DataTypes); 
 // Define associations
 // Connection.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
 // Customer.hasMany(Connection, { foreignKey: 'customer_id', as: 'connections' });
