@@ -5,59 +5,36 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true
     },
-    customerId: {
+    customer_id: {
       type: DataTypes.UUID,
-      allowNull: false
+      allowNull: false,
+      references: { model: 'customers', key: 'id' }
     },
-    connectionId: {
-      type: DataTypes.UUID,
-      allowNull: true
-    },
-    rechargeId: {
-      type: DataTypes.UUID,
-      allowNull: true
-    },
-    amount: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false
-    },
-    paymentMethod: {
+    connection_id: { type: DataTypes.UUID, allowNull: true },
+    recharge_id:   { type: DataTypes.UUID, allowNull: true },
+    amount:        { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+    payment_method: {
       type: DataTypes.ENUM('cash', 'bank_transfer', 'mobile_wallet', 'card'),
       defaultValue: 'cash'
     },
-    referenceNumber: {
-      type: DataTypes.STRING(100),
-      allowNull: true
-    },
-    receivedBy: {
-      type: DataTypes.UUID,
-      allowNull: false
-    },
-    trxId: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      unique: true
-    },
-    receiptImage: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    notes: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    }
+    reference_number: { type: DataTypes.STRING(100), allowNull: true },
+    received_by:      { type: DataTypes.UUID, allowNull: false },
+    trx_id:           { type: DataTypes.STRING(100), allowNull: false, unique: true },
+    receipt_image:    { type: DataTypes.STRING, allowNull: true },
+    notes:            { type: DataTypes.TEXT, allowNull: true }
+    // REMOVED: status field — add later with migration if needed
   }, {
     tableName: 'payments',
     timestamps: true,
     underscored: true
   });
 
-  // Payment.associate = (models) => {
-  //   Payment.belongsTo(models.Customer, { foreignKey: 'customerId' });
-  //   Payment.belongsTo(models.Connection, { foreignKey: 'connectionId' });
-  //   Payment.belongsTo(models.Recharge, { foreignKey: 'rechargeId' });
-  //   Payment.belongsTo(models.User, { as: 'Receiver', foreignKey: 'receivedBy' });
-  // };
+  Payment.associate = (models) => {
+    Payment.belongsTo(models.Customer, { foreignKey: 'customer_id', as: 'customer' });
+    Payment.belongsTo(models.Connection, { foreignKey: 'connection_id', as: 'connection' });
+    Payment.belongsTo(models.Recharge,   { foreignKey: 'recharge_id',   as: 'recharge'   });
+    Payment.belongsTo(models.User,       { foreignKey: 'received_by',   as: 'receiver'   });
+  };
 
   return Payment;
 };

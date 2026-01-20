@@ -36,12 +36,12 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(20),
       allowNull: true
     },
-    pace_user_id: {          // ← NEW FIELD
+    pace_user_id: {
       type: DataTypes.STRING(50),
       allowNull: true,
       unique: true
     },
-    area_id: {                // ← NEW FOREIGN KEY
+    area_id: {
       type: DataTypes.UUID,
       allowNull: true,
       field: 'area_id'
@@ -56,10 +56,39 @@ module.exports = (sequelize) => {
     underscored: true
   });
 
-  // Customer.associate = (models) => {
-  //   Customer.belongsTo(models.Area, { foreignKey: 'areaId' });
-  
-  // };
+  // ─── ASSOCIATIONS ───
+  Customer.associate = (models) => {
+    // Customer → Payments (one-to-many)
+    Customer.hasMany(models.Payment, {
+      foreignKey: 'customer_id',
+      as: 'payments'
+    });
+
+   
+    Customer.hasMany(models.Complaint, {
+      foreignKey: 'customerId',
+      as: 'complaints'
+    });
+
+
+    Customer.hasMany(models.Connection, {
+      foreignKey: 'customer_id',
+      as: 'connections'
+    });
+
+   
+    Customer.hasMany(models.Recharge, {
+      foreignKey: 'customer_id',
+      as: 'recharges'
+    });
+
+    if (models.Area) {
+      Customer.belongsTo(models.Area, {
+        foreignKey: 'area_id',
+        as: 'area'
+      });
+    }
+  };
 
   return Customer;
 };
