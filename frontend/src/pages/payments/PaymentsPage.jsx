@@ -56,7 +56,7 @@ const PaymentsPage = () => {
       let list = Array.isArray(response.data) ? response.data
                 : (response.data?.payments ?? response.data?.data?.payments ?? response.data?.data ?? []);
 
-    
+      // Normalize snake_case → camelCase
       list = list.map(p => ({
         ...p,
         id: p.id ?? '',
@@ -92,7 +92,7 @@ const PaymentsPage = () => {
         );
       }
 
-    
+      // Status filter (if you add status to DB later)
       if (status) {
         list = list.filter(p => (p.status ?? 'pending') === status);
       }
