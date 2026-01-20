@@ -25,71 +25,60 @@ const RechargesPage = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
   const { register, handleSubmit, reset, control, watch, formState: { errors, touchedFields } } = useForm();
   const watchedCustomerId = watch('customer_id');
 
+  const canManage = isManager(user?.role);
+
+  const loadCustomers = useCallback(async () => {
+    try {
+      const response = await customerService.getAll();
+      let list = Array.isArray(response) ? response : (response?.customers ?? response?.data?.customers ?? response?.data ?? []);
+      list = list.filter(c => c?.id);
+      setCustomers(list);
+    } catch (error) {
+      toast.error('Failed to load customers');
+      setCustomers([]);
+    }
+  }, []);
+
   const loadRecharges = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
-      if (isInitialLoad) {
-        setLoading(true);
-      } else {
-        setSearching(true);
-      }
+      if (isInitialLoad) setLoading(true);
+      else setSearching(true);
+
       const response = await rechargeService.getAll({ status });
-      let rechargesList = [];
-      
-      // Handle different response structures
-      if (Array.isArray(response)) {
-        rechargesList = response;
-      } else if (response?.recharges && Array.isArray(response.recharges)) {
-        rechargesList = response.recharges;
-      } else if (response?.data?.recharges && Array.isArray(response.data.recharges)) {
-        rechargesList = response.data.recharges;
-      } else if (response?.data && Array.isArray(response.data)) {
-        rechargesList = response.data;
-      }
-      
-      // Ensure customer_name is properly set for each recharge
-      rechargesList = rechargesList.map(recharge => {
-        // If customer_name is missing but we have customer_id, try to find customer from local list
-        let customerName = recharge.customer_name || null;
-        let customerPhone = recharge.customer_phone || null;
-        
-        // If customer_name is not set from backend, try to get it from local customers list
-        if ((!customerName || customerName === null || customerName === '') && recharge.customer_id) {
-          if (customers.length > 0) {
-            const customer = customers.find(c => String(c.id) === String(recharge.customer_id));
-            if (customer && customer.name) {
-              customerName = customer.name;
-              customerPhone = customer.whatsapp_number || customer.phone || null;
-            }
-          }
-        }
-        
+      let list = Array.isArray(response) ? response
+                : (response?.recharges ?? response?.data?.recharges ?? response?.data ?? []);
+
+      list = list.map(r => {
+        const customer = r.customer ?? customers.find(c => String(c.id) === String(r.customer_id)) ?? {};
         return {
-          ...recharge,
-          customer_name: customerName,
-          customer_phone: customerPhone
+          ...r,
+          customer_name:     customer.name            ?? r.customer_name     ?? '-',
+          customer_phone:    customer.whatsapp_number ?? customer.phone      ?? r.customer_phone    ?? '-',
+          pace_user_id:      customer.pace_user_id    ?? '-',
+          address:           customer.address         ?? '-',
         };
       });
-      
-      // Filter by search term on frontend
-      if (search && search.trim()) {
-        const searchLower = search.toLowerCase();
-        rechargesList = rechargesList.filter(recharge => 
-          (recharge.customer_name && recharge.customer_name.toLowerCase().includes(searchLower)) ||
-          (recharge.customer_phone && recharge.customer_phone.includes(search)) ||
-          (recharge.amount && String(recharge.amount).includes(search))
+
+      if (search?.trim()) {
+        const searchLower = search.toLowerCase().trim();
+        list = list.filter(r =>
+          r.customer_name.toLowerCase().includes(searchLower) ||
+          r.pace_user_id.toLowerCase().includes(searchLower) ||
+          String(r.amount ?? '').includes(search) ||
+          (r.customer_phone && r.customer_phone.includes(search))
         );
       }
-      
-      setRecharges(rechargesList);
+
+      setRecharges(list);
     } catch (error) {
-      const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load recharges';
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.message ?? 'Failed to load recharges');
       setRecharges([]);
     } finally {
       setLoading(false);
@@ -97,134 +86,73 @@ const RechargesPage = () => {
     }
   }, [customers]);
 
-  const loadCustomers = useCallback(async () => {
-    try {
-      const response = await customerService.getAll();
-      let customersList = [];
-      if (Array.isArray(response)) {
-        customersList = response;
-      } else if (response?.customers && Array.isArray(response.customers)) {
-        customersList = response.customers;
-      } else if (response?.data?.customers && Array.isArray(response.data.customers)) {
-        customersList = response.data.customers;
-      } else if (response?.data && Array.isArray(response.data)) {
-        customersList = response.data;
-      }
-      
-      customersList = customersList.filter(customer => customer && customer.id);
-      setCustomers(customersList);
-    } catch (error) {
-      toast.error('Failed to load customers');
-      setCustomers([]);
-    }
-  }, []);
-
   const loadDuePayments = useCallback(async () => {
     try {
       const response = await rechargeService.getDuePayments();
       const dueList = response?.duePayments ?? response?.data?.duePayments ?? [];
       setDuePayments(dueList);
-    } catch (error) {
+    } catch {
       setDuePayments([]);
     }
   }, []);
 
-  // Initial load - load customers first, then recharges
   useEffect(() => {
     if (isInitialMount.current) {
-      const initializeData = async () => {
+      (async () => {
         await loadCustomers();
         await loadRecharges('', '', true);
-        loadDuePayments();
-      };
-      initializeData();
+        await loadDuePayments();
+      })();
       isInitialMount.current = false;
     }
-  }, [loadRecharges, loadCustomers, loadDuePayments]);
+  }, [loadCustomers, loadRecharges, loadDuePayments]);
 
-  // Debounce search term and status filter
   useEffect(() => {
-    if (isInitialMount.current) {
-      return;
-    }
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-    
-    if (searchTerm || statusFilter) {
-      setSearching(true);
-    }
-    
     debounceTimer.current = setTimeout(() => {
       loadRecharges(searchTerm, statusFilter, false);
       setCurrentPage(1);
     }, 500);
 
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
+    return () => clearTimeout(debounceTimer.current);
   }, [searchTerm, statusFilter, loadRecharges]);
 
   useEffect(() => {
-    if (watchedCustomerId) {
-      const customer = customers.find(c => String(c.id) === String(watchedCustomerId));
-      setSelectedCustomer(customer || null);
-    } else {
+    if (!watchedCustomerId) {
       setSelectedCustomer(null);
+      return;
     }
+    const customer = customers.find(c => String(c.id) === String(watchedCustomerId));
+    setSelectedCustomer(customer ?? null);
   }, [watchedCustomerId, customers]);
 
   const onSubmit = async (data) => {
     try {
-      // Validate customer_id
-      const customerId = data.customer_id;
-      const customerIdStr = String(customerId ?? '').trim();
-      
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
-      if (!customerIdStr || !uuidRegex.test(customerIdStr)) {
-        toast.error('Invalid customer ID. Please select a customer again.');
+      if (!data.customer_id) {
+        toast.error('Please select a customer');
         return;
       }
 
-      // Get customer details from selectedCustomer
-      let name = null;
-      let address = null;
-      let whatsapp_number = null;
-
-      if (selectedCustomer) {
-        name = selectedCustomer.name || null;
-        address = selectedCustomer.address || null;
-        whatsapp_number = selectedCustomer.whatsapp_number || selectedCustomer.phone || null;
+      const customer = customers.find(c => String(c.id) === String(data.customer_id));
+      if (!customer) {
+        toast.error('Selected customer not found');
+        return;
       }
 
-      // Prepare submit data
       const submitData = {
-        customer_id: customerIdStr,
-        amount: parseFloat(data.amount) ?? 0,
-        payment_method: data.payment_method ?? 'cash',
-        status: data.status ?? 'pending',
-        package: data.package?.trim() || null,
-        name: name,
-        address: address,
-        whatsapp_number: whatsapp_number,
+        customer_id:     String(data.customer_id),
+        amount:          parseFloat(data.amount) || 0,
+        package:         data.package?.trim() ?? null,
+        payment_method:  data.payment_method ?? 'cash',
+        status:          data.status ?? 'pending',
+        name:            customer.name ?? null,
+        address:         customer.address ?? null,
+        whatsapp_number: customer.whatsapp_number ?? customer.phone ?? null,
+        due_date:        data.due_date  ? dayjs(data.due_date).format('YYYY-MM-DD')  : undefined,
+        payment_date:    data.payment_date ? dayjs(data.payment_date).format('YYYY-MM-DD') : undefined,
+        notes:           data.notes?.trim() ?? undefined,
       };
-
-      // Only include dates if they have valid values
-      if (data.due_date && dayjs(data.due_date).isValid()) {
-        submitData.due_date = dayjs(data.due_date).format('YYYY-MM-DD');
-      }
-      if (data.payment_date && dayjs(data.payment_date).isValid()) {
-        submitData.payment_date = dayjs(data.payment_date).format('YYYY-MM-DD');
-      }
-
-      // Only include notes if provided
-      if (data.notes && data.notes.trim()) {
-        submitData.notes = data.notes.trim();
-      }
 
       if (editingRecharge) {
         await rechargeService.update(editingRecharge.id, submitData);
@@ -233,6 +161,7 @@ const RechargesPage = () => {
         await rechargeService.create(submitData);
         toast.success('Recharge created successfully!');
       }
+
       reset();
       setShowModal(false);
       setEditingRecharge(null);
@@ -240,119 +169,54 @@ const RechargesPage = () => {
       await loadRecharges(searchTerm, statusFilter, false);
       await loadDuePayments();
     } catch (error) {
-      console.error('Error saving recharge:', error);
-      
-      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-        const validationErrors = error.response.data.errors
-          .map(err => err.msg || err.message || JSON.stringify(err))
-          .filter((msg, index, self) => self.indexOf(msg) === index)
-          .join(', ');
-        toast.error(`Validation Error: ${validationErrors}`, { autoClose: 5000 });
-      } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else {
-        const errorMsg = error.response?.data?.error ?? error.message ?? 'Failed to save recharge';
-        toast.error(errorMsg);
-      }
+      const msg = error.response?.data?.message
+               ?? error.response?.data?.errors?.[0]?.msg
+               ?? 'Failed to save recharge';
+      toast.error(msg);
     }
   };
 
   const handleEdit = (recharge) => {
+    const customer = customers.find(c => String(c.id) === String(recharge.customer_id));
+    setSelectedCustomer(customer ?? null);
     setEditingRecharge(recharge);
-    const customerId = recharge.customer_id ?? recharge.customer?.id;
-    const customer = customers.find(c => String(c.id) === String(customerId));
-    setSelectedCustomer(customer || null);
+
     reset({
-      ...recharge,
-      customer_id: customerId,
-      due_date: recharge.due_date ? dayjs(recharge.due_date).toDate() : null,
-      payment_date: recharge.payment_date ? dayjs(recharge.payment_date).toDate() : null,
+      customer_id:     recharge.customer_id ?? '',
+      amount:          recharge.amount ?? '',
+      package:         recharge.package ?? '',
+      payment_method:  recharge.payment_method ?? 'cash',
+      status:          recharge.status ?? 'pending',
+      due_date:        recharge.due_date ? dayjs(recharge.due_date).toDate() : null,
+      payment_date:    recharge.payment_date ? dayjs(recharge.payment_date).toDate() : null,
+      notes:           recharge.notes ?? '',
     });
+
     setShowModal(true);
   };
 
-
   const handleMarkPaid = async (id) => {
     try {
-      // First get the recharge to include all required fields
-      const rechargeResponse = await rechargeService.getById(id);
-      
-      // Handle different response structures
-      let recharge = null;
-      if (rechargeResponse?.recharge) {
-        recharge = rechargeResponse.recharge;
-      } else if (rechargeResponse?.data?.recharge) {
-        recharge = rechargeResponse.data.recharge;
-      } else if (rechargeResponse?.id) {
-        recharge = rechargeResponse;
-      } else {
-        recharge = rechargeResponse;
-      }
-      
-      if (!recharge || !recharge.id) {
-        toast.error('Recharge not found or invalid data structure');
-        return;
-      }
+      const resp = await rechargeService.getById(id);
+      const recharge = resp?.recharge ?? resp?.data?.recharge ?? resp;
 
-      // Get customer_id - ensure it's a valid UUID string
-      const customerId = recharge.customer_id ?? recharge.customer?.id;
-      if (!customerId) {
-        toast.error('Customer ID not found in recharge data');
-        return;
-      }
-      const customerIdStr = String(customerId).trim();
+      if (!recharge?.id) throw new Error('Recharge not found');
 
-      // Validate UUID format
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(customerIdStr)) {
-        toast.error('Invalid customer ID format');
-        return;
-      }
-
-      // Get amount - ensure it's a valid number
-      const amountValue = recharge.amount;
-      const amount = typeof amountValue === 'string' ? parseFloat(amountValue) : parseFloat(amountValue ?? 0);
-      if (isNaN(amount) || amount <= 0) {
-        toast.error('Invalid amount in recharge data');
-        return;
-      }
-
-      // Update with all required fields plus the status and payment_date
-      const updateData = {
-        customer_id: customerIdStr,
-        amount: amount,
-        payment_method: recharge.payment_method ?? 'cash',
-        status: 'paid',
+      await rechargeService.update(id, {
+        ...recharge,
+        customer_id: recharge.customer_id,
+        amount:      recharge.amount,
+        status:      'paid',
         payment_date: dayjs().format('YYYY-MM-DD'),
-      };
+      });
 
-      // Include optional fields if they exist
-      if (recharge.due_date) {
-        updateData.due_date = recharge.due_date;
-      }
-      if (recharge.notes) {
-        updateData.notes = recharge.notes;
-      }
-
-      await rechargeService.update(id, updateData);
       toast.success('Recharge marked as paid!');
       await loadRecharges(searchTerm, statusFilter, false);
       await loadDuePayments();
     } catch (error) {
-      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-        const validationErrors = error.response.data.errors
-          .map(err => err.msg ?? err.message ?? JSON.stringify(err))
-          .filter((msg, index, self) => self.indexOf(msg) === index)
-          .join(', ');
-        toast.error(`Validation Error: ${validationErrors}`, { autoClose: 5000 });
-      } else {
-        const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to update recharge';
-        toast.error(errorMsg);
-      }
+      toast.error(error.response?.data?.message ?? 'Failed to mark as paid');
     }
   };
-
-  const canManage = isManager(user?.role);
 
   if (loading) return <Loader />;
 
@@ -380,7 +244,7 @@ const RechargesPage = () => {
         <div className="flex-1 relative">
           <input
             type="text"
-            placeholder="Search recharges..."
+            placeholder="Search by name, PACE ID, amount, phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -391,6 +255,7 @@ const RechargesPage = () => {
             </div>
           )}
         </div>
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -401,6 +266,7 @@ const RechargesPage = () => {
           <option value="paid">Paid</option>
           <option value="overdue">Overdue</option>
         </select>
+
         {canManage && (
           <button
             onClick={() => { reset(); setEditingRecharge(null); setSelectedCustomer(null); setShowModal(true); }}
@@ -416,6 +282,7 @@ const RechargesPage = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PACE ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -426,16 +293,17 @@ const RechargesPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {recharges.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                   No recharges found.
                 </td>
               </tr>
             ) : (
               recharges.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((recharge) => (
                 <tr key={recharge.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name ?? '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono">{recharge.pace_user_id}</td>
                   <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(recharge.amount).toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{recharge.payment_method}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{recharge.payment_method ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
                       recharge.status === 'paid' ? 'bg-green-600 text-white' :
@@ -479,6 +347,7 @@ const RechargesPage = () => {
             )}
           </tbody>
         </table>
+
         {recharges.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
             <TablePagination
@@ -506,166 +375,166 @@ const RechargesPage = () => {
           title={editingRecharge ? 'Edit Recharge' : 'Add Recharge'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">User ID *</label>
-                <select
-                  {...register('customer_id', { 
-                    required: 'User ID is required',
-                    validate: (value) => {
-                      if (!value || value === '' || value === 'undefined') {
-                        return 'Please select a User ID';
-                      }
-                      return true;
-                    }
-                  })}
-                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                    errors.customer_id && touchedFields.customer_id ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select User ID</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={String(customer.id)}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.customer_id && touchedFields.customer_id && <p className="text-red-500 text-sm mt-1">{errors.customer_id.message}</p>}
-              </div>
-              {selectedCustomer && (
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">User Details</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">User ID</label>
-                      <p className="text-sm text-gray-900 font-mono">{selectedCustomer.id || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">Name</label>
-                      <p className="text-sm text-gray-900">{selectedCustomer.name || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">WhatsApp No</label>
-                      <p className="text-sm text-gray-900">{selectedCustomer.whatsapp_number || selectedCustomer.phone || '-'}</p>
-                    </div>
-                    <div className="col-span-3">
-                      <label className="block text-xs font-medium text-gray-600">Address</label>
-                      <p className="text-sm text-gray-900">{selectedCustomer.address || '-'}</p>
-                    </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">User *</label>
+              <select
+                {...register('customer_id', {
+                  required: 'Customer is required'
+                })}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                  errors.customer_id && touchedFields.customer_id ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select User</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={String(customer.id)}>
+                    {customer.name} {customer.pace_user_id ? `(PACE: ${customer.pace_user_id})` : ''}
+                  </option>
+                ))}
+              </select>
+              {errors.customer_id && touchedFields.customer_id && (
+                <p className="text-red-500 text-sm mt-1">{errors.customer_id.message}</p>
+              )}
+            </div>
+
+            {selectedCustomer && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">User Details</h3>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">User ID</label>
+                    <p className="font-mono">{selectedCustomer.id}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">PACE ID</label>
+                    <p>{selectedCustomer.pace_user_id ?? '-'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">WhatsApp No</label>
+                    <p>{selectedCustomer.whatsapp_number ?? selectedCustomer.phone ?? '-'}</p>
+                  </div>
+                  <div className="col-span-3">
+                    <label className="block text-xs font-medium text-gray-600">Address</label>
+                    <p>{selectedCustomer.address ?? '-'}</p>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Package</label>
+              <input
+                {...register('package')}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="Enter package name"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Package</label>
+                <label className="block text-sm font-medium text-gray-700">Amount *</label>
                 <input
-                  {...register('package')}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Enter package name"
+                  {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
+                  type="number"
+                  step="0.01"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.amount && touchedFields.amount && (
+                  <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="online">Online</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                <Controller
+                  name="due_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePickerInput
+                      {...field}
+                      value={field.value ? dayjs(field.value).toDate() : null}
+                      onChange={(date) => field.onChange(date)}
+                      placeholder="Select due date"
+                      className="w-full"
+                      dropdownType="popover"
+                      clearable
+                      valueFormat="DD/MM/YYYY"
+                      popoverProps={{ withinPortal: true, zIndex: 12000 }}
+                    />
+                  )}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Amount *</label>
-                  <input
-                    {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
-                    type="number"
-                    step="0.01"
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.amount && touchedFields.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                  <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option value="cash">Cash</option>
-                    <option value="card">Card</option>
-                    <option value="online">Online</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                    <option value="pending">Pending</option>
-                    <option value="paid">Paid</option>
-                    <option value="overdue">Overdue</option>
-                  </select>
-                </div>
+
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                <Controller
+                  name="payment_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePickerInput
+                      {...field}
+                      value={field.value ? dayjs(field.value).toDate() : null}
+                      onChange={(date) => field.onChange(date)}
+                      placeholder="Select payment date"
+                      className="w-full"
+                      dropdownType="popover"
+                      clearable
+                      valueFormat="DD/MM/YYYY"
+                      popoverProps={{ withinPortal: true, zIndex: 12000 }}
+                    />
+                  )}
+                />
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                  <Controller
-                    name="due_date"
-                    control={control}
-                    render={({ field }) => (
-                      <div className="w-full" style={{ minWidth: 0 }}>
-                        <DatePickerInput
-                          {...field}
-                          value={field.value ? dayjs(field.value).toDate() : null}
-                          onChange={(date) => field.onChange(date)}
-                          placeholder="Select due date"
-                          className="w-full"
-                          style={{ width: '100%' }}
-                          dropdownType="popover"
-                          clearable
-                          valueFormat="DD/MM/YYYY"
-                          popoverProps={{ withinPortal: true, zIndex: 12000 }}
-                        />
-                      </div>
-                    )}
-                  />
-                </div>
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
-                  <Controller
-                    name="payment_date"
-                    control={control}
-                    render={({ field }) => (
-                      <div className="w-full" style={{ minWidth: 0 }}>
-                        <DatePickerInput
-                          {...field}
-                          value={field.value ? dayjs(field.value).toDate() : null}
-                          onChange={(date) => field.onChange(date)}
-                          placeholder="Select payment date"
-                          className="w-full"
-                          style={{ width: '100%' }}
-                          dropdownType="popover"
-                          clearable
-                          valueFormat="DD/MM/YYYY"
-                          popoverProps={{ withinPortal: true, zIndex: 12000 }}
-                        />
-                      </div>
-                    )}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Notes</label>
-                  <textarea
-                    {...register('notes')}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    rows="3"
-                    placeholder="Enter notes"
-                  />
-                </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Notes</label>
+                <textarea
+                  {...register('notes')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  rows="3"
+                  placeholder="Enter notes"
+                />
               </div>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); reset(); setEditingRecharge(null); setSelectedCustomer(null); }}
-                  className="flex-1 px-4 py-2 border rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
-                  Save
-                </button>
-              </div>
-            </form>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => { setShowModal(false); reset(); setEditingRecharge(null); setSelectedCustomer(null); }}
+                className="flex-1 px-4 py-2 border rounded-lg"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
+                Save
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
-
     </div>
   );
 };
