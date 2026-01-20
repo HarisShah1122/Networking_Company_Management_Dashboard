@@ -1,9 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth.middleware');
-const paymentController = require('../controllers/paymentController'); 
+const upload = require('../middleware/upload.middleware');
+const paymentController = require('../controllers/paymentController');
 
-router.post('/', authenticate, paymentController.createPayment);
+router.post(
+  '/',
+  authenticate,
+  upload.single('receiptImage'),
+  paymentController.createPayment
+);
+
 router.get('/', authenticate, paymentController.getAllPayments);
 router.get('/customer/:customerId', authenticate, paymentController.getPaymentsByCustomer);
 
