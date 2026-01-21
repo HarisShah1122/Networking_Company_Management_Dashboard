@@ -31,9 +31,18 @@ export const rechargeService = {
     const response = await apiClient.get('/recharges/due');
     return extractDataArray(response, 'recharges');
   },
-  getStats: async () => {
-    const response = await apiClient.get('/recharges/stats');
-    return extractData(response);
+  getSummary: async () => {
+    try {
+      const all = await rechargeService.getAll();
+      const total_paid = all
+        .filter(r => r.status === 'paid')
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+      const total_pending = all
+        .filter(r => r.status === 'pending')
+        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+      return { total_paid, total_pending };
+    } catch {
+      return { total_paid: 0, total_pending: 0 };
+    }
   },
 };
-
