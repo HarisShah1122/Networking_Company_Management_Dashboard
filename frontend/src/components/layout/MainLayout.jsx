@@ -1,8 +1,9 @@
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useLayout } from '../../contexts/LayoutContext';
+import { Outlet } from 'react-router-dom'; 
 
-const MainLayout = ({ children }) => {
+const MainLayout = () => {
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useLayout();
 
   return (
@@ -11,7 +12,7 @@ const MainLayout = ({ children }) => {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Header onMenuClick={toggleSidebar} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-6">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
@@ -19,4 +20,3 @@ const MainLayout = ({ children }) => {
 };
 
 export default MainLayout;
-

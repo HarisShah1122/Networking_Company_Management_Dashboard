@@ -7,7 +7,11 @@ import useAuthStore from '../../stores/authStore';
 const LoginPage = () => {
   const navigate = useNavigate();
 
-  const { login, clearError, isAuthenticated, isInitializing, error } = useAuthStore();
+  const login = useAuthStore((state) => state.login);
+  const clearError = useAuthStore((state) => state.clearError);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
+  const error = useAuthStore((state) => state.error);
 
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [isLoading, setIsLoading] = useState(false);
@@ -23,17 +27,16 @@ const LoginPage = () => {
     setIsLoading(true);
     clearError();
 
-    try {
-      const result = await login(data.username, data.password);
-      if (result.success) {
-        toast.success('Login successful');
-        // DO NOT navigate here — useEffect handles it
-      }
-    } catch {
-      // error is already in store
-    } finally {
-      setIsLoading(false);
+    const result = await login(data.username, data.password);
+
+    if (result?.success) {
+      toast.success('Login successful');
+      navigate('/dashboard', { replace: true });
+    } else if (result?.message) {
+      toast.error(result.message);
     }
+
+    setIsLoading(false);
   };
 
   if (isInitializing) {

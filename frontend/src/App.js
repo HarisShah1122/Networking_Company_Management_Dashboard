@@ -12,9 +12,10 @@ import useAuthStore from './stores/authStore';
 import './index.css';
 
 function App() {
-  const { isAuthenticated } = useAuthStore(); 
+  const { isInitializing } = useAuthStore();
 
-
+  // Show global loader while auth initializes
+  if (isInitializing) return <Loader />;
 
   return (
     <QueryClientProvider client={queryClient}>
