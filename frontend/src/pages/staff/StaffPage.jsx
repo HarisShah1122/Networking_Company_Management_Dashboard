@@ -7,12 +7,10 @@ import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
-import apiClient from '../../services/api/apiClient';
 
 const StaffPage = () => {
   const { user } = useAuthStore();
   const [users, setUsers] = useState([]);
-  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -24,22 +22,9 @@ const StaffPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, watch, formState: { errors, touchedFields } } = useForm();
-  const watchedCompanyId = watch('company_id');
+  const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
   const canManage = isManager(user?.role);
-
-  const loadCompanies = useCallback(async () => {
-    try {
-      const response = await apiClient.get('/companies');
-      const data = response.data;
-      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
-      setCompanies(list.filter(c => c?.id && c.status === 'active'));
-    } catch {
-      toast.error('Failed to load companies');
-      setCompanies([]);
-    }
-  }, []);
 
   const loadUsers = useCallback(async (search = '', role = '', isInitialLoad = false) => {
     try {
@@ -60,20 +45,11 @@ const StaffPage = () => {
         usersList = response.data;
       }
 
-      usersList = usersList.map(u => {
-        const company = companies.find(c => String(c.id) === String(u.company_id));
-        return {
-          ...u,
-          company_name: company ? `${company.name} (${company.company_id})` : (u.company_id ? `ID: ${u.company_id}` : '-')
-        };
-      });
-
       if (search && search.trim()) {
         const searchLower = search.toLowerCase();
         usersList = usersList.filter(user => 
           (user.username && user.username.toLowerCase().includes(searchLower)) ||
-          (user.email && user.email.toLowerCase().includes(searchLower)) ||
-          (user.company_name && user.company_name.toLowerCase().includes(searchLower))
+          (user.email && user.email.toLowerCase().includes(searchLower))
         );
       }
 
@@ -90,15 +66,14 @@ const StaffPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [companies]);
+  }, []);
 
   useEffect(() => {
     if (isInitialMount.current) {
-      loadCompanies();
       loadUsers('', '', true);
       isInitialMount.current = false;
     }
-  }, [loadCompanies, loadUsers]);
+  }, [loadUsers]);
 
   useEffect(() => {
     if (isInitialMount.current) return;
@@ -129,7 +104,6 @@ const StaffPage = () => {
         email: data.email?.trim(),
         username: data.username?.trim(),
         role: data.role,
-        company_id: data.company_id || null,
         status: data.status ?? 'active',
       };
 
@@ -175,7 +149,6 @@ const StaffPage = () => {
       email: user.email,
       username: user.username,
       role: user.role,
-      company_id: user.company_id || '',
       status: user.status || 'active',
     });
     setShowModal(true);
@@ -193,7 +166,7 @@ const StaffPage = () => {
         <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
-            placeholder="Search staff by username, email, company..."
+            placeholder="Search staff by username, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -232,7 +205,6 @@ const StaffPage = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
@@ -242,7 +214,7 @@ const StaffPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {users.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                   No users found.
                 </td>
               </tr>
@@ -251,7 +223,6 @@ const StaffPage = () => {
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap font-medium">{user.username}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{user.company_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-600 text-white">
                       {user.role}
@@ -341,21 +312,6 @@ const StaffPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Company</label>
-                <select
-                  {...register('company_id')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">No company / General</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.company_id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700">Role *</label>
                 <select

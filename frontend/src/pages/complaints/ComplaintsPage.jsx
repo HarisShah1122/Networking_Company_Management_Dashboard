@@ -8,7 +8,6 @@ import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
-import apiClient from '../../services/api/apiClient'; // ← added for companies
 
 const ComplaintsPage = () => {
   const { user } = useAuthStore();
@@ -16,7 +15,6 @@ const ComplaintsPage = () => {
 
   const [complaints, setComplaints] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [companies, setCompanies] = useState([]); // ← NEW
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -32,7 +30,6 @@ const ComplaintsPage = () => {
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, touchedFields } } = useForm();
   const watchedCustomerId = watch('customerId');
-  const watchedCompanyId = watch('companyId'); // ← NEW
 
   // ─── Load Customers ───
   const loadCustomers = useCallback(async () => {
@@ -43,19 +40,6 @@ const ComplaintsPage = () => {
     } catch {
       toast.error('Failed to load customers');
       setCustomers([]);
-    }
-  }, []);
-
-  // ─── Load Companies ───
-  const loadCompanies = useCallback(async () => {
-    try {
-      const response = await apiClient.get('/companies');
-      const data = response.data;
-      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
-      setCompanies(list.filter(c => c?.id && c.status === 'active'));
-    } catch {
-      toast.error('Failed to load companies');
-      setCompanies([]);
     }
   }, []);
 
@@ -71,17 +55,14 @@ const ComplaintsPage = () => {
 
       complaintsList = complaintsList.map(complaint => {
         const customer = customers.find(c => String(c.id) === String(complaint.customerId ?? complaint.customer_id)) ?? {};
-        const company   = companies.find(c => String(c.id) === String(complaint.companyId ?? complaint.company_id)) ?? {};
 
         return {
           ...complaint,
           id: complaint.id ?? '',
           customerId: complaint.customerId ?? complaint.customer_id ?? '',
-          companyId: complaint.companyId ?? complaint.company_id ?? '',
           name: complaint.name ?? customer.name ?? null,
           address: complaint.address ?? customer.address ?? null,
           whatsapp_number: complaint.whatsapp_number ?? customer.whatsapp_number ?? customer.phone ?? null,
-          company_name: company.name ?? company.company_id ?? (complaint.companyId ? `ID: ${complaint.companyId}` : '-'),
           title: complaint.title ?? complaint.Title ?? '',
           description: complaint.description ?? complaint.Description ?? '',
           status: complaint.status ?? complaint.Status ?? 'open',
@@ -94,8 +75,7 @@ const ComplaintsPage = () => {
         complaintsList = complaintsList.filter(c =>
           (c.title ?? '').toLowerCase().includes(term) ||
           (c.description ?? '').toLowerCase().includes(term) ||
-          (c.name ?? '').toLowerCase().includes(term) ||
-          (c.company_name ?? '').toLowerCase().includes(term)
+          (c.name ?? '').toLowerCase().includes(term)
         );
       }
 
@@ -111,20 +91,19 @@ const ComplaintsPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [customers, companies]);
+  }, [customers]);
 
   useEffect(() => {
     if (isInitialMount.current) {
       (async () => {
         await Promise.all([
           loadCustomers(),
-          loadCompanies(),       // ← added
         ]);
         await loadComplaints('', '', true);
       })();
       isInitialMount.current = false;
     }
-  }, [loadCustomers, loadCompanies, loadComplaints]);
+  }, [loadCustomers, loadComplaints]);
 
   useEffect(() => {
     if (isInitialMount.current) return;
@@ -186,7 +165,6 @@ const ComplaintsPage = () => {
 
       const submitData = {
         customerId: customerId,
-        companyId: data.companyId || null,           // ← NEW: sending company
         name: name,
         address: address,
         whatsapp_number: whatsapp_number,
@@ -218,14 +196,12 @@ const ComplaintsPage = () => {
     setEditingComplaint(complaint);
 
     const customerId = complaint.customerId ?? complaint.customer_id ?? '';
-    const companyId  = complaint.companyId  ?? complaint.company_id  ?? '';
 
     const customer = customers.find(c => String(c.id) === String(customerId));
     setSelectedCustomer(customer || null);
 
     reset({
       customerId: customerId,
-      companyId:  companyId,               // ← NEW
       name: complaint.name ?? '',
       address: complaint.address ?? '',
       whatsapp_number: complaint.whatsapp_number ?? '',
@@ -250,7 +226,7 @@ const ComplaintsPage = () => {
         <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
-            placeholder="Search complaints by title, description, name, company..."
+            placeholder="Search complaints by title, description, name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -295,7 +271,6 @@ const ComplaintsPage = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">WhatsApp</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th> {/* ← NEW column */}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
@@ -305,7 +280,7 @@ const ComplaintsPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {complaints.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                   No complaints found.
                 </td>
               </tr>
@@ -316,7 +291,6 @@ const ComplaintsPage = () => {
                   <tr key={complaint.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">{complaint.name ?? '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{complaint.whatsapp_number ?? '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{complaint.company_name ?? '-'}</td> {/* ← NEW */}
                     <td className="px-6 py-4">{complaint.title ?? '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
@@ -393,21 +367,6 @@ const ComplaintsPage = () => {
           title={editingComplaint ? 'Edit Complaint' : 'Add Complaint'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Company selection - NEW */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Company</label>
-              <select
-                {...register('companyId')}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">No company / General</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.company_id ? `(${c.company_id})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">User ID *</label>

@@ -9,12 +9,10 @@ import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
-import apiClient from '../../services/api/apiClient';
 
 const AccountsPage = () => {
   const { user } = useAuthStore();
   const [transactions, setTransactions] = useState([]);
-  const [companies, setCompanies] = useState([]);
   const [summary, setSummary] = useState({ total_income: 0, total_expense: 0, profit_loss: 0 });
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -27,22 +25,9 @@ const AccountsPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, control, watch, formState: { errors, touchedFields } } = useForm();
-  const watchedCompanyId = watch('company_id');
+  const { register, handleSubmit, reset, control, formState: { errors, touchedFields } } = useForm();
 
   const canManage = isManager(user?.role);
-
-  const loadCompanies = useCallback(async () => {
-    try {
-      const response = await apiClient.get('/companies');
-      const data = response.data;
-      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
-      setCompanies(list.filter(c => c?.id && c.status === 'active'));
-    } catch {
-      toast.error('Failed to load companies');
-      setCompanies([]);
-    }
-  }, []);
 
   const loadTransactions = useCallback(async (search = '', type = '', isInitialLoad = false) => {
     try {
@@ -61,21 +46,12 @@ const AccountsPage = () => {
         transactionsList = response.data;
       }
 
-      transactionsList = transactionsList.map(t => {
-        const company = companies.find(c => String(c.id) === String(t.company_id));
-        return {
-          ...t,
-          company_name: company ? `${company.name} (${company.company_id})` : (t.company_id ? `ID: ${t.company_id}` : '-')
-        };
-      });
-
       if (search && search.trim()) {
         const searchLower = search.toLowerCase();
         transactionsList = transactionsList.filter(transaction => 
           (transaction.category && transaction.category.toLowerCase().includes(searchLower)) ||
           (transaction.description && transaction.description.toLowerCase().includes(searchLower)) ||
-          (transaction.amount && String(transaction.amount).includes(search)) ||
-          (transaction.company_name && transaction.company_name.toLowerCase().includes(searchLower))
+          (transaction.amount && String(transaction.amount).includes(search))
         );
       }
 
@@ -88,7 +64,7 @@ const AccountsPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [companies]);
+  }, []);
 
   const loadSummary = useCallback(async () => {
     try {
@@ -103,12 +79,11 @@ const AccountsPage = () => {
 
   useEffect(() => {
     if (isInitialMount.current) {
-      loadCompanies();
       loadTransactions('', '', true);
       loadSummary();
       isInitialMount.current = false;
     }
-  }, [loadCompanies, loadTransactions, loadSummary]);
+  }, [loadTransactions, loadSummary]);
 
   useEffect(() => {
     if (isInitialMount.current) return;
@@ -146,7 +121,6 @@ const AccountsPage = () => {
         amount: parseFloat(data.amount) ?? 0,
         category: data.category?.trim() ?? null,
         description: data.description?.trim() ?? null,
-        company_id: data.company_id || null,
       };
 
       if (data.date && dayjs(data.date).isValid()) {
@@ -191,7 +165,6 @@ const AccountsPage = () => {
       amount: transaction.amount || '',
       category: transaction.category || '',
       description: transaction.description || '',
-      company_id: transaction.company_id || '',
       date: transaction.date ? dayjs(transaction.date).toDate() : new Date(),
     });
     setShowModal(true);
@@ -232,7 +205,7 @@ const AccountsPage = () => {
         <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
-            placeholder="Search transactions by category, description, amount, company..."
+            placeholder="Search transactions by category, description, amount..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -272,7 +245,6 @@ const AccountsPage = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -280,7 +252,7 @@ const AccountsPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                   No transactions found.
                 </td>
               </tr>
@@ -303,7 +275,6 @@ const AccountsPage = () => {
                     RS {parseFloat(transaction.amount || 0).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{transaction.category || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{transaction.company_name}</td>
                   <td className="px-6 py-4">{transaction.description || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManage && (
@@ -366,21 +337,6 @@ const AccountsPage = () => {
                   <option value="expense">Expense</option>
                 </select>
                 {errors.type && touchedFields.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Company</label>
-                <select
-                  {...register('company_id')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">No company / General</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.company_id})
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

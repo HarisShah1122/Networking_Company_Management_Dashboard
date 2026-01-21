@@ -9,7 +9,6 @@ import Loader from '../../components/common/Loader';
 import { usePagination } from '../../hooks/usePagination';
 import { useModal } from '../../hooks/useModal';
 import { useStockList, useStockCategories, useCreateStock, useUpdateStock } from '../../hooks/queries/useStockQueries';
-import apiClient from '../../services/api/apiClient';
 
 const StockPage = () => {
   const { user } = useAuthStore();
@@ -18,12 +17,10 @@ const StockPage = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [companies, setCompanies] = useState([]);
   const debounceTimer = useRef(null);
   const [editingItem, setEditingItem] = useState(null);
 
-  const { register, handleSubmit, reset, watch, formState: { errors, touchedFields } } = useForm();
-  const watchedCompanyId = watch('company_id');
+  const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange, resetPagination, getPaginatedData, getPaginationInfo } = usePagination();
   const editModal = useModal();
@@ -35,22 +32,6 @@ const StockPage = () => {
   const { data: categories = [] } = useStockCategories();
   const createMutation = useCreateStock();
   const updateMutation = useUpdateStock();
-
-  useEffect(() => {
-    const loadCompanies = async () => {
-      try {
-        const response = await apiClient.get('/companies');
-        const data = response.data;
-        const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
-        setCompanies(list.filter(c => c?.id && c.status === 'active'));
-      } catch {
-        toast.error('Failed to load companies');
-        setCompanies([]);
-      }
-    };
-
-    loadCompanies();
-  }, []);
 
   useEffect(() => {
     if (debounceTimer.current) {
@@ -77,7 +58,6 @@ const StockPage = () => {
     const submitData = {
       name: data.name?.trim() ?? '',
       category: data.category?.trim() ?? null,
-      company_id: data.company_id || null,
       quantity_available: data.quantity_available ? parseInt(data.quantity_available, 10) : 0,
       quantity_used: data.quantity_used ? parseInt(data.quantity_used, 10) : 0,
       unit_price: data.unit_price ? parseFloat(data.unit_price) : 0,
@@ -105,7 +85,6 @@ const StockPage = () => {
     reset({
       name: item.name || '',
       category: item.category || '',
-      company_id: item.company_id || '',
       quantity_available: item.quantity_available || 0,
       quantity_used: item.quantity_used || 0,
       unit_price: item.unit_price || 0,
@@ -115,14 +94,6 @@ const StockPage = () => {
   };
 
   if (isLoading) return <Loader />;
-
-  const enrichedStock = stock.map(item => {
-    const company = companies.find(c => String(c.id) === String(item.company_id));
-    return {
-      ...item,
-      company_name: company ? `${company.name} (${company.company_id})` : (item.company_id ? `ID: ${item.company_id}` : '-')
-    };
-  });
 
   return (
     <div className="space-y-6">
@@ -173,7 +144,6 @@ const StockPage = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Available</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Used</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
@@ -181,18 +151,17 @@ const StockPage = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {enrichedStock.length === 0 ? (
+            {stock.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                   No stock items found.
                 </td>
               </tr>
             ) : (
-              getPaginatedData(enrichedStock).map((item) => (
+              getPaginatedData(stock).map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap font-medium">{item.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.category || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{item.company_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.quantity_available || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.quantity_used || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap">RS {parseFloat(item.unit_price || 0).toFixed(2)}</td>
@@ -217,10 +186,10 @@ const StockPage = () => {
           </tbody>
         </table>
 
-        {enrichedStock.length > 0 && (
+        {stock.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
             <TablePagination
-              pagination={getPaginationInfo(enrichedStock.length)}
+              pagination={getPaginationInfo(stock.length)}
               onPageChange={handlePageChange}
               onPageSizeChange={handlePageSizeChange}
               pageSize={pageSize}
@@ -247,21 +216,6 @@ const StockPage = () => {
                   }`}
                 />
                 {errors.name && touchedFields.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Company</label>
-                <select
-                  {...register('company_id')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">No company / General</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.company_id})
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

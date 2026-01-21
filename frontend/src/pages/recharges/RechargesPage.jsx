@@ -11,13 +11,11 @@ import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
-import apiClient from '../../services/api/apiClient';
 
 const RechargesPage = () => {
   const { user } = useAuthStore();
   const [recharges, setRecharges] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [companies, setCompanies] = useState([]);
   const [duePayments, setDuePayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -48,18 +46,6 @@ const RechargesPage = () => {
     }
   }, []);
 
-  const loadCompanies = useCallback(async () => {
-    try {
-      const response = await apiClient.get('/companies');
-      const data = response.data;
-      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
-      setCompanies(list.filter(c => c?.id && c.status === 'active'));
-    } catch {
-      toast.error('Failed to load companies');
-      setCompanies([]);
-    }
-  }, []);
-
   const loadRecharges = useCallback(async (search = '', status = '', isInitial = false) => {
     if (isInitial) setLoading(true);
     else setSearching(true);
@@ -70,13 +56,11 @@ const RechargesPage = () => {
 
       list = list.map(r => {
         const customer = customers.find(c => String(c.id) === String(r.customer_id)) ?? {};
-        const company = companies.find(c => String(c.id) === String(r.company_id)) ?? {};
         return {
           ...r,
           customer_name: customer.name ?? r.customer_name ?? '-',
           customer_phone: customer.whatsapp_number ?? customer.phone ?? '-',
           pace_user_id: customer.pace_user_id ?? '-',
-          company_name: company.name ?? company.company_id ?? '-',
         };
       });
 
@@ -85,7 +69,6 @@ const RechargesPage = () => {
         list = list.filter(r =>
           r.customer_name.toLowerCase().includes(term) ||
           r.pace_user_id.toLowerCase().includes(term) ||
-          r.company_name.toLowerCase().includes(term) ||
           String(r.amount ?? '').includes(term) ||
           (r.customer_phone && r.customer_phone.includes(term))
         );
@@ -99,7 +82,7 @@ const RechargesPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [customers, companies]);
+  }, [customers]);
 
   const loadDuePayments = useCallback(async () => {
     try {
@@ -114,13 +97,12 @@ const RechargesPage = () => {
     if (isInitialMount.current) {
       (async () => {
         await loadCustomers();
-        await loadCompanies();
         await loadRecharges('', '', true);
         await loadDuePayments();
       })();
       isInitialMount.current = false;
     }
-  }, [loadCustomers, loadCompanies, loadRecharges, loadDuePayments]);
+  }, [loadCustomers, loadRecharges, loadDuePayments]);
 
   useEffect(() => {
     if (isInitialMount.current) return;
@@ -156,7 +138,6 @@ const RechargesPage = () => {
 
       const submitData = {
         customer_id: String(data.customer_id),
-        company_id: data.company_id || null,
         amount: parseFloat(data.amount) || 0,
         package: data.package?.trim() ?? null,
         payment_method: data.payment_method ?? 'cash',
@@ -195,7 +176,6 @@ const RechargesPage = () => {
 
     reset({
       customer_id: recharge.customer_id ?? '',
-      company_id: recharge.company_id ?? '',
       amount: recharge.amount ?? '',
       package: recharge.package ?? '',
       payment_method: recharge.payment_method ?? 'cash',
@@ -254,7 +234,7 @@ const RechargesPage = () => {
       <div className="flex gap-4 mb-6 flex-wrap">
         <input
           type="text"
-          placeholder="Search by name, PACE ID, amount, phone, company..."
+          placeholder="Search by name, PACE ID, amount, phone..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 min-w-[300px] px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
@@ -288,7 +268,6 @@ const RechargesPage = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PACE ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -301,14 +280,13 @@ const RechargesPage = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {recharges.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-12 text-center text-gray-500">No recharges found.</td>
+                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">No recharges found.</td>
                 </tr>
               ) : (
                 recharges.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">{r.customer_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-mono">{r.pace_user_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap font-medium">{r.company_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(r.amount).toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{r.payment_method ?? '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -380,21 +358,6 @@ const RechargesPage = () => {
           title={editingRecharge ? 'Edit Recharge' : 'Add Recharge'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Company *</label>
-              <select
-                {...register('company_id', { required: 'Company is required' })}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.company_id ? 'border-red-500' : 'border-gray-300'}`}
-              >
-                <option value="">Select Company</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.company_id})
-                  </option>
-                ))}
-              </select>
-              {errors.company_id && <p className="text-red-500 text-sm mt-1">{errors.company_id.message}</p>}
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">User *</label>
