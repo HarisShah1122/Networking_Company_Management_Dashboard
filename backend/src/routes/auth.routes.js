@@ -7,7 +7,8 @@ const { requireRole } = require('../middleware/role.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
 const { loginLimiter } = require('../middleware/rateLimit.middleware');
 
-// Public login
+
+// LOGIN
 router.post(
   '/login',
   loginLimiter,
@@ -16,7 +17,7 @@ router.post(
   authController.login
 );
 
-// Public register
+// REGISTER
 router.post(
   '/register',
   authController.validateRegister,
@@ -24,7 +25,7 @@ router.post(
   authController.register
 );
 
-// CEO-only admin creation
+// REGISTER ADMIN (CEO ONLY)
 router.post(
   '/register-admin',
   authenticate,
@@ -34,7 +35,21 @@ router.post(
   authController.register
 );
 
-// Get logged-in user
+// GET CURRENT USER
 router.get('/me', authenticate, authController.getMe);
+
+// ✅ LOGOUT (FIXED)
+router.post('/logout', authenticate, (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: 'Logged out successfully',
+  });
+});
 
 module.exports = router;

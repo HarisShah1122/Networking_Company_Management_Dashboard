@@ -4,17 +4,14 @@ const helmet = require('helmet');
 const session = require('express-session');
 const SequelizeStore = require('connect-session-sequelize')(session.Store);
 const path = require('path');
-
 const {
   PORT,
   CORS_ORIGIN,
   NODE_ENV,
   SESSION_SECRET,
 } = require('./config/env');
-
 const { errorHandler } = require('./middleware/error.middleware');
 const { sequelize } = require('./models');
-
 /* ROUTES */
 const authRoutes = require('./routes/auth.routes');
 const companyRoutes = require('./routes/company.routes');
@@ -28,26 +25,19 @@ const complaintRoutes = require('./routes/complaint.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const packageRenewalRoutes = require('./routes/packageRenewal.routes');
 const areaRoutes = require('./routes/area.routes');
-
-
 if (!SESSION_SECRET) {
   throw new Error('SESSION_SECRET missing in .env');
 }
-
 const app = express();
-
 /* MIDDLEWARE */
 app.use(helmet());
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-
 app.use(
   '/uploads',
   express.static(path.join(__dirname, '../uploads'))
 );
-
 /* SESSION SETUP */
 app.use(
   session({
@@ -64,7 +54,6 @@ app.use(
     },
   })
 );
-
 /* ROUTES */
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
@@ -78,20 +67,16 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/package-renewals', packageRenewalRoutes);
 app.use('/api/areas', areaRoutes);
-
 /* ERROR HANDLING */
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
-
 app.use(errorHandler);
-
 /* START SERVER */
 (async () => {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connected');
-
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
@@ -100,5 +85,4 @@ app.use(errorHandler);
     process.exit(1);
   }
 })();
-
 module.exports = app;
