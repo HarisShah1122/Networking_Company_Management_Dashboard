@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
@@ -10,11 +10,13 @@ import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
+import apiClient from '../../services/api/apiClient';
 
 const RechargesPage = () => {
   const { user } = useAuthStore();
   const [recharges, setRecharges] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [duePayments, setDuePayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -29,68 +31,84 @@ const RechargesPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, control, watch, formState: { errors, touchedFields } } = useForm();
+  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm();
   const watchedCustomerId = watch('customer_id');
 
   const canManage = isManager(user?.role);
 
+  // Load Customers
   const loadCustomers = useCallback(async () => {
     try {
       const response = await customerService.getAll();
-      let list = Array.isArray(response) ? response : (response?.customers ?? response?.data?.customers ?? response?.data ?? []);
-      list = list.filter(c => c?.id);
-      setCustomers(list);
-    } catch (error) {
+      let list = Array.isArray(response) ? response : (response?.customers ?? response?.data ?? []);
+      setCustomers(list.filter(c => c?.id));
+    } catch {
       toast.error('Failed to load customers');
       setCustomers([]);
     }
   }, []);
 
-  const loadRecharges = useCallback(async (search = '', status = '', isInitialLoad = false) => {
+  // Load Companies
+  const loadCompanies = useCallback(async () => {
     try {
-      if (isInitialLoad) setLoading(true);
-      else setSearching(true);
+      const response = await apiClient.get('/companies');
+      const data = response.data;
+      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
+      setCompanies(list.filter(c => c?.id && c.status === 'active'));
+    } catch {
+      toast.error('Failed to load companies');
+      setCompanies([]);
+    }
+  }, []);
 
+  // Load Recharges + enrich + filter in one go
+  const loadRecharges = useCallback(async (search = '', status = '', isInitial = false) => {
+    if (isInitial) setLoading(true);
+    else setSearching(true);
+
+    try {
       const response = await rechargeService.getAll({ status });
-      let list = Array.isArray(response) ? response
-                : (response?.recharges ?? response?.data?.recharges ?? response?.data ?? []);
+      let list = Array.isArray(response) ? response : (response?.recharges ?? response?.data ?? []);
 
+      // Enrich with customer & company names
       list = list.map(r => {
-        const customer = r.customer ?? customers.find(c => String(c.id) === String(r.customer_id)) ?? {};
+        const customer = customers.find(c => String(c.id) === String(r.customer_id)) ?? {};
+        const company = companies.find(c => String(c.id) === String(r.company_id)) ?? {};
         return {
           ...r,
-          customer_name:     customer.name            ?? r.customer_name     ?? '-',
-          customer_phone:    customer.whatsapp_number ?? customer.phone      ?? r.customer_phone    ?? '-',
-          pace_user_id:      customer.pace_user_id    ?? '-',
-          address:           customer.address         ?? '-',
+          customer_name: customer.name ?? r.customer_name ?? '-',
+          customer_phone: customer.whatsapp_number ?? customer.phone ?? '-',
+          pace_user_id: customer.pace_user_id ?? '-',
+          company_name: company.name ?? company.company_id ?? '-',
         };
       });
 
+      // Client-side search
       if (search?.trim()) {
-        const searchLower = search.toLowerCase().trim();
+        const term = search.toLowerCase().trim();
         list = list.filter(r =>
-          r.customer_name.toLowerCase().includes(searchLower) ||
-          r.pace_user_id.toLowerCase().includes(searchLower) ||
-          String(r.amount ?? '').includes(search) ||
-          (r.customer_phone && r.customer_phone.includes(search))
+          r.customer_name.toLowerCase().includes(term) ||
+          r.pace_user_id.toLowerCase().includes(term) ||
+          r.company_name.toLowerCase().includes(term) ||
+          String(r.amount ?? '').includes(term) ||
+          (r.customer_phone && r.customer_phone.includes(term))
         );
       }
 
       setRecharges(list);
-    } catch (error) {
-      toast.error(error.response?.data?.message ?? 'Failed to load recharges');
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? 'Failed to load recharges');
       setRecharges([]);
     } finally {
       setLoading(false);
       setSearching(false);
     }
-  }, [customers]);
+  }, [customers, companies]);
 
   const loadDuePayments = useCallback(async () => {
     try {
       const response = await rechargeService.getDuePayments();
-      const dueList = response?.duePayments ?? response?.data?.duePayments ?? [];
-      setDuePayments(dueList);
+      setDuePayments(response?.duePayments ?? response?.data?.duePayments ?? []);
     } catch {
       setDuePayments([]);
     }
@@ -100,18 +118,23 @@ const RechargesPage = () => {
     if (isInitialMount.current) {
       (async () => {
         await loadCustomers();
+        await loadCompanies();
         await loadRecharges('', '', true);
         await loadDuePayments();
       })();
       isInitialMount.current = false;
     }
-  }, [loadCustomers, loadRecharges, loadDuePayments]);
+  }, [loadCustomers, loadCompanies, loadRecharges, loadDuePayments]);
 
   useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (isInitialMount.current) return;
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
 
     debounceTimer.current = setTimeout(() => {
-      loadRecharges(searchTerm, statusFilter, false);
+      loadRecharges(searchTerm, statusFilter);
       setCurrentPage(1);
     }, 500);
 
@@ -119,12 +142,9 @@ const RechargesPage = () => {
   }, [searchTerm, statusFilter, loadRecharges]);
 
   useEffect(() => {
-    if (!watchedCustomerId) {
-      setSelectedCustomer(null);
-      return;
-    }
-    const customer = customers.find(c => String(c.id) === String(watchedCustomerId));
-    setSelectedCustomer(customer ?? null);
+    if (!watchedCustomerId) return setSelectedCustomer(null);
+    const c = customers.find(c => String(c.id) === String(watchedCustomerId));
+    setSelectedCustomer(c ?? null);
   }, [watchedCustomerId, customers]);
 
   const onSubmit = async (data) => {
@@ -136,43 +156,41 @@ const RechargesPage = () => {
 
       const customer = customers.find(c => String(c.id) === String(data.customer_id));
       if (!customer) {
-        toast.error('Selected customer not found');
+        toast.error('Customer not found');
         return;
       }
 
       const submitData = {
-        customer_id:     String(data.customer_id),
-        amount:          parseFloat(data.amount) || 0,
-        package:         data.package?.trim() ?? null,
-        payment_method:  data.payment_method ?? 'cash',
-        status:          data.status ?? 'pending',
-        name:            customer.name ?? null,
-        address:         customer.address ?? null,
+        customer_id: String(data.customer_id),
+        company_id: data.company_id || null,
+        amount: parseFloat(data.amount) || 0,
+        package: data.package?.trim() ?? null,
+        payment_method: data.payment_method ?? 'cash',
+        status: data.status ?? 'pending',
+        name: customer.name ?? null,
+        address: customer.address ?? null,
         whatsapp_number: customer.whatsapp_number ?? customer.phone ?? null,
-        due_date:        data.due_date  ? dayjs(data.due_date).format('YYYY-MM-DD')  : undefined,
-        payment_date:    data.payment_date ? dayjs(data.payment_date).format('YYYY-MM-DD') : undefined,
-        notes:           data.notes?.trim() ?? undefined,
+        due_date: data.due_date ? dayjs(data.due_date).format('YYYY-MM-DD') : undefined,
+        payment_date: data.payment_date ? dayjs(data.payment_date).format('YYYY-MM-DD') : undefined,
+        notes: data.notes?.trim() ?? undefined,
       };
 
       if (editingRecharge) {
         await rechargeService.update(editingRecharge.id, submitData);
-        toast.success('Recharge updated successfully!');
+        toast.success('Recharge updated!');
       } else {
         await rechargeService.create(submitData);
-        toast.success('Recharge created successfully!');
+        toast.success('Recharge created!');
       }
 
       reset();
       setShowModal(false);
       setEditingRecharge(null);
       setSelectedCustomer(null);
-      await loadRecharges(searchTerm, statusFilter, false);
+      await loadRecharges(searchTerm, statusFilter);
       await loadDuePayments();
     } catch (error) {
-      const msg = error.response?.data?.message
-               ?? error.response?.data?.errors?.[0]?.msg
-               ?? 'Failed to save recharge';
-      toast.error(msg);
+      toast.error(error.response?.data?.message ?? 'Failed to save recharge');
     }
   };
 
@@ -182,14 +200,15 @@ const RechargesPage = () => {
     setEditingRecharge(recharge);
 
     reset({
-      customer_id:     recharge.customer_id ?? '',
-      amount:          recharge.amount ?? '',
-      package:         recharge.package ?? '',
-      payment_method:  recharge.payment_method ?? 'cash',
-      status:          recharge.status ?? 'pending',
-      due_date:        recharge.due_date ? dayjs(recharge.due_date).toDate() : null,
-      payment_date:    recharge.payment_date ? dayjs(recharge.payment_date).toDate() : null,
-      notes:           recharge.notes ?? '',
+      customer_id: recharge.customer_id ?? '',
+      company_id: recharge.company_id ?? '',
+      amount: recharge.amount ?? '',
+      package: recharge.package ?? '',
+      payment_method: recharge.payment_method ?? 'cash',
+      status: recharge.status ?? 'pending',
+      due_date: recharge.due_date ? dayjs(recharge.due_date).toDate() : null,
+      payment_date: recharge.payment_date ? dayjs(recharge.payment_date).toDate() : null,
+      notes: recharge.notes ?? '',
     });
 
     setShowModal(true);
@@ -205,16 +224,16 @@ const RechargesPage = () => {
       await rechargeService.update(id, {
         ...recharge,
         customer_id: recharge.customer_id,
-        amount:      recharge.amount,
-        status:      'paid',
+        amount: recharge.amount,
+        status: 'paid',
         payment_date: dayjs().format('YYYY-MM-DD'),
       });
 
-      toast.success('Recharge marked as paid!');
-      await loadRecharges(searchTerm, statusFilter, false);
+      toast.success('Marked as paid!');
+      await loadRecharges(searchTerm, statusFilter);
       await loadDuePayments();
-    } catch (error) {
-      toast.error(error.response?.data?.message ?? 'Failed to mark as paid');
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? 'Failed to mark as paid');
     }
   };
 
@@ -222,44 +241,35 @@ const RechargesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Recharges</h1>
-      </div>
+      <h1 className="text-3xl font-bold text-gray-900">Recharges</h1>
 
       {duePayments.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h2 className="font-semibold text-yellow-800 mb-2">Due Payments ({duePayments.length})</h2>
           <div className="space-y-2">
-            {duePayments.slice(0, 5).map((payment) => (
-              <div key={payment.id} className="flex justify-between text-sm">
-                <span>{payment.customer_name} - RS {parseFloat(payment.amount).toFixed(2)}</span>
-                <span className="text-yellow-700">Due: {new Date(payment.due_date).toLocaleDateString()}</span>
+            {duePayments.slice(0, 5).map((p) => (
+              <div key={p.id} className="flex justify-between text-sm">
+                <span>{p.customer_name} - RS {parseFloat(p.amount).toFixed(2)}</span>
+                <span className="text-yellow-700">Due: {new Date(p.due_date).toLocaleDateString()}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="flex gap-4 mb-4">
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            placeholder="Search by name, PACE ID, amount, phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          {searching && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-            </div>
-          )}
-        </div>
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <input
+          type="text"
+          placeholder="Search by name, PACE ID, amount, phone, company..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-1 min-w-[300px] px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+        />
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All Status</option>
           <option value="pending">Pending</option>
@@ -270,7 +280,7 @@ const RechargesPage = () => {
         {canManage && (
           <button
             onClick={() => { reset(); setEditingRecharge(null); setSelectedCustomer(null); setShowModal(true); }}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
+            className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 whitespace-nowrap"
           >
             Add Recharge
           </button>
@@ -283,8 +293,9 @@ const RechargesPage = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PACE ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -293,35 +304,34 @@ const RechargesPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {recharges.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
-                  No recharges found.
-                </td>
+                <td colSpan="8" className="px-6 py-12 text-center text-gray-500">No recharges found.</td>
               </tr>
             ) : (
-              recharges.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((recharge) => (
-                <tr key={recharge.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{recharge.customer_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono">{recharge.pace_user_id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(recharge.amount).toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{recharge.payment_method ?? '-'}</td>
+              recharges.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((r) => (
+                <tr key={r.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">{r.customer_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono">{r.pace_user_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">{r.company_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(r.amount).toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{r.payment_method ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
-                      recharge.status === 'paid' ? 'bg-green-600 text-white' :
-                      recharge.status === 'pending' ? 'bg-yellow-600 text-white' :
+                      r.status === 'paid' ? 'bg-green-600 text-white' :
+                      r.status === 'pending' ? 'bg-yellow-600 text-white' :
                       'bg-red-600 text-white'
                     }`}>
-                      {recharge.status}
+                      {r.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {recharge.due_date ? new Date(recharge.due_date).toLocaleDateString() : '-'}
+                    {r.due_date ? new Date(r.due_date).toLocaleDateString('en-PK') : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManage && (
                       <div className="flex items-center justify-end gap-2">
-                        {recharge.status === 'pending' && (
+                        {r.status === 'pending' && (
                           <button
-                            onClick={() => handleMarkPaid(recharge.id)}
+                            onClick={() => handleMarkPaid(r.id)}
                             className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
                             title="Mark Paid"
                           >
@@ -331,7 +341,7 @@ const RechargesPage = () => {
                           </button>
                         )}
                         <button
-                          onClick={() => handleEdit(recharge)}
+                          onClick={() => handleEdit(r)}
                           className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
                           title="Edit"
                         >
@@ -351,16 +361,9 @@ const RechargesPage = () => {
         {recharges.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
             <TablePagination
-              pagination={{
-                currentPage,
-                totalPages: Math.ceil(recharges.length / pageSize),
-                totalCount: recharges.length,
-              }}
-              onPageChange={(page) => setCurrentPage(page)}
-              onPageSizeChange={(size) => {
-                setPageSize(size);
-                setCurrentPage(1);
-              }}
+              pagination={{ currentPage, totalPages: Math.ceil(recharges.length / pageSize), totalCount: recharges.length }}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
               pageSize={pageSize}
               isFetching={searching}
             />
@@ -374,78 +377,83 @@ const RechargesPage = () => {
           onClose={() => { setShowModal(false); reset(); setEditingRecharge(null); setSelectedCustomer(null); }}
           title={editingRecharge ? 'Edit Recharge' : 'Add Recharge'}
         >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700">User *</label>
+              <label className="block text-sm font-medium text-gray-700">Company *</label>
               <select
-                {...register('customer_id', {
-                  required: 'Customer is required'
-                })}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                  errors.customer_id && touchedFields.customer_id ? 'border-red-500' : 'border-gray-300'
-                }`}
+                {...register('company_id', { required: 'Company is required' })}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.company_id ? 'border-red-500' : 'border-gray-300'}`}
               >
-                <option value="">Select User</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={String(customer.id)}>
-                    {customer.name} {customer.pace_user_id ? `(PACE: ${customer.pace_user_id})` : ''}
+                <option value="">Select Company</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.company_id})
                   </option>
                 ))}
               </select>
-              {errors.customer_id && touchedFields.customer_id && (
-                <p className="text-red-500 text-sm mt-1">{errors.customer_id.message}</p>
-              )}
+              {errors.company_id && <p className="text-red-500 text-sm mt-1">{errors.company_id.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">User *</label>
+              <select
+                {...register('customer_id', { required: 'Customer is required' })}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.customer_id ? 'border-red-500' : 'border-gray-300'}`}
+              >
+                <option value="">Select User</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.name} {c.pace_user_id ? `(PACE: ${c.pace_user_id})` : ''}
+                  </option>
+                ))}
+              </select>
+              {errors.customer_id && <p className="text-red-500 text-sm mt-1">{errors.customer_id.message}</p>}
             </div>
 
             {selectedCustomer && (
-              <div className="bg-gray-50 p-4 rounded-md">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">User Details</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="bg-gray-50 p-4 rounded-md text-sm">
+                <h3 className="font-medium mb-3">User Details</h3>
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">User ID</label>
+                    <span className="text-xs text-gray-600">ID</span>
                     <p className="font-mono">{selectedCustomer.id}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">PACE ID</label>
+                    <span className="text-xs text-gray-600">PACE ID</span>
                     <p>{selectedCustomer.pace_user_id ?? '-'}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">WhatsApp No</label>
+                    <span className="text-xs text-gray-600">WhatsApp</span>
                     <p>{selectedCustomer.whatsapp_number ?? selectedCustomer.phone ?? '-'}</p>
-                  </div>
-                  <div className="col-span-3">
-                    <label className="block text-xs font-medium text-gray-600">Address</label>
-                    <p>{selectedCustomer.address ?? '-'}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Package</label>
-              <input
-                {...register('package')}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Enter package name"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Amount *</label>
+                <label className="block text-sm font-medium text-gray-700">Package</label>
                 <input
-                  {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
-                  type="number"
-                  step="0.01"
-                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                    errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  {...register('package')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="e.g. 10 Mbps"
                 />
-                {errors.amount && touchedFields.amount && (
-                  <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
-                )}
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Amount (PKR) *</label>
+                <input
+                  {...register('amount', { required: true, valueAsNumber: true, min: 0.01 })}
+                  type="number"
+                  step="0.01"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.amount ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="0.00"
+                />
+                {errors.amount && <p className="text-red-500 text-sm mt-1">Amount is required</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Payment Method</label>
                 <select {...register('payment_method')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
@@ -466,8 +474,8 @@ const RechargesPage = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="relative">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
                 <Controller
                   name="due_date"
@@ -479,16 +487,16 @@ const RechargesPage = () => {
                       onChange={(date) => field.onChange(date)}
                       placeholder="Select due date"
                       className="w-full"
-                      dropdownType="popover"
                       clearable
                       valueFormat="DD/MM/YYYY"
+                      dropdownType="popover"
                       popoverProps={{ withinPortal: true, zIndex: 12000 }}
                     />
                   )}
                 />
               </div>
 
-              <div className="relative">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
                 <Controller
                   name="payment_date"
@@ -500,9 +508,9 @@ const RechargesPage = () => {
                       onChange={(date) => field.onChange(date)}
                       placeholder="Select payment date"
                       className="w-full"
-                      dropdownType="popover"
                       clearable
                       valueFormat="DD/MM/YYYY"
+                      dropdownType="popover"
                       popoverProps={{ withinPortal: true, zIndex: 12000 }}
                     />
                   )}
@@ -514,22 +522,25 @@ const RechargesPage = () => {
                 <textarea
                   {...register('notes')}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  rows="3"
-                  placeholder="Enter notes"
+                  rows={3}
+                  placeholder="Optional notes"
                 />
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 pt-4">
               <button
                 type="button"
                 onClick={() => { setShowModal(false); reset(); setEditingRecharge(null); setSelectedCustomer(null); }}
-                className="flex-1 px-4 py-2 border rounded-lg"
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
-              <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
-                Save
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                {editingRecharge ? 'Update Recharge' : 'Save Recharge'}
               </button>
             </div>
           </form>

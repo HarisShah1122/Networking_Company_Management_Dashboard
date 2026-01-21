@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
@@ -13,6 +13,7 @@ import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import { transformBackendPagination } from '../../utils/pagination.utils';
 import Loader from '../../components/common/Loader';
+import apiClient from '../../services/api/apiClient';
 
 const CustomersPage = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const CustomersPage = () => {
 
   const [customers, setCustomers] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [connections, setConnections] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,41 @@ const CustomersPage = () => {
   const isInitialMount = useRef(true);
   const isManualReload = useRef(false);
 
-  const { register, handleSubmit, reset, control, formState: { errors, touchedFields } } = useForm();
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, touchedFields } } = useForm();
+
+  const formatPhone = (value) => {
+    if (!value) return value;
+    let clean = value.replace(/[^\d+]/g, '');
+    if (clean.startsWith('+')) {
+      return clean;
+    }
+    clean = clean.replace(/\D/g, '');
+    if (clean.length > 11) clean = clean.slice(0, 11);
+    if (clean.length > 4) {
+      return clean.slice(0, 4) + ' ' + clean.slice(4);
+    }
+    return clean;
+  };
+
+  const handlePhoneChange = (e) => {
+    const formatted = formatPhone(e.target.value);
+    setValue('phone', formatted, { shouldValidate: true });
+  };
+
+  const handleWhatsappChange = (e) => {
+    const formatted = formatPhone(e.target.value);
+    setValue('whatsapp_number', formatted, { shouldValidate: true });
+  };
+
+  const handleNumberInput = (e) => {
+    const char = e.key;
+    const value = e.target.value;
+    if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(char)) return;
+    if (char === '+' && value.length === 0) return;
+    if (!/[0-9]/.test(char)) {
+      e.preventDefault();
+    }
+  };
 
   const loadAreas = useCallback(async () => {
     try {
@@ -45,22 +81,34 @@ const CustomersPage = () => {
     }
   }, []);
 
+  const loadCompanies = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/companies');
+      const data = response.data;
+      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
+      setCompanies(list.filter(c => c?.id && c.status === 'active'));
+    } catch {
+      toast.error('Failed to load companies');
+      setCompanies([]);
+    }
+  }, []);
+
   const loadCustomers = useCallback(async (search = '', status = '', page = 1, pageSize = 10, isInitial = false) => {
     try {
       if (isInitial) setLoading(true);
       else setSearching(true);
-
       const response = await customerService.getAll({ search, status, page, limit: pageSize });
-
       let data = response?.data?.customers || response?.customers || response?.data || response || [];
-      data = data.map(c => ({
-        ...c,
-        email: c.email ?? c.Email ?? null,
-        address: c.address ?? c.Address ?? null,
-      }));
-
+      data = data.map(c => {
+        const company = companies.find(comp => String(comp.id) === String(c.company_id));
+        return {
+          ...c,
+          email: c.email ?? c.Email ?? null,
+          address: c.address ?? c.Address ?? null,
+          company_name: company ? `${company.name} (${company.company_id})` : (c.company_id ? `ID: ${c.company_id}` : '-')
+        };
+      });
       setCustomers(data);
-
       const backendPag = response?.pagination;
       setPagination(
         backendPag
@@ -79,7 +127,7 @@ const CustomersPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, []);
+  }, [companies]);
 
   const loadConnections = useCallback(async () => {
     try {
@@ -92,14 +140,14 @@ const CustomersPage = () => {
   useEffect(() => {
     if (isInitialMount.current) {
       const init = async () => {
-        await loadAreas();
+        await Promise.all([loadAreas(), loadCompanies()]);
         await loadCustomers('', '', 1, 10, true);
         await loadConnections();
       };
       init();
       isInitialMount.current = false;
     }
-  }, [loadAreas, loadCustomers, loadConnections]);
+  }, [loadAreas, loadCompanies, loadCustomers, loadConnections]);
 
   useEffect(() => {
     if (isInitialMount.current) return;
@@ -112,13 +160,10 @@ const CustomersPage = () => {
       isManualReload.current = false;
       return;
     }
-
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-
     debounceTimer.current = setTimeout(() => {
       loadCustomers(searchTerm, statusFilter, paginationState.page, paginationState.pageSize);
     }, 500);
-
     return () => clearTimeout(debounceTimer.current);
   }, [searchTerm, statusFilter, paginationState.page, paginationState.pageSize, loadCustomers]);
 
@@ -132,21 +177,32 @@ const CustomersPage = () => {
       return;
     }
 
+    const cleanPhone = (data.phone || '').replace(/\s/g, '');
+    const cleanWhatsapp = (data.whatsapp_number || '').replace(/\s/g, '');
+
+    if (cleanPhone.length > 13) {
+      toast.error("Too many digits - maximum 13 characters");
+      return;
+    }
+    if (cleanWhatsapp.length > 13) {
+      toast.error("Too many digits - maximum 13 characters");
+      return;
+    }
+
     try {
       const customerPayload = {
         pace_user_id: data.pace_user_id?.trim() || undefined,
         name: data.name.trim(),
         father_name: data.father_name?.trim() || undefined,
         area_id: data.area_id,
+        company_id: data.company_id || null,
         gender: data.gender || undefined,
-        whatsapp_number: data.whatsapp_number?.trim() || undefined,
-        phone: data.phone.trim(),
+        whatsapp_number: cleanWhatsapp || undefined,
+        phone: cleanPhone,
         email: data.email?.trim() || undefined,
         address: data.address?.trim() || undefined,
         status: data.status || 'active',
       };
-
-      console.log('Sending payload:', JSON.stringify(customerPayload, null, 2));
 
       let customerId;
 
@@ -192,9 +248,7 @@ const CustomersPage = () => {
       ]);
     } catch (err) {
       console.error('Full error:', err);
-
       let errorMsg = 'Failed to save customer';
-
       if (err.response?.status === 422) {
         const backendErrors = err.response.data?.errors;
         if (Array.isArray(backendErrors)) {
@@ -207,26 +261,25 @@ const CustomersPage = () => {
       } else if (err.response?.data?.message) {
         errorMsg = err.response.data.message;
       }
-
       toast.error(errorMsg, { autoClose: 5000 });
     }
   };
 
   const handleEdit = (customer) => {
     const conn = getConnectionForCustomer(customer.id);
-
-    setEditingCustomer(customer);
-
     reset({
       ...customer,
-      area_id: customer.area_id || customer.area_id || '',
+      area_id: customer.area_id || '',
+      company_id: customer.company_id || '',
       connection_type: conn.connection_type || '',
       installation_date: conn.installation_date ? dayjs(conn.installation_date).toDate() : null,
       activation_date: conn.activation_date ? dayjs(conn.activation_date).toDate() : null,
       connection_status: conn.status || 'pending',
       connection_notes: conn.notes || '',
+      phone: formatPhone(customer.phone || ''),
+      whatsapp_number: formatPhone(customer.whatsapp_number || ''),
     });
-
+    setEditingCustomer(customer);
     setShowModal(true);
   };
 
@@ -244,7 +297,7 @@ const CustomersPage = () => {
         <div className="flex-1 relative">
           <input
             type="text"
-            placeholder="Search customers..."
+            placeholder="Search customers by name, phone, email, company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -289,6 +342,7 @@ const CustomersPage = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Connection Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Conn. Status</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -297,7 +351,7 @@ const CustomersPage = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                     No customers found.
                   </td>
                 </tr>
@@ -316,6 +370,7 @@ const CustomersPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">{customer.phone || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{customer.email ?? '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{customer.company_name}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {conn.connection_type || '—'}
                       </td>
@@ -431,6 +486,22 @@ const CustomersPage = () => {
                   <p className="text-red-500 text-sm mt-1">{errors.area_id.message}</p>
                 )}
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Company</label>
+                <select
+                  {...register('company_id')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">No company / General</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.company_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Gender</label>
                 <select {...register('gender')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
@@ -440,10 +511,6 @@ const CustomersPage = () => {
                   <option value="other">Other</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
-                <input {...register('whatsapp_number')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -452,20 +519,57 @@ const CustomersPage = () => {
                   Phone <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register('phone', { required: 'Phone is required' })}
+                  {...register('phone', { 
+                    required: 'Phone number is required',
+                    maxLength: {
+                      value: 13,
+                      message: 'Too many digits - maximum 13 characters'
+                    }
+                  })}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={13}
+                  onKeyPress={handleNumberInput}
+                  onChange={handlePhoneChange}
                   className={`mt-1 block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                     errors.phone && touchedFields.phone ? 'border-red-500' : 'border-gray-300'
                   }`}
+                  placeholder="0300XXXXXXX or +92300XXXXXXX"
                 />
                 {errors.phone && touchedFields.phone && (
                   <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
                 )}
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                <input
+                  {...register('whatsapp_number', { 
+                    maxLength: {
+                      value: 13,
+                      message: 'Too many digits - maximum 13 characters'
+                    }
+                  })}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={13}
+                  onKeyPress={handleNumberInput}
+                  onChange={handleWhatsappChange}
+                  className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md ${
+                    errors.whatsapp_number && touchedFields.whatsapp_number ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="0300XXXXXXX or +92300XXXXXXX (optional)"
+                />
+                {errors.whatsapp_number && touchedFields.whatsapp_number && (
+                  <p className="text-red-500 text-sm mt-1">{errors.whatsapp_number.message}</p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
                 <input
                   type="email"
-                  {...register('email', { pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
+                  {...register('email')}
                   className={`mt-1 block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                     errors.email && touchedFields.email ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -523,43 +627,29 @@ const CustomersPage = () => {
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Registration Date</label>
-                  <Controller
-                    name="installation_date"
-                    control={control}
-                    render={({ field }) => (
-                      <DatePickerInput
-                        {...field}
-                        value={field.value ? dayjs(field.value).toDate() : null}
-                        onChange={(date) => field.onChange(date)}
-                        placeholder="Select date"
-                        className="w-full"
-                        valueFormat="DD/MM/YYYY"
-                        clearable
-                        dropdownType="popover"
-                        popoverProps={{ withinPortal: true, zIndex: 12000 }}
-                      />
-                    )}
+                  <DatePickerInput
+                    value={watch('installation_date') ? dayjs(watch('installation_date')).toDate() : null}
+                    onChange={(date) => setValue('installation_date', date)}
+                    placeholder="Select date"
+                    className="w-full"
+                    valueFormat="DD/MM/YYYY"
+                    clearable
+                    dropdownType="popover"
+                    popoverProps={{ withinPortal: true, zIndex: 12000 }}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Activation Date</label>
-                  <Controller
-                    name="activation_date"
-                    control={control}
-                    render={({ field }) => (
-                      <DatePickerInput
-                        {...field}
-                        value={field.value ? dayjs(field.value).toDate() : null}
-                        onChange={(date) => field.onChange(date)}
-                        placeholder="Select date"
-                        className="w-full"
-                        valueFormat="DD/MM/YYYY"
-                        clearable
-                        dropdownType="popover"
-                        popoverProps={{ withinPortal: true, zIndex: 12000 }}
-                      />
-                    )}
+                  <DatePickerInput
+                    value={watch('activation_date') ? dayjs(watch('activation_date')).toDate() : null}
+                    onChange={(date) => setValue('activation_date', date)}
+                    placeholder="Select date"
+                    className="w-full"
+                    valueFormat="DD/MM/YYYY"
+                    clearable
+                    dropdownType="popover"
+                    popoverProps={{ withinPortal: true, zIndex: 12000 }}
                   />
                 </div>
               </div>

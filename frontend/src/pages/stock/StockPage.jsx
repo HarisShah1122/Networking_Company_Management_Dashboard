@@ -9,22 +9,25 @@ import Loader from '../../components/common/Loader';
 import { usePagination } from '../../hooks/usePagination';
 import { useModal } from '../../hooks/useModal';
 import { useStockList, useStockCategories, useCreateStock, useUpdateStock } from '../../hooks/queries/useStockQueries';
+import apiClient from '../../services/api/apiClient';
 
 const StockPage = () => {
   const { user } = useAuthStore();
+  const canManage = isManager(user?.role);
+
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [companies, setCompanies] = useState([]);
   const debounceTimer = useRef(null);
   const [editingItem, setEditingItem] = useState(null);
 
-  const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
-  
-  // Custom hooks
+  const { register, handleSubmit, reset, watch, formState: { errors, touchedFields } } = useForm();
+  const watchedCompanyId = watch('company_id');
+
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange, resetPagination, getPaginatedData, getPaginationInfo } = usePagination();
   const editModal = useModal();
-  
-  // TanStack Query hooks
+
   const { data: stock = [], isLoading, isFetching } = useStockList({ 
     category: categoryFilter, 
     search: debouncedSearch 
@@ -33,8 +36,22 @@ const StockPage = () => {
   const createMutation = useCreateStock();
   const updateMutation = useUpdateStock();
 
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const response = await apiClient.get('/companies');
+        const data = response.data;
+        const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
+        setCompanies(list.filter(c => c?.id && c.status === 'active'));
+      } catch {
+        toast.error('Failed to load companies');
+        setCompanies([]);
+      }
+    };
 
-  // Debounce search term
+    loadCompanies();
+  }, []);
+
   useEffect(() => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -52,7 +69,6 @@ const StockPage = () => {
     };
   }, [searchTerm, resetPagination]);
 
-  // Reset pagination when filter changes
   useEffect(() => {
     resetPagination();
   }, [categoryFilter, resetPagination]);
@@ -61,6 +77,7 @@ const StockPage = () => {
     const submitData = {
       name: data.name?.trim() ?? '',
       category: data.category?.trim() ?? null,
+      company_id: data.company_id || null,
       quantity_available: data.quantity_available ? parseInt(data.quantity_available, 10) : 0,
       quantity_used: data.quantity_used ? parseInt(data.quantity_used, 10) : 0,
       unit_price: data.unit_price ? parseFloat(data.unit_price) : 0,
@@ -70,32 +87,42 @@ const StockPage = () => {
     try {
       if (editingItem) {
         await updateMutation.mutateAsync({ id: editingItem.id, data: submitData });
+        toast.success('Stock item updated');
       } else {
         await createMutation.mutateAsync(submitData);
+        toast.success('Stock item created');
       }
       reset();
       editModal.closeModal();
       setEditingItem(null);
     } catch (error) {
-      // Error handling is done in the mutation hooks
+      toast.error(error?.response?.data?.message || 'Failed to save stock item');
     }
   };
 
   const handleEdit = (item) => {
     setEditingItem(item);
     reset({
-      ...item,
+      name: item.name || '',
+      category: item.category || '',
+      company_id: item.company_id || '',
       quantity_available: item.quantity_available || 0,
       quantity_used: item.quantity_used || 0,
       unit_price: item.unit_price || 0,
+      description: item.description || '',
     });
     editModal.openModal();
   };
 
-
-  const canManage = isManager(user?.role);
-
   if (isLoading) return <Loader />;
+
+  const enrichedStock = stock.map(item => {
+    const company = companies.find(c => String(c.id) === String(item.company_id));
+    return {
+      ...item,
+      company_name: company ? `${company.name} (${company.company_id})` : (item.company_id ? `ID: ${item.company_id}` : '-')
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -103,8 +130,8 @@ const StockPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Stock Management</h1>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <div className="flex-1 relative">
+      <div className="flex gap-4 mb-4 flex-wrap">
+        <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
             placeholder="Search stock..."
@@ -118,16 +145,18 @@ const StockPage = () => {
             </div>
           )}
         </div>
+
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[180px]"
         >
           <option value="">All Categories</option>
           {categories.map((cat) => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
+
         {canManage && (
           <button
             onClick={() => { reset(); setEditingItem(null); editModal.openModal(); }}
@@ -144,6 +173,7 @@ const StockPage = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Available</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Used</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
@@ -151,17 +181,18 @@ const StockPage = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {stock.length === 0 ? (
+            {enrichedStock.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                   No stock items found.
                 </td>
               </tr>
             ) : (
-              getPaginatedData(stock).map((item) => (
+              getPaginatedData(enrichedStock).map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap font-medium">{item.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.category || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{item.company_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.quantity_available || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{item.quantity_used || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap">RS {parseFloat(item.unit_price || 0).toFixed(2)}</td>
@@ -185,10 +216,11 @@ const StockPage = () => {
             )}
           </tbody>
         </table>
-        {stock.length > 0 && (
+
+        {enrichedStock.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
             <TablePagination
-              pagination={getPaginationInfo(stock.length)}
+              pagination={getPaginationInfo(enrichedStock.length)}
               onPageChange={handlePageChange}
               onPageSizeChange={handlePageSizeChange}
               pageSize={pageSize}
@@ -205,46 +237,44 @@ const StockPage = () => {
           title={editingItem ? 'Edit Stock Item' : 'Add Stock Item'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Name *</label>
-                  <input
-                    {...register('name', { required: 'Name is required' })}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.name && touchedFields.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.name && touchedFields.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
-                  <input
-                    {...register('category')}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="e.g., Cables, Equipment"
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name *</label>
+                <input
+                  {...register('name', { required: 'Name is required' })}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.name && touchedFields.name ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.name && touchedFields.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Available Quantity</label>
-                  <input
-                    {...register('quantity_available', { valueAsNumber: true, min: 0 })}
-                    type="number"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    defaultValue={0}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Used Quantity</label>
-                  <input
-                    {...register('quantity_used', { valueAsNumber: true, min: 0 })}
-                    type="number"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    defaultValue={0}
-                  />
-                </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Company</label>
+                <select
+                  {...register('company_id')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">No company / General</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.company_id})
+                    </option>
+                  ))}
+                </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <input
+                  {...register('category')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="e.g., Cables, Equipment"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Unit Price</label>
                 <input
@@ -254,36 +284,60 @@ const StockPage = () => {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Description</label>
-                <textarea
-                  {...register('description')}
+                <label className="block text-sm font-medium text-gray-700">Available Quantity</label>
+                <input
+                  {...register('quantity_available', { valueAsNumber: true, min: 0 })}
+                  type="number"
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  rows="3"
-                  placeholder="Optional description..."
+                  defaultValue={0}
                 />
               </div>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => { editModal.closeModal(); reset(); setEditingItem(null); }}
-                  className="flex-1 px-4 py-2 border rounded-lg"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                >
-                  {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
-                </button>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Used Quantity</label>
+                <input
+                  {...register('quantity_used', { valueAsNumber: true, min: 0 })}
+                  type="number"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  defaultValue={0}
+                />
               </div>
-            </form>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Description</label>
+              <textarea
+                {...register('description')}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                rows="3"
+                placeholder="Optional description..."
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => { editModal.closeModal(); reset(); setEditingItem(null); }}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
+                {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
-
     </div>
   );
 };

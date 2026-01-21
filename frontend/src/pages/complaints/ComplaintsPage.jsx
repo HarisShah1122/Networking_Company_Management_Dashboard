@@ -8,11 +8,15 @@ import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
+import apiClient from '../../services/api/apiClient'; // ← added for companies
 
 const ComplaintsPage = () => {
   const { user } = useAuthStore();
+  const canManage = isManager(user?.role);
+
   const [complaints, setComplaints] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [companies, setCompanies] = useState([]); // ← NEW
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -28,43 +32,56 @@ const ComplaintsPage = () => {
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, touchedFields } } = useForm();
   const watchedCustomerId = watch('customerId');
+  const watchedCompanyId = watch('companyId'); // ← NEW
 
-  const canManage = isManager(user?.role);
-
+  // ─── Load Customers ───
   const loadCustomers = useCallback(async () => {
     try {
       const response = await customerService.getAll();
-      let list = Array.isArray(response) ? response : (response?.customers ?? response?.data?.customers ?? response?.data ?? []);
-      list = list.filter(c => c?.id);
-      setCustomers(list);
-    } catch (error) {
+      let list = Array.isArray(response) ? response : (response?.customers ?? response?.data ?? []);
+      setCustomers(list.filter(c => c?.id));
+    } catch {
       toast.error('Failed to load customers');
       setCustomers([]);
     }
   }, []);
 
+  // ─── Load Companies ───
+  const loadCompanies = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/companies');
+      const data = response.data;
+      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
+      setCompanies(list.filter(c => c?.id && c.status === 'active'));
+    } catch {
+      toast.error('Failed to load companies');
+      setCompanies([]);
+    }
+  }, []);
+
+  // ─── Load Complaints ───
   const loadComplaints = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
       if (isInitialLoad) setLoading(true);
       else setSearching(true);
 
       const response = await complaintService.getAll();
-      let list = Array.isArray(response) ? response
-                : (response?.complaints ?? response?.data?.complaints ?? response?.data ?? []);
+      let complaintsList = Array.isArray(response) ? response
+        : (response?.data?.complaints ?? response?.complaints ?? []);
 
-      // Enrich complaints with customer data
-      list = list.map(complaint => {
-        const customerId = complaint.customerId ?? complaint.customer_id ?? null;
-        const customer = customerId ? customers.find(c => String(c.id) === String(customerId)) : null;
+      complaintsList = complaintsList.map(complaint => {
+        const customer = customers.find(c => String(c.id) === String(complaint.customerId ?? complaint.customer_id)) ?? {};
+        const company   = companies.find(c => String(c.id) === String(complaint.companyId ?? complaint.company_id)) ?? {};
 
         return {
           ...complaint,
           id: complaint.id ?? '',
-          customerId: customerId,
-          name: customer?.name ?? complaint.name ?? complaint.Name ?? '-',
-          whatsapp_number: customer?.whatsapp_number ?? customer?.phone ?? complaint.whatsapp_number ?? complaint.whatsappNumber ?? '-',
-          pace_user_id: customer?.pace_user_id ?? '-',
-          address: customer?.address ?? complaint.address ?? complaint.Address ?? '-',
+          customerId: complaint.customerId ?? complaint.customer_id ?? '',
+          companyId: complaint.companyId ?? complaint.company_id ?? '',
+          name: complaint.name ?? customer.name ?? null,
+          address: complaint.address ?? customer.address ?? null,
+          whatsapp_number: complaint.whatsapp_number ?? customer.whatsapp_number ?? customer.phone ?? null,
+          company_name: company.name ?? company.company_id ?? (complaint.companyId ? `ID: ${complaint.companyId}` : '-'),
           title: complaint.title ?? complaint.Title ?? '',
           description: complaint.description ?? complaint.Description ?? '',
           status: complaint.status ?? complaint.Status ?? 'open',
@@ -72,24 +89,21 @@ const ComplaintsPage = () => {
         };
       });
 
-      // Search filtering
       if (search?.trim()) {
-        const searchLower = search.toLowerCase().trim();
-        list = list.filter(c =>
-          (c.name ?? '').toLowerCase().includes(searchLower) ||
-          (c.pace_user_id ?? '').toLowerCase().includes(searchLower) ||
-          (c.title ?? '').toLowerCase().includes(searchLower) ||
-          (c.description ?? '').toLowerCase().includes(searchLower) ||
-          (c.whatsapp_number ?? '').includes(search)
+        const term = search.toLowerCase().trim();
+        complaintsList = complaintsList.filter(c =>
+          (c.title ?? '').toLowerCase().includes(term) ||
+          (c.description ?? '').toLowerCase().includes(term) ||
+          (c.name ?? '').toLowerCase().includes(term) ||
+          (c.company_name ?? '').toLowerCase().includes(term)
         );
       }
 
-      // Status filter
       if (status) {
-        list = list.filter(c => (c.status ?? '') === status);
+        complaintsList = complaintsList.filter(c => (c.status ?? '') === status);
       }
 
-      setComplaints(list);
+      setComplaints(complaintsList);
     } catch (error) {
       toast.error(error.response?.data?.message ?? 'Failed to load complaints');
       setComplaints([]);
@@ -97,23 +111,28 @@ const ComplaintsPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [customers]);
+  }, [customers, companies]);
 
   useEffect(() => {
     if (isInitialMount.current) {
       (async () => {
-        await loadCustomers();
+        await Promise.all([
+          loadCustomers(),
+          loadCompanies(),       // ← added
+        ]);
         await loadComplaints('', '', true);
       })();
       isInitialMount.current = false;
     }
-  }, [loadCustomers, loadComplaints]);
+  }, [loadCustomers, loadCompanies, loadComplaints]);
 
   useEffect(() => {
+    if (isInitialMount.current) return;
+
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
     debounceTimer.current = setTimeout(() => {
-      loadComplaints(searchTerm, statusFilter, false);
+      loadComplaints(searchTerm, statusFilter);
       setCurrentPage(1);
     }, 500);
 
@@ -130,13 +149,13 @@ const ComplaintsPage = () => {
     }
 
     const customer = customers.find(c => String(c.id) === String(watchedCustomerId));
-    setSelectedCustomer(customer ?? null);
-
     if (customer) {
-      setValue('name', customer.name ?? '');
-      setValue('address', customer.address ?? '');
-      setValue('whatsapp_number', customer.whatsapp_number ?? customer.phone ?? '');
+      setSelectedCustomer(customer);
+      setValue('name', customer.name || '');
+      setValue('address', customer.address || '');
+      setValue('whatsapp_number', customer.whatsapp_number || customer.phone || '');
     } else {
+      setSelectedCustomer(null);
       setValue('name', '');
       setValue('address', '');
       setValue('whatsapp_number', '');
@@ -145,26 +164,36 @@ const ComplaintsPage = () => {
 
   const onSubmit = async (data) => {
     try {
+      const customerId = data.customerId || null;
+      let name = null;
+      let address = null;
+      let whatsapp_number = null;
+
+      if (customerId && selectedCustomer) {
+        name = selectedCustomer.name || null;
+        address = selectedCustomer.address || null;
+        whatsapp_number = selectedCustomer.whatsapp_number || selectedCustomer.phone || null;
+      }
+
       if (!data.title?.trim()) {
         toast.error('Title is required');
         return;
       }
       if (!data.description?.trim() || data.description.trim().length < 10) {
-        toast.error('Description must be at least 10 characters');
+        toast.error('Description is required and must be at least 10 characters');
         return;
       }
 
-      const customer = selectedCustomer;
-
       const submitData = {
-        customerId: data.customerId ?? null,
-        name: customer?.name ?? null,
-        address: customer?.address ?? null,
-        whatsapp_number: customer?.whatsapp_number ?? customer?.phone ?? null,
+        customerId: customerId,
+        companyId: data.companyId || null,           // ← NEW: sending company
+        name: name,
+        address: address,
+        whatsapp_number: whatsapp_number,
         title: data.title.trim(),
         description: data.description.trim(),
-        status: data.status ?? 'open',
-        priority: data.priority ?? 'medium',
+        status: data.status || 'open',
+        priority: data.priority || 'medium',
       };
 
       if (editingComplaint) {
@@ -179,22 +208,24 @@ const ComplaintsPage = () => {
       setShowModal(false);
       setEditingComplaint(null);
       setSelectedCustomer(null);
-      await loadComplaints(searchTerm, statusFilter, false);
+      await loadComplaints(searchTerm, statusFilter);
     } catch (error) {
       toast.error(error.response?.data?.message ?? 'Failed to save complaint');
     }
   };
 
   const handleEdit = (complaint) => {
-    if (!complaint?.id) return;
-
     setEditingComplaint(complaint);
+
     const customerId = complaint.customerId ?? complaint.customer_id ?? '';
+    const companyId  = complaint.companyId  ?? complaint.company_id  ?? '';
+
     const customer = customers.find(c => String(c.id) === String(customerId));
-    setSelectedCustomer(customer ?? null);
+    setSelectedCustomer(customer || null);
 
     reset({
       customerId: customerId,
+      companyId:  companyId,               // ← NEW
       name: complaint.name ?? '',
       address: complaint.address ?? '',
       whatsapp_number: complaint.whatsapp_number ?? '',
@@ -215,11 +246,11 @@ const ComplaintsPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Complaints</h1>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <div className="flex-1 relative">
+      <div className="flex gap-4 mb-4 flex-wrap">
+        <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
-            placeholder="Search by name, PACE ID, title, phone..."
+            placeholder="Search complaints by title, description, name, company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -234,7 +265,7 @@ const ComplaintsPage = () => {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[160px]"
         >
           <option value="">All Status</option>
           <option value="open">Open</option>
@@ -245,7 +276,12 @@ const ComplaintsPage = () => {
 
         {canManage && (
           <button
-            onClick={() => { reset(); setEditingComplaint(null); setSelectedCustomer(null); setShowModal(true); }}
+            onClick={() => {
+              reset();
+              setEditingComplaint(null);
+              setSelectedCustomer(null);
+              setShowModal(true);
+            }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
           >
             Add Complaint
@@ -258,8 +294,8 @@ const ComplaintsPage = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PACE ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">WhatsApp</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th> {/* ← NEW column */}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
@@ -274,49 +310,52 @@ const ComplaintsPage = () => {
                 </td>
               </tr>
             ) : (
-              complaints.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((complaint) => (
-                <tr key={complaint.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{complaint.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono">{complaint.pace_user_id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{complaint.whatsapp_number}</td>
-                  <td className="px-6 py-4">{complaint.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
-                      complaint.status === 'on_hold' ? 'bg-orange-600 text-white' :
-                      complaint.status === 'in_progress' ? 'bg-blue-600 text-white' :
-                      complaint.status === 'closed' ? 'bg-gray-600 text-white' :
-                      'bg-yellow-600 text-white'
-                    }`}>
-                      {complaint.status === 'on_hold' ? 'On Hold' : (complaint.status ?? 'open')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
-                      complaint.priority === 'urgent' ? 'bg-red-600 text-white' :
-                      complaint.priority === 'high' ? 'bg-orange-600 text-white' :
-                      complaint.priority === 'medium' ? 'bg-yellow-600 text-white' :
-                      'bg-gray-600 text-white'
-                    }`}>
-                      {complaint.priority ?? 'medium'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {canManage && (
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(complaint)}
-                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
-                          title="Edit"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))
+              complaints.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((complaint) => {
+                if (!complaint?.id) return null;
+                return (
+                  <tr key={complaint.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">{complaint.name ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{complaint.whatsapp_number ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{complaint.company_name ?? '-'}</td> {/* ← NEW */}
+                    <td className="px-6 py-4">{complaint.title ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                        complaint.status === 'on_hold' ? 'bg-orange-600 text-white' :
+                        complaint.status === 'in_progress' ? 'bg-blue-600 text-white' :
+                        complaint.status === 'closed' ? 'bg-gray-600 text-white' :
+                        'bg-yellow-600 text-white'
+                      }`}>
+                        {complaint.status === 'on_hold' ? 'On Hold' : (complaint.status ?? 'open')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                        complaint.priority === 'urgent' ? 'bg-red-600 text-white' :
+                        complaint.priority === 'high' ? 'bg-orange-600 text-white' :
+                        complaint.priority === 'medium' ? 'bg-yellow-600 text-white' :
+                        'bg-gray-600 text-white'
+                      }`}>
+                        {complaint.priority ?? 'medium'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {canManage && (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(complaint)}
+                            className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
+                            title="Edit"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -341,19 +380,41 @@ const ComplaintsPage = () => {
         )}
       </div>
 
+      {/* ─── Modal ─── */}
       {showModal && canManage && (
         <Modal
           isOpen={showModal}
-          onClose={() => { setShowModal(false); reset(); setEditingComplaint(null); setSelectedCustomer(null); }}
+          onClose={() => {
+            setShowModal(false);
+            reset();
+            setEditingComplaint(null);
+            setSelectedCustomer(null);
+          }}
           title={editingComplaint ? 'Edit Complaint' : 'Add Complaint'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Company selection - NEW */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Company</label>
+              <select
+                {...register('companyId')}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">No company / General</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.company_id ? `(${c.company_id})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">User ID *</label>
               <select
                 {...register('customerId', {
                   required: 'User ID is required',
-                  validate: (value) => (!value || value === 'undefined') ? 'Please select a User ID' : true
+                  validate: (value) => !!value || 'Please select a valid user',
                 })}
                 className={`mt-1 block w-full px-3 py-2 border rounded-md ${
                   errors.customerId && touchedFields.customerId ? 'border-red-500' : 'border-gray-300'
@@ -374,26 +435,26 @@ const ComplaintsPage = () => {
             {selectedCustomer && (
               <div className="bg-gray-50 p-4 rounded-md">
                 <h3 className="text-sm font-medium text-gray-700 mb-3">User Details</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">User ID</label>
-                    <p className="font-mono">{selectedCustomer.id}</p>
+                    <span className="text-xs text-gray-600 block">ID</span>
+                    <p className="font-mono">{selectedCustomer.id || '-'}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">PACE ID</label>
-                    <p className="font-mono">{selectedCustomer.pace_user_id ?? '-'}</p>
+                    <span className="text-xs text-gray-600 block">Name</span>
+                    <p>{selectedCustomer.name || '-'}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">Name</label>
-                    <p>{selectedCustomer.name ?? '-'}</p>
+                    <span className="text-xs text-gray-600 block">WhatsApp</span>
+                    <p>{selectedCustomer.whatsapp_number || selectedCustomer.phone || '-'}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">WhatsApp No</label>
-                    <p>{selectedCustomer.whatsapp_number ?? selectedCustomer.phone ?? '-'}</p>
+                    <span className="text-xs text-gray-600 block">PACE ID</span>
+                    <p className="font-mono">{selectedCustomer.pace_user_id || '-'}</p>
                   </div>
-                  <div className="col-span-3">
-                    <label className="block text-xs font-medium text-gray-600">Address / Area</label>
-                    <p>{selectedCustomer.address ?? selectedCustomer.area?.name ?? selectedCustomer.area_name ?? '-'}</p>
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="text-xs text-gray-600 block">Area</span>
+                    <p>{selectedCustomer.area?.name || selectedCustomer.area_name || '-'}</p>
                   </div>
                 </div>
               </div>
@@ -428,19 +489,26 @@ const ComplaintsPage = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Status</label>
-                <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                <select
+                  {...register('status')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
                   <option value="open">Open</option>
                   <option value="in_progress">In Progress</option>
                   <option value="on_hold">On Hold</option>
                   <option value="closed">Closed</option>
                 </select>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Priority</label>
-                <select {...register('priority')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                <select
+                  {...register('priority')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -449,15 +517,23 @@ const ComplaintsPage = () => {
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 pt-2">
               <button
                 type="button"
-                onClick={() => { setShowModal(false); reset(); setEditingComplaint(null); setSelectedCustomer(null); }}
-                className="flex-1 px-4 py-2 border rounded-lg"
+                onClick={() => {
+                  setShowModal(false);
+                  reset();
+                  setEditingComplaint(null);
+                  setSelectedCustomer(null);
+                }}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
-              <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
                 Save
               </button>
             </div>

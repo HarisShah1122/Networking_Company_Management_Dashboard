@@ -9,10 +9,12 @@ import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
+import apiClient from '../../services/api/apiClient';
 
 const AccountsPage = () => {
   const { user } = useAuthStore();
   const [transactions, setTransactions] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [summary, setSummary] = useState({ total_income: 0, total_expense: 0, profit_loss: 0 });
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -25,15 +27,28 @@ const AccountsPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, control, formState: { errors, touchedFields } } = useForm();
+  const { register, handleSubmit, reset, control, watch, formState: { errors, touchedFields } } = useForm();
+  const watchedCompanyId = watch('company_id');
+
+  const canManage = isManager(user?.role);
+
+  const loadCompanies = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/companies');
+      const data = response.data;
+      const list = Array.isArray(data) ? data : (data?.companies ?? data?.data?.companies ?? []);
+      setCompanies(list.filter(c => c?.id && c.status === 'active'));
+    } catch {
+      toast.error('Failed to load companies');
+      setCompanies([]);
+    }
+  }, []);
 
   const loadTransactions = useCallback(async (search = '', type = '', isInitialLoad = false) => {
     try {
-      if (isInitialLoad) {
-        setLoading(true);
-      } else {
-        setSearching(true);
-      }
+      if (isInitialLoad) setLoading(true);
+      else setSearching(true);
+
       const response = await transactionService.getAll({ type });
       let transactionsList = [];
       if (Array.isArray(response)) {
@@ -45,17 +60,25 @@ const AccountsPage = () => {
       } else if (response?.data && Array.isArray(response.data)) {
         transactionsList = response.data;
       }
-      
-      // Filter by search term on frontend
+
+      transactionsList = transactionsList.map(t => {
+        const company = companies.find(c => String(c.id) === String(t.company_id));
+        return {
+          ...t,
+          company_name: company ? `${company.name} (${company.company_id})` : (t.company_id ? `ID: ${t.company_id}` : '-')
+        };
+      });
+
       if (search && search.trim()) {
         const searchLower = search.toLowerCase();
         transactionsList = transactionsList.filter(transaction => 
           (transaction.category && transaction.category.toLowerCase().includes(searchLower)) ||
           (transaction.description && transaction.description.toLowerCase().includes(searchLower)) ||
-          (transaction.amount && String(transaction.amount).includes(search))
+          (transaction.amount && String(transaction.amount).includes(search)) ||
+          (transaction.company_name && transaction.company_name.toLowerCase().includes(searchLower))
         );
       }
-      
+
       setTransactions(transactionsList);
     } catch (error) {
       const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load transactions';
@@ -65,7 +88,7 @@ const AccountsPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, []);
+  }, [companies]);
 
   const loadSummary = useCallback(async () => {
     try {
@@ -78,29 +101,26 @@ const AccountsPage = () => {
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     if (isInitialMount.current) {
+      loadCompanies();
       loadTransactions('', '', true);
       loadSummary();
       isInitialMount.current = false;
     }
-  }, [loadTransactions, loadSummary]);
+  }, [loadCompanies, loadTransactions, loadSummary]);
 
-  // Debounce search term and type filter
   useEffect(() => {
-    if (isInitialMount.current) {
-      return;
-    }
+    if (isInitialMount.current) return;
 
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
-    
+
     if (searchTerm || typeFilter) {
       setSearching(true);
     }
-    
+
     debounceTimer.current = setTimeout(() => {
       loadTransactions(searchTerm, typeFilter, false);
       setCurrentPage(1);
@@ -113,7 +133,6 @@ const AccountsPage = () => {
     };
   }, [searchTerm, typeFilter, loadTransactions]);
 
-  // Reload summary when transactions change
   useEffect(() => {
     if (!isInitialMount.current) {
       loadSummary();
@@ -122,15 +141,14 @@ const AccountsPage = () => {
 
   const onSubmit = async (data) => {
     try {
-      // Prepare submit data
       const submitData = {
         type: data.type,
         amount: parseFloat(data.amount) ?? 0,
         category: data.category?.trim() ?? null,
         description: data.description?.trim() ?? null,
+        company_id: data.company_id || null,
       };
 
-      // Only include date if it has a valid value
       if (data.date && dayjs(data.date).isValid()) {
         submitData.date = dayjs(data.date).format('YYYY-MM-DD');
       } else {
@@ -144,6 +162,7 @@ const AccountsPage = () => {
         await transactionService.create(submitData);
         toast.success('Transaction created successfully!');
       }
+
       reset();
       setShowModal(false);
       setEditingTransaction(null);
@@ -168,14 +187,15 @@ const AccountsPage = () => {
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     reset({
-      ...transaction,
+      type: transaction.type,
+      amount: transaction.amount || '',
+      category: transaction.category || '',
+      description: transaction.description || '',
+      company_id: transaction.company_id || '',
       date: transaction.date ? dayjs(transaction.date).toDate() : new Date(),
     });
     setShowModal(true);
   };
-
-
-  const canManage = isManager(user?.role);
 
   if (loading) return <Loader />;
 
@@ -208,11 +228,11 @@ const AccountsPage = () => {
         </div>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <div className="flex-1 relative">
+      <div className="flex gap-4 mb-4 flex-wrap">
+        <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
-            placeholder="Search transactions..."
+            placeholder="Search transactions by category, description, amount, company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -223,15 +243,17 @@ const AccountsPage = () => {
             </div>
           )}
         </div>
+
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[160px]"
         >
           <option value="">All Types</option>
           <option value="income">Income</option>
           <option value="expense">Expense</option>
         </select>
+
         {canManage && (
           <button
             onClick={() => { reset({ type: 'income', date: new Date() }); setEditingTransaction(null); setShowModal(true); }}
@@ -250,6 +272,7 @@ const AccountsPage = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -257,7 +280,7 @@ const AccountsPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                   No transactions found.
                 </td>
               </tr>
@@ -280,6 +303,7 @@ const AccountsPage = () => {
                     RS {parseFloat(transaction.amount || 0).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{transaction.category || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{transaction.company_name}</td>
                   <td className="px-6 py-4">{transaction.description || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManage && (
@@ -301,6 +325,7 @@ const AccountsPage = () => {
             )}
           </tbody>
         </table>
+
         {transactions.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
             <TablePagination
@@ -328,68 +353,85 @@ const AccountsPage = () => {
           title={editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Type *</label>
-                  <select
-                    {...register('type', { required: 'Type is required' })}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.type && touchedFields.type ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
-                  </select>
-                  {errors.type && touchedFields.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Amount *</label>
-                  <input
-                    {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
-                    type="number"
-                    step="0.01"
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.amount && touchedFields.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Type *</label>
+                <select
+                  {...register('type', { required: 'Type is required' })}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.type && touchedFields.type ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="income">Income</option>
+                  <option value="expense">Expense</option>
+                </select>
+                {errors.type && touchedFields.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                  <Controller
-                    name="date"
-                    control={control}
-                    rules={{ required: 'Date is required' }}
-                    render={({ field }) => (
-                      <div className="w-full" style={{ minWidth: 0 }}>
-                        <DatePickerInput
-                          {...field}
-                          value={field.value ? dayjs(field.value).toDate() : null}
-                          onChange={(date) => field.onChange(date)}
-                          placeholder="Select date"
-                          className="w-full"
-                          style={{ width: '100%' }}
-                          dropdownType="popover"
-                          clearable
-                          valueFormat="DD/MM/YYYY"
-                          popoverProps={{ withinPortal: true, zIndex: 12000 }}
-                        />
-                      </div>
-                    )}
-                  />
-                  {errors.date && touchedFields.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
-                  <input
-                    {...register('category')}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="e.g., Salary, Rent"
-                  />
-                </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Company</label>
+                <select
+                  {...register('company_id')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">No company / General</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.company_id})
+                    </option>
+                  ))}
+                </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <Controller
+                  name="date"
+                  control={control}
+                  rules={{ required: 'Date is required' }}
+                  render={({ field }) => (
+                    <DatePickerInput
+                      {...field}
+                      value={field.value ? dayjs(field.value).toDate() : null}
+                      onChange={(date) => field.onChange(date)}
+                      placeholder="Select date"
+                      className="w-full"
+                      clearable
+                      valueFormat="DD/MM/YYYY"
+                      dropdownType="popover"
+                      popoverProps={{ withinPortal: true, zIndex: 12000 }}
+                    />
+                  )}
+                />
+                {errors.date && touchedFields.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Amount *</label>
+                <input
+                  {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
+                  type="number"
+                  step="0.01"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.amount && touchedFields.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <input
+                  {...register('category')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="e.g., Salary, Rent"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>
                 <textarea
@@ -399,22 +441,23 @@ const AccountsPage = () => {
                   placeholder="Optional description..."
                 />
               </div>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); reset(); setEditingTransaction(null); }}
-                  className="flex-1 px-4 py-2 border rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
-                  Save
-                </button>
-              </div>
-            </form>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => { setShowModal(false); reset(); setEditingTransaction(null); }}
+                className="flex-1 px-4 py-2 border rounded-lg"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
+                Save
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
-
     </div>
   );
 };
