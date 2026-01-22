@@ -22,10 +22,12 @@ const AccountsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, control, formState: { errors, touchedFields } } = useForm();
+  const { register, handleSubmit, reset, control, formState: { errors }, setError } = useForm({ mode: 'onChange' });
 
   const canManage = isManager(user?.role);
 
@@ -51,7 +53,8 @@ const AccountsPage = () => {
         transactionsList = transactionsList.filter(transaction => 
           (transaction.category && transaction.category.toLowerCase().includes(searchLower)) ||
           (transaction.description && transaction.description.toLowerCase().includes(searchLower)) ||
-          (transaction.amount && String(transaction.amount).includes(search))
+          (transaction.amount && String(transaction.amount).includes(search)) ||
+          (transaction.trxId && transaction.trxId.toLowerCase().includes(searchLower))
         );
       }
 
@@ -116,17 +119,33 @@ const AccountsPage = () => {
 
   const onSubmit = async (data) => {
     try {
-      const submitData = {
-        type: data.type,
-        amount: parseFloat(data.amount) ?? 0,
-        category: data.category?.trim() ?? null,
-        description: data.description?.trim() ?? null,
-      };
+      let submitData;
+      const hasFile = selectedImage instanceof File;
+      const parsedDate = data.date && dayjs(data.date).isValid() ? dayjs(data.date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+      const parsedAmount = parseFloat(data.amount) ?? 0;
 
-      if (data.date && dayjs(data.date).isValid()) {
-        submitData.date = dayjs(data.date).format('YYYY-MM-DD');
+      if (hasFile) {
+        const formData = new FormData();
+        formData.append('type', data.type);
+        formData.append('amount', `${parsedAmount}`);
+        formData.append('date', parsedDate);
+        formData.append('category', data.category?.trim() ?? '');
+        formData.append('description', data.description?.trim() ?? '');
+        formData.append('trxId', data.trxId.trim());
+        formData.append('receiptImage', selectedImage);
+        submitData = formData;
       } else {
-        submitData.date = dayjs().format('YYYY-MM-DD');
+        submitData = {
+          type: data.type,
+          amount: parsedAmount,
+          date: parsedDate,
+          category: data.category?.trim() ?? null,
+          description: data.description?.trim() ?? null,
+          trxId: data.trxId.trim(),
+        };
+        if (editingTransaction?.receiptImage) {
+          submitData.receiptImage = editingTransaction.receiptImage;
+        }
       }
 
       if (editingTransaction) {
@@ -140,19 +159,20 @@ const AccountsPage = () => {
       reset();
       setShowModal(false);
       setEditingTransaction(null);
+      setSelectedImage(null);
+      setImagePreview(null);
       await loadTransactions(searchTerm, typeFilter, false);
       await loadSummary();
     } catch (error) {
+      console.log('Error data:', error.response?.data);
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-        const validationErrors = error.response.data.errors
-          .map(err => err.msg ?? err.message ?? JSON.stringify(err))
-          .filter((msg, index, self) => self.indexOf(msg) === index)
-          .join(', ');
-        toast.error(`Validation Error: ${validationErrors}`, { autoClose: 5000 });
-      } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        error.response.data.errors.forEach((err) => {
+          if (err.param && err.msg) {
+            setError(err.param, { type: 'server', message: err.msg });
+          }
+        });
       } else {
-        const errorMsg = error.response?.data?.error ?? error.message ?? 'Failed to save transaction';
+        const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? error.message ?? 'Failed to save transaction';
         toast.error(errorMsg);
       }
     }
@@ -166,8 +186,25 @@ const AccountsPage = () => {
       category: transaction.category || '',
       description: transaction.description || '',
       date: transaction.date ? dayjs(transaction.date).toDate() : new Date(),
+      trxId: transaction.trxId || '',
     });
+    if (transaction.receiptImage) {
+      setImagePreview(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`);
+    } else {
+      setImagePreview(null);
+    }
+    setSelectedImage(null);
     setShowModal(true);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+    }
   };
 
   if (loading) return <Loader />;
@@ -205,7 +242,7 @@ const AccountsPage = () => {
         <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
-            placeholder="Search transactions by category, description, amount..."
+            placeholder="Search transactions by category, description, amount, trxId..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -229,7 +266,7 @@ const AccountsPage = () => {
 
         {canManage && (
           <button
-            onClick={() => { reset({ type: 'income', date: new Date() }); setEditingTransaction(null); setShowModal(true); }}
+            onClick={() => { reset({ type: 'income', date: new Date(), trxId: '' }); setEditingTransaction(null); setSelectedImage(null); setImagePreview(null); setShowModal(true); }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
           >
             Add Transaction
@@ -242,17 +279,19 @@ const AccountsPage = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TRX ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
                   No transactions found.
                 </td>
               </tr>
@@ -262,6 +301,7 @@ const AccountsPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     {transaction.date ? new Date(transaction.date).toLocaleDateString() : '-'}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{transaction.trxId || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
                       transaction.type === 'income' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
@@ -276,6 +316,18 @@ const AccountsPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{transaction.category || '-'}</td>
                   <td className="px-6 py-4">{transaction.description || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.receiptImage ? (
+                      <a
+                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        View
+                      </a>
+                    ) : '-'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManage && (
                       <div className="flex items-center justify-end gap-2">
@@ -320,7 +372,7 @@ const AccountsPage = () => {
       {showModal && canManage && (
         <Modal
           isOpen={showModal}
-          onClose={() => { setShowModal(false); reset(); setEditingTransaction(null); }}
+          onClose={() => { setShowModal(false); reset(); setEditingTransaction(null); setSelectedImage(null); setImagePreview(null); }}
           title={editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -330,13 +382,27 @@ const AccountsPage = () => {
                 <select
                   {...register('type', { required: 'Type is required' })}
                   className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                    errors.type && touchedFields.type ? 'border-red-500' : 'border-gray-300'
+                    errors.type ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
                   <option value="income">Income</option>
                   <option value="expense">Expense</option>
                 </select>
-                {errors.type && touchedFields.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
+                {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">TRX ID *</label>
+                <input
+                  {...register('trxId', {
+                    required: 'TRX ID is required',
+                    minLength: { value: 1, message: 'TRX ID must be at least 1 character' },
+                    maxLength: { value: 50, message: 'TRX ID must not exceed 50 characters' }
+                  })}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.trxId ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.trxId && <p className="text-red-500 text-sm mt-1">{errors.trxId.message}</p>}
               </div>
             </div>
 
@@ -361,20 +427,20 @@ const AccountsPage = () => {
                     />
                   )}
                 />
-                {errors.date && touchedFields.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
+                {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Amount *</label>
                 <input
-                  {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: 0.01 })}
+                  {...register('amount', { required: 'Amount is required', valueAsNumber: true, min: { value: 0.01, message: 'Amount must be greater than 0' } })}
                   type="number"
                   step="0.01"
                   className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                    errors.amount && touchedFields.amount ? 'border-red-500' : 'border-gray-300'
+                    errors.amount ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
-                {errors.amount && touchedFields.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
+                {errors.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
               </div>
             </div>
 
@@ -399,10 +465,25 @@ const AccountsPage = () => {
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Receipt Image (optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+              {imagePreview && (
+                <div className="mt-3">
+                  <img src={imagePreview} alt="preview" className="max-w-xs h-auto rounded shadow-sm" />
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => { setShowModal(false); reset(); setEditingTransaction(null); }}
+                onClick={() => { setShowModal(false); reset(); setEditingTransaction(null); setSelectedImage(null); setImagePreview(null); }}
                 className="flex-1 px-4 py-2 border rounded-lg"
               >
                 Cancel

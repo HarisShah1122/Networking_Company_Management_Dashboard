@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { customerService } from '../../services/customerService';
+import { paymentService } from '../../services/paymentService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
@@ -33,7 +34,6 @@ const PaymentsPage = () => {
 
   const canManage = isManager(user?.role);
 
-  // ─── Load Customers ───
   const loadCustomers = useCallback(async () => {
     try {
       const response = await customerService.getAll();
@@ -46,7 +46,6 @@ const PaymentsPage = () => {
     }
   }, []);
 
-  // ─── Load Payments with enrichment & filtering ───
   const loadPayments = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
       if (isInitialLoad) setLoading(true);
@@ -56,7 +55,6 @@ const PaymentsPage = () => {
       let list = Array.isArray(response.data) ? response.data
                 : (response.data?.payments ?? response.data?.data?.payments ?? response.data?.data ?? []);
 
-      // Normalize snake_case → camelCase
       list = list.map(p => ({
         ...p,
         id: p.id ?? '',
@@ -69,7 +67,6 @@ const PaymentsPage = () => {
         status: p.status ?? 'pending'
       }));
 
-      // Enrich with customer data
       list = list.map(payment => {
         const customer = customers.find(c => String(c.id) === String(payment.customerId));
         return {
@@ -80,7 +77,6 @@ const PaymentsPage = () => {
         };
       });
 
-      // Search filtering
       if (search?.trim()) {
         const searchLower = search.toLowerCase().trim();
         list = list.filter(p =>
@@ -92,7 +88,6 @@ const PaymentsPage = () => {
         );
       }
 
-      // Status filter (if you add status to DB later)
       if (status) {
         list = list.filter(p => (p.status ?? 'pending') === status);
       }
@@ -107,7 +102,6 @@ const PaymentsPage = () => {
     }
   }, [customers]);
 
-  // ─── Initial Load ───
   useEffect(() => {
     if (isInitialMount.current) {
       (async () => {
@@ -118,7 +112,6 @@ const PaymentsPage = () => {
     }
   }, [loadCustomers, loadPayments]);
 
-  // ─── Debounced Search & Filter ───
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
@@ -130,7 +123,6 @@ const PaymentsPage = () => {
     return () => clearTimeout(debounceTimer.current);
   }, [searchTerm, statusFilter, loadPayments]);
 
-  // ─── Watch selected customer for modal details ───
   useEffect(() => {
     if (!watchedCustomerId) {
       setSelectedCustomer(null);
@@ -140,40 +132,75 @@ const PaymentsPage = () => {
     setSelectedCustomer(customer ?? null);
   }, [watchedCustomerId, customers]);
 
-  // ─── Form Submit (Create Payment) ───
   const onSubmit = async (data) => {
     try {
-      const formData = new FormData();
-      formData.append('trxId', data.trxId?.trim());
-      formData.append('customerId', data.customerId);
-      formData.append('amount', data.amount);
-      formData.append('paymentMethod', data.paymentMethod || 'cash');
-      formData.append('receivedBy', user.id);
+      let submitData;
+      const hasFile = selectedImage instanceof File;
 
-      if (selectedImage) {
+      if (hasFile) {
+        const formData = new FormData();
+        formData.append('trxId', data.trxId?.trim());
+        formData.append('customerId', data.customerId);
+        formData.append('amount', data.amount);
+        formData.append('paymentMethod', data.paymentMethod || 'cash');
+        formData.append('receivedBy', user.id);
         formData.append('receiptImage', selectedImage);
+        submitData = formData;
+      } else {
+        submitData = {
+          trxId: data.trxId?.trim(),
+          customerId: data.customerId,
+          amount: data.amount,
+          paymentMethod: data.paymentMethod || 'cash',
+          receivedBy: user.id,
+        };
+        if (editingPayment?.receiptImage) {
+          submitData.receiptImage = editingPayment.receiptImage;
+        }
       }
 
-      const response = await apiClient.post('/payments', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (response.data?.success) {
+      let response;
+      if (editingPayment) {
+        response = await paymentService.update(editingPayment.id, submitData);
+        toast.success('Payment updated successfully!');
+      } else {
+        response = await paymentService.create(submitData);
         toast.success('Payment recorded successfully!');
+      }
+
+      if (response?.success || response?.data?.success) {
         reset();
         setShowModal(false);
+        setEditingPayment(null);
         setSelectedImage(null);
         setImagePreview(null);
         await loadPayments(searchTerm, statusFilter, false);
       } else {
-        throw new Error(response.data?.message || 'Unexpected response');
+        throw new Error(response?.message || 'Unexpected response');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message ?? 'Failed to record payment');
+      console.error('Save payment error:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to save payment');
     }
   };
 
-  // ─── Image Preview ───
+  const handleEdit = (payment) => {
+    setEditingPayment(payment);
+    reset({
+      trxId: payment.trxId,
+      customerId: payment.customerId,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+    });
+    if (payment.receiptImage) {
+      setImagePreview(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${payment.receiptImage.startsWith('/') ? '' : '/'}${payment.receiptImage}`);
+    } else {
+      setImagePreview(null);
+    }
+    setSelectedImage(null);
+    setShowModal(true);
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -221,7 +248,7 @@ const PaymentsPage = () => {
 
         {canManage && (
           <button
-            onClick={() => { reset(); setSelectedImage(null); setImagePreview(null); setShowModal(true); }}
+            onClick={() => { reset(); setSelectedImage(null); setImagePreview(null); setEditingPayment(null); setShowModal(true); }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap"
           >
             Add Payment
@@ -230,72 +257,72 @@ const PaymentsPage = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TRX ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PACE ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {payments.length === 0 ? (
+        {/* Scrollable container with hidden scrollbar */}
+        <div className="overflow-x-auto scrollbar-hide">
+          <table className="min-w-max w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
-                  No payments found.
-                </td>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TRX ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PACE ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-            ) : (
-              payments.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((payment) => (
-                <tr key={payment.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.trxId}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{payment.customerName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.paceUserId}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(payment.amount).toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap capitalize">{payment.paymentMethod}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {payment.receiptImage ? (
-                      <a
-                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${payment.receiptImage.startsWith('/') ? '' : '/'}${payment.receiptImage}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        View
-                      </a>
-                    ) : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {canManage && (
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            // TODO: Implement edit payment (add later if needed)
-                            toast.info('Edit payment - coming soon');
-                          }}
-                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
-                          title="Edit"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {payments.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                    No payments found.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                payments.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((payment) => (
+                  <tr key={payment.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.trxId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{payment.customerName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.paceUserId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(payment.amount).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap capitalize">{payment.paymentMethod}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {payment.receiptImage ? (
+                        <a
+                          href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${payment.receiptImage.startsWith('/') ? '' : '/'}${payment.receiptImage}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          View
+                        </a>
+                      ) : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {canManage && (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(payment)}
+                            className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
+                            title="Edit"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {payments.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
@@ -320,8 +347,8 @@ const PaymentsPage = () => {
       {showModal && canManage && (
         <Modal
           isOpen={showModal}
-          onClose={() => { setShowModal(false); reset(); setSelectedImage(null); setImagePreview(null); }}
-          title="Add Payment"
+          onClose={() => { setShowModal(false); reset(); setSelectedImage(null); setImagePreview(null); setEditingPayment(null); }}
+          title={editingPayment ? 'Edit Payment' : 'Add Payment'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
@@ -416,7 +443,7 @@ const PaymentsPage = () => {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => { setShowModal(false); reset(); setSelectedImage(null); setImagePreview(null); }}
+                onClick={() => { setShowModal(false); reset(); setSelectedImage(null); setImagePreview(null); setEditingPayment(null); }}
                 className="flex-1 px-4 py-2 border rounded-lg"
               >
                 Cancel
