@@ -1,51 +1,65 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 const { User, Company } = require('../models');
+const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 
-const generateToken = (userId) => jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+const generateToken = (user) =>
+  jwt.sign(
+    {
+      userId: user.id,
+      role: user.role,
+      companyId: user.companyId
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
 
 const login = async (username, password) => {
   const user = await User.findOne({ where: { username } });
   if (!user) throw new Error('Invalid credentials');
 
-  const isValid = await bcrypt.compare(password, user.password_hash);
-  if (!isValid) throw new Error('Invalid credentials');
-  if (user.status !== 'active') throw new Error('Account is inactive');
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) throw new Error('Invalid credentials');
 
-  const token = generateToken(user.id);
+  if (user.status !== 'active')
+    throw new Error('Account is inactive');
 
-  const company = user.companyId ? await Company.findByPk(user.companyId) : null;
+  const token = generateToken(user);
 
-  return {
-    token,
-    user: {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      companyId: user.companyId,
-    },
-    company: company
-      ? { id: company.id, company_id: company.company_id, name: company.name }
-      : null,
-  };
+  const company = user.companyId
+    ? await Company.findByPk(user.companyId)
+    : null;
+
+  return { token, user, company };
 };
 
 const register = async ({ username, email, password, companyName }) => {
-  const existingUser = await User.findOne({ where: { username } });
-  if (existingUser) throw new Error('Username already exists');
+  const exists = await User.findOne({ where: { username } });
+  if (exists) throw new Error('Username already exists');
 
   const password_hash = await bcrypt.hash(password, 10);
-  const user = await User.create({ username, email, password_hash, role: 'CEO', status: 'active' });
+
+  const user = await User.create({
+    username,
+    email,
+    password_hash,
+    role: 'CEO',
+    status: 'active'
+  });
 
   let company = null;
+
   if (companyName) {
-    const company_id = `ISP-${Math.floor(100000000 + Math.random() * 900000000)}`;
-    company = await Company.create({ name: companyName, company_id, status: 'active' });
+    company = await Company.create({
+      name: companyName,
+      company_id: `ISP-${Date.now()}`,
+      status: 'active'
+    });
+
     await user.update({ companyId: company.id });
   }
 
-  const token = generateToken(user.id);
+  const token = generateToken(user);
   return { token, user, company };
 };
 

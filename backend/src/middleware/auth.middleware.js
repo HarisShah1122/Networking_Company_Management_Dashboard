@@ -1,14 +1,32 @@
+const jwt = require('jsonwebtoken');
 const { User } = require('../models');
-const authenticate = (req, res, next) => {
-  if (!req.session.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
+const { JWT_SECRET } = require('../config/env');
 
-  req.user = {
-    id: req.session.user.userId,
-    role: req.session.user.role,
-    companyId: req.session.user.companyId,
-  };
-  next();
+const authenticate = async (req, res, next) => {
+  try {
+  
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+
+      const user = await User.findByPk(decoded.userId);
+      if (!user) return res.status(401).json({ error: 'User not found' });
+
+      req.user = user;
+      return next();
+    }
+
+   
+    if (req.session?.user) {
+      req.user = req.session.user;
+      return next();
+    }
+
+    return res.status(401).json({ error: 'Not authenticated' });
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
 };
+
 module.exports = { authenticate };
