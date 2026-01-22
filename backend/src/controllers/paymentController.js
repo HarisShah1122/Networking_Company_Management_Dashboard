@@ -46,6 +46,65 @@ const createPayment = async (req, res) => {
   }
 };
 
+const updatePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { trxId, customerId, amount, status, receivedBy, paymentMethod } = req.body;
+
+    const payment = await Payment.findByPk(id);
+    if (!payment) {
+      return ApiResponse.error(res, 'Payment not found', 404);
+    }
+
+    if (customerId) {
+      const customer = await Customer.findByPk(customerId);
+      if (!customer) {
+        return ApiResponse.error(res, `Customer ${customerId} not found`, 404);
+      }
+      payment.customer_id = customerId;
+    }
+
+    if (trxId && trxId !== payment.trx_id) {
+      const exists = await Payment.findOne({ where: { trx_id: trxId } });
+      if (exists) {
+        return ApiResponse.error(res, 'Duplicate TRX ID', 409);
+      }
+      payment.trx_id = trxId;
+    }
+
+    if (amount) {
+      payment.amount = parseFloat(amount);
+    }
+
+    if (paymentMethod) {
+      payment.payment_method = paymentMethod;
+    }
+
+    if (receivedBy) {
+      payment.received_by = receivedBy;
+    }
+
+    if (status) {
+      payment.status = status;
+    }
+
+    if (req.file) {
+      payment.receipt_image = `/uploads/receipts/${req.file.filename}`;
+    }
+
+    await payment.save();
+
+    const fullPayment = await Payment.findByPk(payment.id, {
+      include: [{ model: Customer, as: 'customer', attributes: ['id', 'name'] }]
+    });
+
+    return ApiResponse.success(res, fullPayment, 'Payment updated', 200);
+  } catch (error) {
+    console.error('Update payment error:', error);
+    return ApiResponse.error(res, 'Server error', 500);
+  }
+};
+
 const getAllPayments = async (req, res) => {
   try {
     const payments = await Payment.findAll({
@@ -81,6 +140,7 @@ const getPaymentsByCustomer = async (req, res) => {
 
 module.exports = {
   createPayment,
+  updatePayment,
   getAllPayments,
   getPaymentsByCustomer
 };

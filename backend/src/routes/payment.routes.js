@@ -11,6 +11,13 @@ router.post(
   paymentController.createPayment
 );
 
+router.put(
+  '/:id',
+  authenticate,
+  upload.single('receiptImage'),         
+  paymentController.updatePayment
+);
+
 router.get('/', authenticate, paymentController.getAllPayments);
 router.get('/customer/:customerId', authenticate, paymentController.getPaymentsByCustomer);
 
