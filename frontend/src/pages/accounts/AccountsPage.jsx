@@ -275,79 +275,88 @@ const AccountsPage = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TRX ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {transactions.length === 0 ? (
+        {/* Scrollable wrapper */}
+        <div className="overflow-x-auto scrollbar-hide">
+          <table className="min-w-[1200px] w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
-                  No transactions found.
-                </td>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">TRX ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
+                {canManage && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                )}
               </tr>
-            ) : (
-              transactions.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((transaction) => (
-                <tr key={transaction.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {transaction.date ? new Date(transaction.date).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{transaction.trxId || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
-                      transaction.type === 'income' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-                    }`}>
-                      {transaction.type}
-                    </span>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap font-medium ${
-                    transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    RS {parseFloat(transaction.amount || 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{transaction.category || '-'}</td>
-                  <td className="px-6 py-4">{transaction.description || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {transaction.receiptImage ? (
-                      <a
-                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        View
-                      </a>
-                    ) : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {canManage && (
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(transaction)}
-                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
-                          title="Edit"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={canManage ? 8 : 7} className="px-6 py-8 text-center text-gray-500">
+                    No transactions found.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                transactions.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((transaction) => (
+                  <tr key={transaction.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {transaction.date ? new Date(transaction.date).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{transaction.trxId || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                          transaction.type === 'income'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-red-600 text-white'
+                        }`}
+                      >
+                        {transaction.type}
+                      </span>
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap font-medium ${
+                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      RS {parseFloat(transaction.amount || 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{transaction.category || '-'}</td>
+                    <td className="px-6 py-4">{transaction.description || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {transaction.receiptImage ? (
+                        <a
+                          href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          View
+                        </a>
+                      ) : '-'}
+                    </td>
+                    {canManage && (
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(transaction)}
+                            className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
+                            title="Edit"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {transactions.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
