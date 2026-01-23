@@ -29,7 +29,7 @@ const PaymentsPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, touchedFields } } = useForm();
+  const { register, handleSubmit, reset, watch, formState: { errors, touchedFields } } = useForm();
   const watchedCustomerId = watch('customerId');
 
   const canManage = isManager(user?.role);
