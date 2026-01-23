@@ -14,7 +14,6 @@ import './index.css';
 function App() {
   const { isInitializing } = useAuthStore();
 
-  // Show global loader while auth initializes
   if (isInitializing) return <Loader />;
 
   return (

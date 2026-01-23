@@ -10,9 +10,8 @@ const useAuthStore = create((set) => ({
 
   initialize: async () => {
     try {
-      const storedUser = getUser(); // optional: maybe user in localStorage
+      const storedUser = getUser();
       if (storedUser) {
-        // verify token/session
         const { user, company } = await authService.getMe();
         setUser({ ...user, company });
         set({ user: { ...user, company }, isAuthenticated: true });
