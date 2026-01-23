@@ -16,6 +16,7 @@ const PaymentsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [editingPayment, setEditingPayment] = useState(null);
   const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
   const canManage = isManager(user?.role);
@@ -77,22 +78,43 @@ const PaymentsPage = () => {
         formData.append('receiptImage', selectedImage);
       }
 
-      await apiClient.post('/payments', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      if (editingPayment) {
+        await apiClient.put(`/payments/${editingPayment.id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        toast.success('Payment updated successfully!');
+      } else {
+        await apiClient.post('/payments', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        toast.success('Payment recorded successfully!');
+      }
 
-      toast.success('Payment recorded successfully!');
       reset();
       setShowModal(false);
       setSelectedImage(null);
       setImagePreview(null);
+      setEditingPayment(null);
       await loadPayments();
     } catch (error) {
-      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to record payment';
+      const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? 'Failed to save payment';
       toast.error(errorMsg);
     }
+  };
+
+  const handleEdit = (payment) => {
+    setEditingPayment(payment);
+    reset({
+      trxId: payment.trxId,
+      customerId: payment.customerId,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod || 'cash'
+    });
+    setShowModal(true);
   };
 
   if (loading) return <Loader />;
@@ -103,7 +125,7 @@ const PaymentsPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
         {canManage && (
           <button
-            onClick={() => { reset(); setShowModal(true); setSelectedImage(null); setImagePreview(null); }}
+            onClick={() => { reset(); setEditingPayment(null); setShowModal(true); setSelectedImage(null); setImagePreview(null); }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Add Payment
@@ -121,12 +143,13 @@ const PaymentsPage = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {payments.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                   No payments found.
                 </td>
               </tr>
@@ -156,6 +179,21 @@ const PaymentsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {payment.created_at ? new Date(payment.created_at).toLocaleDateString() : '-'}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {canManage && (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(payment)}
+                            className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
+                            title="Edit"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 );
               })
@@ -167,8 +205,8 @@ const PaymentsPage = () => {
       {showModal && canManage && (
         <Modal
           isOpen={showModal}
-          onClose={() => { setShowModal(false); reset(); setSelectedImage(null); setImagePreview(null); }}
-          title="Add Payment"
+          onClose={() => { setShowModal(false); reset(); setEditingPayment(null); setSelectedImage(null); setImagePreview(null); }}
+          title={editingPayment ? 'Edit Payment' : 'Add Payment'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>

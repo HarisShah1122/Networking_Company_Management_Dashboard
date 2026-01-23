@@ -45,6 +45,5 @@ module.exports = {
   Payment,
   ActivityLog,
   Complaint,
-  Area,
-  PackageRenewal
+  Area
 };
