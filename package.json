@@ -3,13 +3,12 @@
   "version": "1.0.0",
   "description": "Full-stack Networking Company Management Dashboard",
   "scripts": {
-    "build": "cd frontend && npm run build",
+    "build": "cd frontend && npm install && npm run build",
     "start": "cd frontend && npm start",
-    "install:frontend": "cd frontend && npm install",
-    "install:backend": "cd backend && npm install",
-    "install:all": "npm run install:frontend && npm run install:backend"
+    "vercel-build": "cd frontend && npm install && npm run build"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
