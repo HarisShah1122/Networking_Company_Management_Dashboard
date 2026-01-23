@@ -22,7 +22,7 @@ const StockPage = () => {
 
   const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
-  const { currentPage, pageSize, handlePageChange, handlePageSizeChange, resetPagination, getPaginatedData, getPaginationInfo } = usePagination();
+  const { pageSize, handlePageChange, handlePageSizeChange, resetPagination, getPaginatedData, getPaginationInfo } = usePagination();
   const editModal = useModal();
 
   const { data: stock = [], isLoading, isFetching } = useStockList({ 
