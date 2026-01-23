@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Frontend for Networking Company Management Dashboard",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "dependencies": {
     "@mantine/core": "^8.3.11",
     "@mantine/dates": "^8.3.11",
