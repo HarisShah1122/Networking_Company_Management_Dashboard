@@ -22,7 +22,7 @@ const StockPage = () => {
 
   const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
-  // eslint-disable-next-line no-unused-vars
+  // Trigger new deployment - v2
   const { pageSize, handlePageChange, handlePageSizeChange, resetPagination, getPaginatedData, getPaginationInfo } = usePagination();
   const editModal = useModal();
 
