@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { toast } from 'react-toastify';
 import useAuthStore from '../../stores/authStore';
 
 const LoginPage = () => {
@@ -17,7 +18,6 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    // Redirect only after initialization
     if (!isInitializing && isAuthenticated) {
       navigate('/dashboard', { replace: true });
     }
@@ -30,7 +30,10 @@ const LoginPage = () => {
     const result = await login(data.username, data.password);
 
     if (result?.success) {
+      toast.success('Login successful');
       navigate('/dashboard', { replace: true });
+    } else if (result?.message) {
+      toast.error(result.message);
     }
 
     setIsLoading(false);

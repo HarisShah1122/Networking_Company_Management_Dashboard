@@ -1,139 +1,64 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
-import { setToken, setUser, removeToken, removeUser } from '../utils/storage.utils';
+import { getUser, setUser, removeUser } from '../utils/storage.utils';
 
 const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
   isInitializing: true,
-  isLoading: false,
   error: null,
 
-  // Login
-  login: async (username, password) => {
-    set({ isLoading: true, error: null });
+  initialize: async () => {
     try {
-      const { token, user, company } = await authService.login(username, password);
-      const userWithCompany = { ...user, company };
+      const storedUser = getUser();
+      if (storedUser) {
+        const { user, company } = await authService.getMe();
+        setUser({ ...user, company });
+        set({ user: { ...user, company }, isAuthenticated: true });
+      }
+    } catch {
+      removeUser();
+      set({ user: null, isAuthenticated: false });
+    } finally {
+      set({ isInitializing: false });
+    }
+  },
 
-      // persist to local storage
-      setToken(token);
-      setUser(userWithCompany);
-
-      set({
-        user: userWithCompany,
-        isAuthenticated: true,
-        isInitializing: false,
-        isLoading: false,
-      });
-
+  login: async (username, password) => {
+    try {
+      const { user, company } = await authService.login(username, password);
+      setUser({ ...user, company });
+      set({ user: { ...user, company }, isAuthenticated: true, error: null });
       return { success: true };
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        'Login failed';
-      set({
-        error: errorMessage,
-        isLoading: false,
-        isAuthenticated: false,
-        isInitializing: false,
-      });
-      return { success: false, error: errorMessage };
+      const message = err.response?.data?.message || 'Login failed';
+      set({ error: message });
+      return { success: false };
     }
   },
 
-  // Register
-
-register: async (userData) => {
-  set({ isLoading: true, error: null });
-  try {
-    // Adjust payload for CEO role
-    const payload = {
-      username: userData.username,
-      email: userData.email,
-      password: userData.password,
-      role: userData.role,
-      companyName: userData.role === 'CEO' ? userData.companyName : undefined,
-      companyEmail: userData.role === 'CEO' ? userData.email : undefined,
-    };
-
-    const { token, user, company } = await authService.register(payload);
-    const userWithCompany = { ...user, company };
-
-    // persist to local storage
-    setToken(token);
-    setUser(userWithCompany);
-
-    set({
-      user: userWithCompany,
-      isAuthenticated: true,
-      isInitializing: false,
-      isLoading: false,
-    });
-
-    return { success: true };
-  } catch (err) {
-    const errorMessage =
-      err.response?.data?.message ||
-      err.response?.data?.error ||
-      err.message ||
-      'Registration failed';
-    set({
-      error: errorMessage,
-      isLoading: false,
-      isAuthenticated: false,
-      isInitializing: false,
-    });
-    return { success: false, error: errorMessage };
-  }
-},
-
-
-
-  // Logout
   logout: async () => {
+    await authService.logout();
+    removeUser();
+    set({ user: null, isAuthenticated: false });
+  },
+
+  registerUser: async (payload) => {
     try {
-      await authService.logout();
+      const { user, company } = await authService.register(payload);
+      setUser({ ...user, company });
+      set({ user: { ...user, company }, isAuthenticated: true, error: null });
+      return { success: true };
     } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      removeToken();
-      removeUser();
-      set({ user: null, isAuthenticated: false, error: null });
+      const message = err.response?.data?.message || 'Registration failed';
+      set({ error: message });
+      return { success: false, error: message };
     }
   },
 
-  // Check auth on page load
-  checkAuth: async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      set({ isAuthenticated: false, user: null, isInitializing: false, isLoading: false });
-      return;
-    }
-
-    set({ isInitializing: true, isLoading: true });
-
-    try {
-      const { user, company } = await authService.getMe();
-      const userWithCompany = { ...user, company };
-      setUser(userWithCompany);
-      set({
-        user: userWithCompany,
-        isAuthenticated: true,
-        isInitializing: false,
-        isLoading: false,
-      });
-    } catch (err) {
-      removeToken();
-      removeUser();
-      set({ user: null, isAuthenticated: false, isInitializing: false, isLoading: false });
-    }
-  },
-
-  // Clear error
   clearError: () => set({ error: null }),
 }));
+
+useAuthStore.getState().initialize();
 
 export default useAuthStore;

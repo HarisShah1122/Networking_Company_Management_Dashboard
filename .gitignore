@@ -67,3 +67,4 @@ frontend/.env
 frontend/.env.local
 >>>>>>> afa6835154d16c430c6d747121ad953dae474769
 
+.vercel

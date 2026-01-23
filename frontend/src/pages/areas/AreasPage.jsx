@@ -10,7 +10,6 @@ import Loader from '../../components/common/Loader';
 
 const AreasPage = () => {
   const { user } = useAuthStore();
-
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -25,6 +24,8 @@ const AreasPage = () => {
 
   const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
+  const canManage = isManager(user?.role);
+
   const loadAreas = useCallback(async (search = '', isInitial = false) => {
     try {
       if (isInitial) setLoading(true);
@@ -32,17 +33,18 @@ const AreasPage = () => {
 
       const data = await areaService.getAll();
 
-      let filtered = data;
+      let enriched = data;
+
       if (search.trim()) {
         const term = search.toLowerCase();
-        filtered = data.filter(area =>
+        enriched = enriched.filter(area =>
           area.name.toLowerCase().includes(term) ||
           (area.description && area.description.toLowerCase().includes(term)) ||
           (area.code && area.code.toLowerCase().includes(term))
         );
       }
 
-      setAreas(filtered);
+      setAreas(enriched);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to load areas');
       setAreas([]);
@@ -109,9 +111,6 @@ const AreasPage = () => {
     setShowModal(true);
   };
 
-
-  const canManage = isManager(user?.role);
-
   if (loading) return <Loader />;
 
   const paginatedAreas = areas.slice(
@@ -123,9 +122,8 @@ const AreasPage = () => {
     <div className="space-y-6 p-6">
       <h1 className="text-3xl font-bold text-gray-900">Areas</h1>
 
-      {/* Search and Add */}
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1 relative">
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <div className="flex-1 relative min-w-[300px]">
           <input
             type="text"
             placeholder="Search areas (name, code, description)..."
@@ -133,7 +131,11 @@ const AreasPage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600" />}
+          {searching && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
         </div>
 
         {canManage && (
@@ -146,7 +148,6 @@ const AreasPage = () => {
         )}
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -202,34 +203,57 @@ const AreasPage = () => {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
       {showModal && canManage && (
         <Modal isOpen={showModal} onClose={() => { setShowModal(false); reset(); setEditingArea(null); }} title={editingArea ? 'Edit Area' : 'Add New Area'}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
-              <input {...register('name', { required: 'Name is required' })} className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
-                errors.name && touchedFields.name ? 'border-red-500' : 'border-gray-300'
-              }`} />
-              {errors.name && touchedFields.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
+                <input
+                  {...register('name', { required: 'Name is required' })}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                    errors.name && touchedFields.name ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.name && touchedFields.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+              </div>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Code</label>
-              <input {...register('code')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <input
+                {...register('code')}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea {...register('description')} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <textarea
+                {...register('description')}
+                rows={3}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
             </div>
+
             <div className="flex gap-4 pt-4">
-              <button type="button" onClick={() => { setShowModal(false); reset(); setEditingArea(null); }} className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button type="submit" className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{editingArea ? 'Update' : 'Create'}</button>
+              <button
+                type="button"
+                onClick={() => { setShowModal(false); reset(); setEditingArea(null); }}
+                className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                {editingArea ? 'Update' : 'Create'}
+              </button>
             </div>
           </form>
         </Modal>
       )}
-
-      {/* Delete Modal */}
     </div>
   );
 };

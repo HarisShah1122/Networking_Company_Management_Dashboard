@@ -24,6 +24,8 @@ const StaffPage = () => {
 
   const { register, handleSubmit, reset, formState: { errors, touchedFields } } = useForm();
 
+  const canManage = isManager(user?.role);
+
   const loadUsers = useCallback(async (search = '', role = '', isInitialLoad = false) => {
     try {
       if (isInitialLoad) {
@@ -42,8 +44,7 @@ const StaffPage = () => {
       } else if (response?.data && Array.isArray(response.data)) {
         usersList = response.data;
       }
-      
-      // Filter by search term and role on frontend
+
       if (search && search.trim()) {
         const searchLower = search.toLowerCase();
         usersList = usersList.filter(user => 
@@ -51,11 +52,11 @@ const StaffPage = () => {
           (user.email && user.email.toLowerCase().includes(searchLower))
         );
       }
-      
+
       if (role && role.trim()) {
         usersList = usersList.filter(user => user.role === role);
       }
-      
+
       setUsers(usersList);
     } catch (error) {
       const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load users';
@@ -67,7 +68,6 @@ const StaffPage = () => {
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     if (isInitialMount.current) {
       loadUsers('', '', true);
@@ -75,20 +75,17 @@ const StaffPage = () => {
     }
   }, [loadUsers]);
 
-  // Debounce search term and role filter
   useEffect(() => {
-    if (isInitialMount.current) {
-      return;
-    }
+    if (isInitialMount.current) return;
 
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
-    
+
     if (searchTerm || roleFilter) {
       setSearching(true);
     }
-    
+
     debounceTimer.current = setTimeout(() => {
       loadUsers(searchTerm, roleFilter, false);
       setCurrentPage(1);
@@ -103,7 +100,6 @@ const StaffPage = () => {
 
   const onSubmit = async (data) => {
     try {
-      // Prepare submit data
       const submitData = {
         email: data.email?.trim(),
         username: data.username?.trim(),
@@ -112,15 +108,12 @@ const StaffPage = () => {
       };
 
       if (editingUser) {
-        // For updates, only include password if it's provided and not empty
         if (data.password && data.password.trim()) {
           submitData.password = data.password.trim();
         }
-        // Don't send password field at all if it's empty - this preserves existing password_hash
         await userService.update(editingUser.id, submitData);
         toast.success('User updated successfully!');
       } else {
-        // For new users, password is required
         if (!data.password || !data.password.trim()) {
           toast.error('Password is required for new users');
           return;
@@ -129,6 +122,7 @@ const StaffPage = () => {
         await userService.create(submitData);
         toast.success('User created successfully!');
       }
+
       reset();
       setShowModal(false);
       setEditingUser(null);
@@ -160,9 +154,6 @@ const StaffPage = () => {
     setShowModal(true);
   };
 
-
-  const canManage = isManager(user?.role);
-
   if (loading) return <Loader />;
 
   return (
@@ -171,11 +162,11 @@ const StaffPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Staff Management</h1>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <div className="flex-1 relative">
+      <div className="flex gap-4 mb-4 flex-wrap">
+        <div className="flex-1 relative min-w-[280px]">
           <input
             type="text"
-            placeholder="Search staff..."
+            placeholder="Search staff by username, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -186,16 +177,18 @@ const StaffPage = () => {
             </div>
           )}
         </div>
+
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[160px]"
         >
           <option value="">All Roles</option>
           <option value="CEO">CEO</option>
           <option value="Manager">Manager</option>
           <option value="Staff">Staff</option>
         </select>
+
         {canManage && (
           <button
             onClick={() => { reset(); setEditingUser(null); setShowModal(true); }}
@@ -265,6 +258,7 @@ const StaffPage = () => {
             )}
           </tbody>
         </table>
+
         {users.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">
             <TablePagination
@@ -292,82 +286,86 @@ const StaffPage = () => {
           title={editingUser ? 'Edit User' : 'Add User'}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Email *</label>
-                  <input
-                    {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
-                    type="email"
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.email && touchedFields.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.email && touchedFields.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Username *</label>
-                  <input
-                    {...register('username', { required: 'Username is required', minLength: { value: 3, message: 'Username must be at least 3 characters' } })}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.username && touchedFields.username ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.username && touchedFields.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email *</label>
+                <input
+                  {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
+                  type="email"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.email && touchedFields.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.email && touchedFields.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
               </div>
-              {!editingUser && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Password *</label>
-                  <input
-                    {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
-                    type="password"
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.password && touchedFields.password ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.password && touchedFields.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Role *</label>
-                  <select
-                    {...register('role', { required: 'Role is required' })}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                      errors.role && touchedFields.role ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="Staff">Staff</option>
-                    <option value="Manager">Manager</option>
-                    <option value="CEO">CEO</option>
-                  </select>
-                </div>
-                {editingUser && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Status</label>
-                    <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
-                )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Username *</label>
+                <input
+                  {...register('username', { required: 'Username is required', minLength: { value: 3, message: 'Username must be at least 3 characters' } })}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.username && touchedFields.username ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.username && touchedFields.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
               </div>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); reset(); setEditingUser(null); }}
-                  className="flex-1 px-4 py-2 border rounded-lg"
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Role *</label>
+                <select
+                  {...register('role', { required: 'Role is required' })}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.role && touchedFields.role ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 >
-                  Cancel
-                </button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
-                  Save
-                </button>
+                  <option value="Staff">Staff</option>
+                  <option value="Manager">Manager</option>
+                  <option value="CEO">CEO</option>
+                </select>
               </div>
-            </form>
+            </div>
+
+            {!editingUser && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Password *</label>
+                <input
+                  {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
+                  type="password"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
+                    errors.password && touchedFields.password ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.password && touchedFields.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+              </div>
+            )}
+
+            {editingUser && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <select {...register('status')} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => { setShowModal(false); reset(); setEditingUser(null); }}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
+                Save
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
-
     </div>
   );
 };

@@ -10,7 +10,7 @@ const getAll = async (req, res, next) => {
       search: req.query.search || '',
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 10,
-      areaId: req.query.areaId || null
+      area_id: req.query.area_id || null
     };
 
     const result = await CustomerService.getAll(filters);
@@ -88,16 +88,14 @@ const update = async (req, res, next) => {
     next(error);
   }
 };
-
 const getStats = async (req, res, next) => {
   try {
-    const stats = await CustomerService.getStats();
+    const stats = await CustomerService.getStats(); 
     return ApiResponse.success(res, { stats }, 'Statistics retrieved successfully');
   } catch (error) {
     next(error);
   }
 };
-
 module.exports = {
   getAll,
   getById,

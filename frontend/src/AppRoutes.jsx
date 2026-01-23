@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import useAuthStore from './stores/authStore';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import LoginPage from './pages/auth/LoginPage';
@@ -18,152 +17,37 @@ import PaymentsPage from './pages/payments/PaymentsPage';
 import MainLayout from './components/layout/MainLayout';
 
 const AppRoutes = () => {
-  const { checkAuth, isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isInitializing } = useAuthStore();
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  if (isInitializing) return <div className="h-screen flex items-center justify-center">Loading...</div>;
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Navigate to="/dashboard" replace />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <DashboardPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/customers"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <CustomersPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/customers/:id"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <CustomerDetailPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/connections"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <ConnectionsPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/recharges"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <RechargesPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/stock"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <StockPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/accounts"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <AccountsPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/staff"
-          element={
-            <ProtectedRoute allowedRoles={['CEO']}>
-              <MainLayout>
-                <StaffPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/complaints"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <ComplaintsPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-          <Route
-          path="/areas"
-          element={
-            <ProtectedRoute allowedRoles={['CEO', 'Manager']}>
-              <MainLayout>
-                <AreasPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/payments"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <PaymentsPage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Public */}
+        <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/dashboard" replace />} />
+
+        {/* Protected */}
+        <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/customers" element={<CustomersPage />} />
+          <Route path="/customers/:id" element={<CustomerDetailPage />} />
+          <Route path="/connections" element={<ConnectionsPage />} />
+          <Route path="/recharges" element={<RechargesPage />} />
+          <Route path="/stock" element={<StockPage />} />
+          <Route path="/accounts" element={<AccountsPage />} />
+          <Route path="/staff" element={<StaffPage />} />
+          <Route path="/complaints" element={<ComplaintsPage />} />
+          <Route path="/areas" element={<AreasPage />} />
+          <Route path="/payments" element={<PaymentsPage />} />
+        </Route>
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>
   );
 };
 
 export default AppRoutes;
-

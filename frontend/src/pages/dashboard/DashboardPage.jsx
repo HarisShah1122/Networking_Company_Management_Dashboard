@@ -27,11 +27,11 @@ const DashboardPage = () => {
   const loadStats = async () => {
     try {
       setLoading(true);
-      // Use Promise.allSettled to handle partial failures gracefully
+   
       const results = await Promise.allSettled([
         customerService.getStats().catch(() => ({ stats: {} })),
         connectionService.getStats().catch(() => ({ stats: {} })),
-        rechargeService.getStats().catch(() => ({ stats: {} })),
+        rechargeService.getSummary().catch(() => ({ total_paid: 0, total_pending: 0 })),
         stockService.getStats().catch(() => ({ stats: {} })),
         transactionService.getSummary().catch(() => ({ summary: {} })),
         complaintService.getStats().catch(() => ({ stats: {} })),
@@ -45,7 +45,7 @@ const DashboardPage = () => {
       const updatedStats = {
         customers: customers?.stats ?? customers ?? {},
         connections: connections?.stats ?? connections ?? {},
-        recharges: recharges?.stats ?? recharges ?? {},
+        recharges: recharges ?? {},
         stock: stock?.stats ?? stock ?? {},
         transactions: transactions?.summary ?? transactions ?? {},
       };
@@ -272,4 +272,3 @@ const StatCard = ({ title, value, subtitle, icon, color }) => {
 };
 
 export default DashboardPage;
-

@@ -1,0 +1,14 @@
+{
+  "name": "networking-company-dashboard",
+  "version": "1.0.2",
+  "description": "Full-stack Networking Company Management Dashboard",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd frontend && npm start",
+    "vercel-build": "cd frontend && npm install && npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,21 +1,20 @@
-import { useEffect } from 'react';
+import React from 'react';
 import { MantineProvider } from '@mantine/core';
 import { DatesProvider } from '@mantine/dates';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ToastContainer } from 'react-toastify';
-import useAuthStore from './stores/authStore';
 import AppRoutes from './AppRoutes';
 import { LayoutProvider } from './contexts/LayoutContext';
 import { queryClient } from './config/queryClient';
+import Loader from './components/common/Loader';
+import useAuthStore from './stores/authStore';
 import './index.css';
 
 function App() {
-  const checkAuth = useAuthStore((state) => state.checkAuth);
+  const { isInitializing } = useAuthStore();
 
-  useEffect(() => {
-    checkAuth(); 
-  }, [checkAuth]);
+  if (isInitializing) return <Loader />;
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -1,127 +1,163 @@
-const multer = require('multer');
-const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const ApiResponse = require('../helpers/responses');
-const { Payment } = require('../models');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/receipts/'),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
-});
-
-const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) return cb(new Error('Only images are allowed'));
-    cb(null, true);
-  },
-  limits: { fileSize: 5 * 1024 * 1024 }
-}).single('receiptImage');
+const { Payment, Customer } = require('../models');
 
 const createPayment = async (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) return ApiResponse.error(res, err.message, 400);
-
+  try {
     const { trxId, customerId, amount, status, receivedBy, paymentMethod } = req.body;
-    const receiptImage = req.file ? `/uploads/receipts/${req.file.filename}` : null;
 
-    try {
-      if (!trxId || !customerId || !amount || !receivedBy) return ApiResponse.error(res, 'trxId, customerId, amount and receivedBy are required', 400);
-
-      const existing = await Payment.findOne({ where: { trxId } });
-      if (existing) return ApiResponse.error(res, 'Duplicate TRX ID', 400);
-
-      const payment = await Payment.create({
-        trxId,
-        customerId,
-        amount,
-        receivedBy,
-        status: status || 'pending',
-        paymentMethod: paymentMethod || 'cash',
-        receiptImage
-      });
-
-      return ApiResponse.success(res, payment, 'Payment recorded', 201);
-    } catch (error) {
-      console.error(error);
-      return ApiResponse.error(res, error.message, 500);
+    if (!trxId || !customerId || !amount || !receivedBy) {
+      return ApiResponse.error(res, 'trxId, customerId, amount, receivedBy required', 400);
     }
-  });
+
+    const customer = await Customer.findByPk(customerId);
+    if (!customer) {
+      return ApiResponse.error(res, `Customer ${customerId} not found`, 404);
+    }
+
+    const exists = await Payment.findOne({ where: { trx_id: trxId } });
+    if (exists) {
+      return ApiResponse.error(res, 'Duplicate TRX ID', 409);
+    }
+
+    const receiptImage = req.file
+      ? `/uploads/receipts/${req.file.filename}`
+      : null;
+
+    const payment = await Payment.create({
+      id: uuidv4(),
+      customer_id: customerId,
+      amount: parseFloat(amount),
+      payment_method: paymentMethod || 'cash',
+      received_by: receivedBy,
+      trx_id: trxId,
+      receipt_image: receiptImage,
+      status: status || 'pending'
+    });
+
+    const fullPayment = await Payment.findByPk(payment.id, {
+      include: [{ model: Customer, as: 'customer', attributes: ['id', 'name'] }]
+    });
+
+    return ApiResponse.success(res, fullPayment, 'Payment recorded', 201);
+  } catch (error) {
+    console.error('Create payment error:', error);
+    return ApiResponse.error(res, 'Server error', 500);
+  }
+};
+
+const updatePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { trxId, customerId, amount, status, receivedBy, paymentMethod } = req.body;
+
+    const payment = await Payment.findByPk(id);
+    if (!payment) {
+      return ApiResponse.error(res, 'Payment not found', 404);
+    }
+
+    if (customerId) {
+      const customer = await Customer.findByPk(customerId);
+      if (!customer) {
+        return ApiResponse.error(res, `Customer ${customerId} not found`, 404);
+      }
+      payment.customer_id = customerId;
+    }
+
+    if (trxId && trxId !== payment.trx_id) {
+      const exists = await Payment.findOne({ where: { trx_id: trxId } });
+      if (exists) {
+        return ApiResponse.error(res, 'Duplicate TRX ID', 409);
+      }
+      payment.trx_id = trxId;
+    }
+
+    if (amount) {
+      payment.amount = parseFloat(amount);
+    }
+
+    if (paymentMethod) {
+      payment.payment_method = paymentMethod;
+    }
+
+    if (receivedBy) {
+      payment.received_by = receivedBy;
+    }
+
+    if (status) {
+      payment.status = status;
+    }
+
+    if (req.file) {
+      payment.receipt_image = `/uploads/receipts/${req.file.filename}`;
+    }
+
+    await payment.save();
+
+    const fullPayment = await Payment.findByPk(payment.id, {
+      include: [{ model: Customer, as: 'customer', attributes: ['id', 'name'] }]
+    });
+
+    return ApiResponse.success(res, fullPayment, 'Payment updated', 200);
+  } catch (error) {
+    console.error('Update payment error:', error);
+    return ApiResponse.error(res, 'Server error', 500);
+  }
 };
 
 const getAllPayments = async (req, res) => {
   try {
-    const payments = await Payment.findAll();
+    const payments = await Payment.findAll({
+      include: [{
+        model: Customer,
+        as: 'customer',
+        attributes: ['id', 'name', 'whatsapp_number']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+
     return ApiResponse.success(res, { payments }, 'Payments fetched');
   } catch (error) {
-    console.error(error);
-    return ApiResponse.error(res, error.message, 500);
+    return ApiResponse.error(res, 'Failed to fetch payments', 500);
   }
 };
 
 const getPaymentsByCustomer = async (req, res) => {
   try {
     const { customerId } = req.params;
-    const payments = await Payment.findAll({ where: { customerId } });
-    return ApiResponse.success(res, { payments }, 'Customer payments');
+
+    const payments = await Payment.findAll({
+      where: { customer_id: customerId },
+      include: [{ model: Customer, as: 'customer', attributes: ['name'] }],
+      order: [['created_at', 'DESC']]
+    });
+
+    return ApiResponse.success(res, { payments }, 'Customer payments fetched');
   } catch (error) {
-    console.error(error);
-    return ApiResponse.error(res, error.message, 500);
+    return ApiResponse.error(res, 'Failed to fetch', 500);
   }
-};
-
-const updatePayment = async (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) return ApiResponse.error(res, err.message, 400);
-
-    const { id } = req.params;
-    const { trxId, customerId, amount, status, receivedBy, paymentMethod } = req.body;
-    const receiptImage = req.file ? `/uploads/receipts/${req.file.filename}` : null;
-
-    try {
-      const payment = await Payment.findByPk(id);
-      if (!payment) return ApiResponse.error(res, 'Payment not found', 404);
-
-      // Check for duplicate TRX ID (excluding current payment)
-      if (trxId && trxId !== payment.trxId) {
-        const existing = await Payment.findOne({ where: { trxId } });
-        if (existing) return ApiResponse.error(res, 'Duplicate TRX ID', 400);
-      }
-
-      const updateData = {
-        trxId: trxId || payment.trxId,
-        customerId: customerId || payment.customerId,
-        amount: amount || payment.amount,
-        status: status || payment.status,
-        receivedBy: receivedBy || payment.receivedBy,
-        paymentMethod: paymentMethod || payment.paymentMethod,
-      };
-
-      if (receiptImage) {
-        updateData.receiptImage = receiptImage;
-      }
-
-      await payment.update(updateData);
-      return ApiResponse.success(res, payment, 'Payment updated successfully');
-    } catch (error) {
-      console.error(error);
-      return ApiResponse.error(res, error.message, 500);
-    }
-  });
 };
 
 const deletePayment = async (req, res) => {
   try {
     const { id } = req.params;
     const payment = await Payment.findByPk(id);
-    if (!payment) return ApiResponse.error(res, 'Payment not found', 404);
+    if (!payment) {
+      return ApiResponse.error(res, 'Payment not found', 404);
+    }
 
     await payment.destroy();
     return ApiResponse.success(res, null, 'Payment deleted successfully');
   } catch (error) {
-    console.error(error);
-    return ApiResponse.error(res, error.message, 500);
+    console.error('Delete payment error:', error);
+    return ApiResponse.error(res, 'Server error', 500);
   }
 };
 
-module.exports = { createPayment, getAllPayments, getPaymentsByCustomer, updatePayment, deletePayment };
+module.exports = {
+  createPayment,
+  updatePayment,
+  deletePayment,
+  getAllPayments,
+  getPaymentsByCustomer
+};

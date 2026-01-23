@@ -1,22 +1,31 @@
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../config/env');
 const { User } = require('../models');
+const { JWT_SECRET } = require('../config/env');
 
 const authenticate = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Authentication required' });
+  
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findByPk(decoded.userId, { attributes: ['id', 'username', 'role', 'status'] });
-    if (!user || user.status !== 'active') return res.status(401).json({ error: 'Invalid or inactive user' });
+      const user = await User.findByPk(decoded.userId);
+      if (!user) return res.status(401).json({ error: 'User not found' });
 
-    req.user = user; 
-    next();
-  } catch (error) {
-    if (error.name === 'JsonWebTokenError') return res.status(401).json({ error: 'Invalid token' });
-    if (error.name === 'TokenExpiredError') return res.status(401).json({ error: 'Token expired' });
-    res.status(500).json({ error: 'Authentication error' });
+      req.user = user;
+      return next();
+    }
+
+   
+    if (req.session?.user) {
+      req.user = req.session.user;
+      return next();
+    }
+
+    return res.status(401).json({ error: 'Not authenticated' });
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
 
