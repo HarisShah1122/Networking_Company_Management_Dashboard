@@ -77,12 +77,16 @@ app.use(errorHandler);
   try {
     await sequelize.authenticate();
     console.log('✅ Database connected');
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+      });
+    }
   } catch (error) {
     console.error('❌ Server failed:', error);
     process.exit(1);
   }
 })();
+
+// Export for Vercel serverless
 module.exports = app;
