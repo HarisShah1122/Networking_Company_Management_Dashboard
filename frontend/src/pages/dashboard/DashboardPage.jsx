@@ -120,38 +120,42 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Stock Overview</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>Total Items:</span>
-              <span className="font-semibold">{stats.stock.total_items ?? 0}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total Value:</span>
-              <span className="font-semibold">RS {parseFloat(stats.stock?.total_value ?? 0).toFixed(2)}</span>
+          <div className="border-t border-gray-200 pt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Total Items:</span>
+                <span className="font-semibold">{stats.stock.total_items ?? 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Value:</span>
+                <span className="font-semibold">RS {parseFloat(stats.stock?.total_value ?? 0).toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Financial Summary</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>Total Income:</span>
-              <span className="font-semibold text-green-600">
-                RS {parseFloat(stats.transactions?.total_income ?? 0).toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total Expenses:</span>
-              <span className="font-semibold text-red-600">
-                RS {parseFloat(stats.transactions?.total_expense ?? 0).toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between pt-2 border-t">
-              <span>Net Profit:</span>
-              <span className={`font-semibold ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                RS {profitLoss.toFixed(2)}
-              </span>
+          <div className="border-t border-gray-200 pt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Total Income:</span>
+                <span className="font-semibold text-green-600">
+                  RS {parseFloat(stats.transactions?.total_income ?? 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Expenses:</span>
+                <span className="font-semibold text-red-600">
+                  RS {parseFloat(stats.transactions?.total_expense ?? 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t">
+                <span>Net Profit:</span>
+                <span className={`font-semibold ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  RS {profitLoss.toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
