@@ -25,8 +25,12 @@ const AppRoutes = () => {
     <BrowserRouter>
       <Routes>
         {/* Public */}
+        <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
         <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/dashboard" replace />} />
+        
+        {/* Fallback for any unmatched routes */}
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
 
         {/* Protected */}
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>

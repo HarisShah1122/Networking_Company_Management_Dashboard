@@ -16,6 +16,9 @@ const LoginPage = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rateLimitCount, setRateLimitCount] = useState(0);
+  const [rateLimitTimer, setRateLimitTimer] = useState(0);
+  const [isRateLimited, setIsRateLimited] = useState(false);
 
   useEffect(() => {
     if (!isInitializing && isAuthenticated) {
@@ -23,7 +26,29 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, isInitializing, navigate]);
 
+  useEffect(() => {
+    let interval;
+    if (rateLimitTimer > 0) {
+      interval = setInterval(() => {
+        setRateLimitTimer((prev) => {
+          if (prev <= 1) {
+            setIsRateLimited(false);
+            setRateLimitCount(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [rateLimitTimer]);
+
   const onSubmit = async (data) => {
+    if (isRateLimited) {
+      toast.error(`Please wait ${rateLimitTimer} seconds before trying again`);
+      return;
+    }
+
     setIsLoading(true);
     clearError();
 
@@ -32,8 +57,17 @@ const LoginPage = () => {
     if (result?.success) {
       toast.success('Login successful');
       navigate('/dashboard', { replace: true });
-    } else if (result?.message) {
-      toast.error(result.message);
+      setRateLimitCount(0);
+    } else {
+      setRateLimitCount(prev => prev + 1);
+      
+      if (rateLimitCount >= 2) {
+        setIsRateLimited(true);
+        setRateLimitTimer(30);
+        toast.error('Too many failed attempts. Please wait 30 seconds before trying again.');
+      } else {
+        toast.error(result?.message || 'Login failed');
+      }
     }
 
     setIsLoading(false);
@@ -112,11 +146,25 @@ const LoginPage = () => {
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || isRateLimited}
                 className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                {isRateLimited ? `Please wait ${rateLimitTimer}s` : isLoading ? 'Signing in...' : 'Sign In'}
               </button>
+              
+              {isRateLimited && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800 text-center">
+                    Too many failed attempts. You must wait {rateLimitTimer} seconds before trying again.
+                  </p>
+                  <div className="w-full bg-yellow-200 rounded-full h-2 mt-2">
+                    <div 
+                      className="bg-yellow-600 h-2 rounded-full transition-all duration-1000"
+                      style={{ width: `${(rateLimitTimer / 30) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
             </form>
 
             <div className="mt-6 text-center">
