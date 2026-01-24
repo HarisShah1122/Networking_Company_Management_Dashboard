@@ -1,0 +1,16 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "app"
+
+[services.variables]
+NODE_ENV = "production"
+PORT = "10000"
+CORS_ORIGIN = "https://pace-telecom-management-dashboard.vercel.app"

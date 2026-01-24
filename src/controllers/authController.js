@@ -1,0 +1,109 @@
+const { validationResult } = require('express-validator');
+const AuthService = require('../services/auth.service');
+const UserService = require('../services/user.service');
+const ApiResponse = require('../helpers/responses');
+const { validateLogin, validateRegister } = require('../helpers/validators');
+
+/* LOGIN */
+const login = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty())
+      return ApiResponse.validationError(res, errors.array());
+
+    const { username, password } = req.body;
+    const result = await AuthService.login(username, password);
+
+    // SESSION LOGIN
+    req.session.user = {
+      userId: result.user.id,
+      role: result.user.role,
+      companyId: result.user.companyId,
+    };
+
+    return ApiResponse.success(
+      res,
+      {
+        token: result.token,
+        user: result.user,
+        company: result.company,
+      },
+      'Login successful'
+    );
+  } catch (error) {
+    if (['Invalid credentials', 'Account is inactive'].includes(error.message)) {
+      return ApiResponse.unauthorized(res, error.message);
+    }
+    next(error);
+  }
+};
+
+/* REGISTER */
+const register = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty())
+      return ApiResponse.validationError(res, errors.array());
+
+    const result = await AuthService.register(req.body);
+
+    // AUTO LOGIN
+    req.session.user = {
+      userId: result.user.id,
+      role: result.user.role,
+      companyId: result.user.companyId,
+    };
+
+    return ApiResponse.success(
+      res,
+      {
+        token: result.token,
+        user: result.user,
+        company: result.company,
+      },
+      'User registered successfully',
+      201
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* GET CURRENT USER */
+const getMe = async (req, res, next) => {
+  try {
+    if (!req.session.user)
+      return ApiResponse.unauthorized(res, 'Not authenticated');
+
+    const user = await UserService.getById(req.session.user.userId);
+    if (!user) return ApiResponse.notFound(res, 'User');
+
+    return ApiResponse.success(res, {
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        companyId: user.companyId,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* LOGOUT */
+const logout = async (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie('pace.sid');
+    return ApiResponse.success(res, null, 'Logged out');
+  });
+};
+
+module.exports = {
+  login,
+  register,
+  getMe,
+  logout,
+  validateLogin,
+  validateRegister,
+};
