@@ -20,7 +20,17 @@ services:
         sync: false
       - key: DB_NAME
         sync: false
+      - key: DB_PORT
+        value: 5432
       - key: JWT_SECRET
         generateValue: true
       - key: SESSION_SECRET
         generateValue: true
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+      - key: ADMIN_WHATSAPP_NUMBER
+        sync: false
