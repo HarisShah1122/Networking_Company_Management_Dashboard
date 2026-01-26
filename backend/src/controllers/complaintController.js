@@ -50,7 +50,7 @@ ID: ${complaint.id}`;
 // Get all complaints
 const getAllComplaints = async (req, res, next) => {
   try {
-    const complaints = await ComplaintService.getAll();
+    const complaints = await ComplaintService.getAll(req.companyId);
     return ApiResponse.success(res, { complaints });
   } catch (err) {
     next(err);

@@ -13,7 +13,7 @@ const getAll = async (req, res, next) => {
       area_id: req.query.area_id || null
     };
 
-    const result = await CustomerService.getAll(filters);
+    const result = await CustomerService.getAll(filters, req.companyId);
 
     return ApiResponse.paginated(
       res,
@@ -28,7 +28,7 @@ const getAll = async (req, res, next) => {
 
 const getById = async (req, res, next) => {
   try {
-    const customer = await CustomerService.getById(req.params.id);
+    const customer = await CustomerService.getById(req.params.id, req.companyId);
     if (!customer) {
       return ApiResponse.notFound(res, 'Customer');
     }
@@ -45,7 +45,7 @@ const create = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const customer = await CustomerService.create(req.body);
+    const customer = await CustomerService.create(req.body, req.companyId);
 
     if (req.user?.id) {
       activityLogService.logActivity(
@@ -69,7 +69,7 @@ const update = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const customer = await CustomerService.update(req.params.id, req.body);
+    const customer = await CustomerService.update(req.params.id, req.body, req.companyId);
     if (!customer) {
       return ApiResponse.notFound(res, 'Customer');
     }
@@ -88,9 +88,10 @@ const update = async (req, res, next) => {
     next(error);
   }
 };
+
 const getStats = async (req, res, next) => {
   try {
-    const stats = await CustomerService.getStats(); 
+    const stats = await CustomerService.getStats(req.companyId); 
     return ApiResponse.success(res, { stats }, 'Statistics retrieved successfully');
   } catch (error) {
     next(error);

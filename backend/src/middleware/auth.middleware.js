@@ -14,12 +14,14 @@ const authenticate = async (req, res, next) => {
       if (!user) return res.status(401).json({ error: 'User not found' });
 
       req.user = user;
+      req.companyId = decoded.companyId;
       return next();
     }
 
    
     if (req.session?.user) {
       req.user = req.session.user;
+      req.companyId = req.session.user.companyId;
       return next();
     }
 

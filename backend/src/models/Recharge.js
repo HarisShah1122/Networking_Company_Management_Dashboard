@@ -4,6 +4,7 @@ module.exports = (sequelize) => {
   const Recharge = sequelize.define('Recharge', {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     customer_id: { type: DataTypes.UUID, allowNull: false, references: { model: 'customers', key: 'id' }, onDelete: 'CASCADE' },
+    company_id: { type: DataTypes.UUID, allowNull: true, field: 'company_id' },
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false, validate: { min: 0.01 } },
     payment_method: { type: DataTypes.ENUM('cash','card','online','bank_transfer'), defaultValue: 'cash' },
     due_date: { type: DataTypes.DATEONLY, allowNull: true },

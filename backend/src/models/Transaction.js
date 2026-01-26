@@ -18,6 +18,12 @@ module.exports = (sequelize) => {
       allowNull: false,
     },
 
+    company_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'company_id'
+    },
+
     trxId: {
       type: DataTypes.STRING,
       allowNull: false,

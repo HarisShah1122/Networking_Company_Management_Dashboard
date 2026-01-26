@@ -10,6 +10,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       references: { model: 'customers', key: 'id' }
     },
+    company_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'company_id'
+    },
     connection_id: { type: DataTypes.UUID, allowNull: true },
     recharge_id:   { type: DataTypes.UUID, allowNull: true },
     amount:        { type: DataTypes.DECIMAL(10, 2), allowNull: false },

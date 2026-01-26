@@ -54,11 +54,18 @@ const create = async (data, userId) => {
   }
 };
 
-const getAll = async () => {
+const getAll = async (companyId) => {
   try {
-    const complaints = await Complaint.findAll({ order: [['createdAt','DESC']] });
+    let whereClause = '';
+    if (companyId) {
+      whereClause = `WHERE company_id = '${companyId}'`;
+    }
+    
+    const sql = `SELECT * FROM complaints ${whereClause} ORDER BY created_at DESC`;
+    const complaints = await sequelize.query(sql, { type: sequelize.QueryTypes.SELECT });
+    
     return Promise.all(complaints.map(async (c) => {
-      const data = c.toJSON();
+      const data = c;
       if (!data.name || !data.whatsapp_number) {
         const customerData = await fetchCustomerData(data.customerId);
         return { ...data, name: customerData.name ?? null, whatsapp_number: customerData.phone ?? customerData.whatsapp_number ?? null };
