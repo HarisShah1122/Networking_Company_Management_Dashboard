@@ -40,11 +40,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col h-full overflow-hidden`}
       >
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0 bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center">
             <h1 className="text-2xl font-black tracking-wider" style={{ fontFamily: "'Poppins', 'Montserrat', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
               <span 
-                className="text-cyan-400 inline-block animate-pulse cursor-default"
+                className="text-blue-600 inline-block animate-pulse cursor-default"
                 style={{
                   animation: 'glow 2s linear infinite alternate, slideInLeft 0.8s linear'
                 }}
@@ -52,7 +52,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 PACE
               </span>
               <span 
-                className="text-white ml-1 opacity-90 inline-block cursor-default"
+                className="text-gray-900 ml-1 opacity-90 inline-block cursor-default"
                 style={{
                   animation: 'fadeInUp 1s linear 0.3s both'
                 }}
@@ -63,9 +63,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="lg:hidden text-cyan-400 hover:text-white transition-colors duration-200"
+            className="lg:hidden text-gray-600 hover:text-gray-900 transition-colors duration-200"
             style={{
-              animation: 'fadeIn 1s ease-out 0.6s both'
+              animation: 'fadeIn 1s linear 0.6s both'
             }}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
