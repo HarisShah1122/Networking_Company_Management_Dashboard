@@ -183,6 +183,7 @@ const CustomersPage = () => {
         email: data.email?.trim() || undefined,
         address: data.address?.trim() || undefined,
         status: data.status || 'active',
+        company_id: user?.company_id || null,
       };
 
       let customerId;
@@ -347,9 +348,7 @@ const CustomersPage = () => {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">{customer.phone || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{customer.email ?? '-'}
-
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">{customer.email ?? '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {conn.connection_type || '—'}
                       </td>
