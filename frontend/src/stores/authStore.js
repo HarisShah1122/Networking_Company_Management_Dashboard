@@ -12,11 +12,18 @@ const useAuthStore = create((set) => ({
     try {
       const storedUser = getUser();
       if (storedUser) {
-        const { user, company } = await authService.getMe();
-        setUser({ ...user, company });
-        set({ user: { ...user, company }, isAuthenticated: true });
+        set({ user: storedUser, isAuthenticated: true });
+        
+        // Verify session is still valid
+        try {
+          const { user } = await authService.getMe();
+          set({ user, isAuthenticated: true });
+        } catch (error) {
+          removeUser();
+          set({ user: null, isAuthenticated: false });
+        }
       }
-    } catch {
+    } catch (error) {
       removeUser();
       set({ user: null, isAuthenticated: false });
     } finally {
