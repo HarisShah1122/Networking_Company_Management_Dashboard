@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const ApiResponse = require('../helpers/responses');
 const { Payment, Customer } = require('../models');
+const { sendPaymentConfirmation } = require('../helpers/whatsappHelper');
 
 const createPayment = async (req, res) => {
   try {
@@ -39,6 +40,11 @@ const createPayment = async (req, res) => {
     const fullPayment = await Payment.findByPk(payment.id, {
       include: [{ model: Customer, as: 'customer', attributes: ['id', 'name'] }]
     });
+
+    // Send WhatsApp notification for payment confirmation
+    if (status === 'confirmed' || status === 'approved') {
+      await sendPaymentConfirmation(customer.name, parseFloat(amount), payment.id);
+    }
 
     return ApiResponse.success(res, fullPayment, 'Payment recorded', 201);
   } catch (error) {

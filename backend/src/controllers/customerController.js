@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const CustomerService = require('../services/customer.service');
 const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
+const { sendCustomerWelcome } = require('../helpers/whatsappHelper');
 
 const getAll = async (req, res, next) => {
   try {
@@ -46,6 +47,11 @@ const create = async (req, res, next) => {
     }
 
     const customer = await CustomerService.create(req.body, req.companyId);
+
+    // Send WhatsApp welcome message
+    if (customer.whatsapp_number && customer.pace_user_id) {
+      await sendCustomerWelcome(customer.name, customer.pace_user_id);
+    }
 
     if (req.user?.id) {
       activityLogService.logActivity(

@@ -25,6 +25,8 @@ const complaintRoutes = require('./routes/complaint.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const packageRenewalRoutes = require('./routes/packageRenewal.routes');
 const areaRoutes = require('./routes/area.routes');
+const testWhatsAppRoutes = require('./routes/testWhatsApp');
+const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
 if (!SESSION_SECRET) {
   throw new Error('SESSION_SECRET missing in .env');
 }
@@ -67,6 +69,8 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/package-renewals', packageRenewalRoutes);
 app.use('/api/areas', areaRoutes);
+app.use('/api/test-whatsapp', testWhatsAppRoutes);
+app.use('/webhook', whatsappWebhookRoutes);
 /* ERROR HANDLING */
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
@@ -88,5 +92,5 @@ app.use(errorHandler);
   }
 })();
 
-// Export for Vercel serverless
+
 module.exports = app;
