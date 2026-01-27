@@ -1,8 +1,13 @@
 const { Customer } = require('../models');
 const { Op } = require('sequelize');
 
-const getAll = async (filters = {}) => {
+const getAll = async (filters = {}, companyId) => {
   const where = {};
+  
+  if (companyId) {
+    where.company_id = companyId;
+  }
+  
   if (filters.status) where.status = filters.status;
   if (filters.search) {
     where[Op.or] = [
@@ -30,13 +35,23 @@ const getAll = async (filters = {}) => {
   };
 };
 
-const getById = async (id) => {
-  return await Customer.findByPk(id);
+const getById = async (id, companyId) => {
+  return await Customer.findOne({ 
+    where: { 
+      id, 
+      company_id: companyId
+    } 
+  });
 };
 
-const create = async (data) => {
+const create = async (data, companyId) => {
   if (data.pace_user_id) {
-    const existing = await Customer.findOne({ where: { pace_user_id: data.pace_user_id.trim() } });
+    const existing = await Customer.findOne({ 
+      where: { 
+        pace_user_id: data.pace_user_id.trim(),
+        company_id: companyId
+      } 
+    });
     if (existing) {
       const err = new Error('PACE USER ID already exists');
       err.status = 409;
@@ -54,12 +69,18 @@ const create = async (data) => {
     whatsapp_number: data.whatsapp_number?.trim(),
     pace_user_id: data.pace_user_id?.trim(),
     area_id: data.area_id || null,
+    company_id: companyId,
     status: data.status || 'active'
   });
 };
 
-const update = async (id, data) => {
-  const customer = await Customer.findByPk(id);
+const update = async (id, data, companyId) => {
+  const customer = await Customer.findOne({ 
+    where: { 
+      id, 
+      company_id: companyId
+    } 
+  });
   if (!customer) return null;
 
   const allowed = ['name', 'email', 'phone', 'address', 'father_name', 'gender', 'whatsapp_number', 'pace_user_id', 'area_id', 'status'];
@@ -74,10 +95,10 @@ const update = async (id, data) => {
   return customer;
 };
 
-const getStats = async () => {
+const getStats = async (companyId) => {
   const [total, active] = await Promise.all([
-    Customer.count(),
-    Customer.count({ where: { status: 'active' } })
+    Customer.count({ where: { company_id: companyId } }),
+    Customer.count({ where: { status: 'active', company_id: companyId } })
   ]);
 
   return { total, active };

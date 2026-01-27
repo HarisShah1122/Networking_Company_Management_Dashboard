@@ -12,7 +12,8 @@ module.exports = (sequelize) => {
     assignedTo: { type: DataTypes.UUID, allowNull: true },
     name: { type: DataTypes.STRING(255), allowNull: true },
     address: { type: DataTypes.TEXT, allowNull: true },
-    whatsapp_number: { type: DataTypes.STRING(20), allowNull: true }
+    whatsapp_number: { type: DataTypes.STRING(20), allowNull: true },
+    company_id: { type: DataTypes.UUID, allowNull: true, field: 'company_id' }
   }, {
     tableName: 'complaints',
     timestamps: true,

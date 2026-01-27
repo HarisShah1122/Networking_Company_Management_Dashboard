@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const ApiResponse = require('../helpers/responses');
 const { Payment, Customer } = require('../models');
+const { sendPaymentConfirmation } = require('../helpers/whatsappHelper');
 
 const createPayment = async (req, res) => {
   try {
@@ -27,6 +28,7 @@ const createPayment = async (req, res) => {
     const payment = await Payment.create({
       id: uuidv4(),
       customer_id: customerId,
+      company_id: customer.company_id,
       amount: parseFloat(amount),
       payment_method: paymentMethod || 'cash',
       received_by: receivedBy,
@@ -38,6 +40,11 @@ const createPayment = async (req, res) => {
     const fullPayment = await Payment.findByPk(payment.id, {
       include: [{ model: Customer, as: 'customer', attributes: ['id', 'name'] }]
     });
+
+    // Send WhatsApp notification for payment confirmation
+    if (status === 'confirmed' || status === 'approved') {
+      await sendPaymentConfirmation(customer.name, parseFloat(amount), payment.id);
+    }
 
     return ApiResponse.success(res, fullPayment, 'Payment recorded', 201);
   } catch (error) {
@@ -107,16 +114,28 @@ const updatePayment = async (req, res) => {
 
 const getAllPayments = async (req, res) => {
   try {
+    let whereClause = {};
+    if (req.companyId) {
+      whereClause.company_id = req.companyId;
+    }
+
     const payments = await Payment.findAll({
+      where: whereClause,
       include: [{
         model: Customer,
         as: 'customer',
-        attributes: ['id', 'name', 'whatsapp_number']
+        attributes: ['id', 'name', 'pace_user_id', 'whatsapp_number']
       }],
       order: [['created_at', 'DESC']]
     });
 
-    return ApiResponse.success(res, { payments }, 'Payments fetched');
+    const transformedPayments = payments.map(payment => ({
+      ...payment.toJSON(),
+      customerName: payment.customer?.name || '',
+      paceUserId: payment.customer?.pace_user_id || ''
+    }));
+
+    return ApiResponse.success(res, { payments: transformedPayments }, 'Payments fetched');
   } catch (error) {
     return ApiResponse.error(res, 'Failed to fetch payments', 500);
   }

@@ -41,10 +41,10 @@ module.exports = (sequelize) => {
       allowNull: true,
       unique: true
     },
-    area_id: {                // ← NEW FOREIGN KEY
+    company_id: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'area_id'
+      field: 'company_id'
     },
     status: {
       type: DataTypes.ENUM('active', 'inactive', 'suspended'),

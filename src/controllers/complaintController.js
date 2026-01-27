@@ -1,9 +1,8 @@
 const { validationResult } = require('express-validator');
 const ApiResponse = require('../helpers/responses');
 const ComplaintService = require('../services/complaint.service');
-const { sendWhatsAppMessage } = require('../helpers/whatsappHelper');
+const { sendComplaintNotification, sendWhatsAppMessage } = require('../helpers/whatsappHelper');
 
-// Create complaint
 const createComplaint = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -18,28 +17,91 @@ const createComplaint = async (req, res, next) => {
       name: req.body.name?.trim() || null,
       address: req.body.address?.trim() || null,
       whatsapp_number: req.body.whatsapp_number?.trim() || null,
-      description: req.body.description?.trim() || null,
     };
 
     const complaint = await ComplaintService.create(cleanData, req.user?.id || null);
 
-    // ---------------- Send WhatsApp to Customer ----------------
     if (complaint.whatsapp_number) {
-      const customerMessage = `✅ Your complaint has been registered successfully!
-Complaint ID: ${complaint.id}
+      const recipientNumber = complaint.whatsapp_number;
+      
+      try {
+        const axios = require('axios');
+        const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
+        const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+        const WHATSAPP_API_URL = `https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`;
+        
+        console.log(`📱 Opening conversation with template first...`);
+        
+        const templatePayload = {
+          messaging_product: 'whatsapp',
+          to: recipientNumber.replace('+', ''),
+          type: 'template',
+          template: {
+            name: 'hello_world',
+            language: {
+              code: 'en_US'
+            }
+          }
+        };
+
+        const templateResponse = await axios.post(WHATSAPP_API_URL, templatePayload, {
+          headers: {
+            'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log(`✅ Template sent to open conversation:`, templateResponse.data);
+        
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        console.log(`📱 Now sending real complaint message...`);
+        
+        const customerMessage = `🎫 PACE Telecom
+
+Dear ${complaint.name || 'Customer'},
+
+Your complaint has been registered!
+
+ID: ${complaint.id}
 Title: ${complaint.title}
-Description: ${complaint.description}
-Status: ${complaint.status}`;
-      await sendWhatsAppMessage(complaint.whatsapp_number, customerMessage);
+Status: ${complaint.status}
+
+We'll resolve this soon. Thank you!
+
+📞 0342-4231806
+🌐 pacetelecom.com`;
+        
+        console.log(`📝 Real message content:`, customerMessage);
+        
+        const payload = {
+          messaging_product: 'whatsapp',
+          to: recipientNumber.replace('+', ''),
+          type: 'text',
+          text: {
+            body: customerMessage
+          }
+        };
+
+        console.log(`📦 Real message payload:`, JSON.stringify(payload, null, 2));
+
+        const response = await axios.post(WHATSAPP_API_URL, payload, {
+          headers: {
+            'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log(`✅ Real complaint message sent successfully to ${recipientNumber}:`, response.data);
+      } catch (error) {
+        console.error(`❌ Customer WhatsApp failed for ${recipientNumber}:`, error.response?.data || error.message);
+        console.error(`🔍 Full error:`, error);
+      }
+    } else {
+      console.log(`⚠️ No WhatsApp number provided for customer`);
     }
 
-    // ---------------- Send WhatsApp to Admin ----------------
-    const adminNumber = process.env.ADMIN_WHATSAPP_NUMBER || '+923429055515';
-    const adminMessage = `📢 New Complaint Received!
-Customer: ${complaint.name || 'N/A'}
-Issue: ${complaint.description || 'No description'}
-ID: ${complaint.id}`;
-    await sendWhatsAppMessage(adminNumber, adminMessage);
+    await sendComplaintNotification(complaint.name || 'N/A', complaint.id, complaint.description || 'No description');
 
     return ApiResponse.success(res, complaint, 'Complaint registered successfully', 201);
   } catch (err) {
@@ -47,17 +109,15 @@ ID: ${complaint.id}`;
   }
 };
 
-// Get all complaints
 const getAllComplaints = async (req, res, next) => {
   try {
-    const complaints = await ComplaintService.getAll();
+    const complaints = await ComplaintService.getAll(req.companyId);
     return ApiResponse.success(res, { complaints });
   } catch (err) {
     next(err);
   }
 };
 
-// Update complaint
 const updateComplaint = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -68,7 +128,6 @@ const updateComplaint = async (req, res, next) => {
   }
 };
 
-// Get complaint statistics
 const getStats = async ( req, res, next) => {
   try {
     const stats = await ComplaintService.getStatusStats();

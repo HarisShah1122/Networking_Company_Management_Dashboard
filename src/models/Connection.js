@@ -8,7 +8,8 @@ module.exports = (sequelize) => {
     installation_date: { type: DataTypes.DATEONLY, allowNull: true },
     activation_date: { type: DataTypes.DATEONLY, allowNull: true },
     status: { type: DataTypes.ENUM('pending', 'completed', 'cancelled'), defaultValue: 'pending' },
-    notes: { type: DataTypes.TEXT, allowNull: true }
+    notes: { type: DataTypes.TEXT, allowNull: true },
+    company_id: { type: DataTypes.UUID, allowNull: true, field: 'company_id' }
   }, {
     tableName: 'connections',
     timestamps: true,
