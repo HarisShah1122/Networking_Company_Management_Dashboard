@@ -151,26 +151,8 @@ const processIncomingMessage = async (message, metadata) => {
 const handleTextMessage = async (from, message, contact) => {
   console.log(`📝 Text from ${from}: ${message}`);
   
-  // Auto-reply logic
-  let autoReply = '';
+  const autoReply = `Thank you for your message! 🙏\n\nOur team will review it and respond shortly.\n\nFor immediate assistance:\n📞 Call: 0342-4231806\n\n🌐 PACE Telecom`;
   
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-    autoReply = `Hello! 👋 Welcome to PACE Telecom.\n\nHow can I help you today?\n\nReply with:\n• "complaint" - Register a complaint\n• "payment" - Payment info\n• "support" - Talk to support\n• "status" - Check connection status`;
-  } else if (lowerMessage.includes('complaint')) {
-    autoReply = `📝 To register a complaint, please provide:\n\n1. Your PACE USER ID\n2. Issue description\n3. Your address\n\nExample:\nPACE USER ID: PACE-123-456\nIssue: Internet not working\nAddress: House #123, Mardan`;
-  } else if (lowerMessage.includes('payment')) {
-    autoReply = `💳 Payment Information:\n\nTo make a payment:\n• Visit our office\n• Call: 0342-4231806\n• Online: www.pacetelecom.com/pay\n\nFor payment history, reply with your PACE USER ID`;
-  } else if (lowerMessage.includes('support')) {
-    autoReply = `🛠️ PACE Telecom Support\n\nOur team is here to help!\n\n📞 Hotline: 0342-4231806\n📧 Email: support@pacetelecom.com\n🏢 Office: Main Market, Mardan\n\nWorking Hours: 9AM - 9PM`;
-  } else if (lowerMessage.includes('status')) {
-    autoReply = `🔍 Connection Status\n\nTo check your status, please provide:\n• Your PACE USER ID\n• Or registered phone number\n\nExample:\nPACE USER ID: PACE-123-456`;
-  } else {
-    autoReply = `Thank you for your message! 🙏\n\nOur team will review it and respond shortly.\n\nFor immediate assistance:\n📞 Call: 0342-4231806\n\nOr reply with:\n• "help" - See all options`;
-  }
-
-  // Send auto-reply
   await sendAutoReply(from, autoReply);
 };
 
@@ -178,7 +160,7 @@ const handleTextMessage = async (from, message, contact) => {
 const handleMediaMessage = async (from, mediaType, media, contact) => {
   console.log(`📎 ${mediaType} received from ${from}`);
   
-  const autoReply = `Thank you for sending the ${mediaType}! 📎\n\nOur team will review it and get back to you soon.\n\nFor urgent matters, call: 0342-4231806`;
+  const autoReply = `Thank you for your message! 🙏\n\nOur team will review it and respond shortly.\n\nFor immediate assistance:\n📞 Call: 0342-4231806\n\n🌐 PACE Telecom`;
   
   await sendAutoReply(from, autoReply);
 };
