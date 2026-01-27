@@ -32,6 +32,7 @@ const ComplaintsPage = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [whatsappNotifications, setWhatsappNotifications] = useState([]);
 
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
@@ -115,6 +116,15 @@ const ComplaintsPage = () => {
       } else {
         await complaintService.create(submitData);
         toast.success('Complaint created successfully!');
+        
+        // Simulate WhatsApp notification
+        addWhatsAppNotification({
+          type: 'complaint',
+          customerName: submitData.name || 'Unknown Customer',
+          complaintId: 'NEW-' + Date.now(),
+          description: submitData.description || 'No description',
+          timestamp: new Date()
+        });
       }
 
       handleCloseModal();
@@ -142,12 +152,77 @@ const ComplaintsPage = () => {
     setEditingComplaint(null);
   };
 
+  // WhatsApp notification functions
+  const addWhatsAppNotification = (notification) => {
+    const newNotification = {
+      id: Date.now(),
+      ...notification,
+      timestamp: new Date()
+    };
+    
+    setWhatsappNotifications(prev => [newNotification, ...prev].slice(0, 5)); // Keep only last 5
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      setWhatsappNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+    }, 10000);
+  };
+
+  const formatTime = (date) => {
+    return new Date(date).toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   if (loading) return <Loader />;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Complaints</h1>
+        
+        {/* WhatsApp Notifications */}
+        {whatsappNotifications.length > 0 && (
+          <div className="mb-6 space-y-2">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">WhatsApp Notifications</span>
+            </div>
+            {whatsappNotifications.map((notification) => (
+              <div key={notification.id} className="bg-green-50 border border-green-200 rounded-lg p-4 animate-in slide-in-from-top duration-300">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-green-600 font-medium">📱 WhatsApp Sent</span>
+                      <span className="text-xs text-gray-500">{formatTime(notification.timestamp)}</span>
+                    </div>
+                    {notification.type === 'complaint' && (
+                      <div className="text-sm text-gray-700">
+                        <p><strong>New Complaint:</strong> {notification.customerName}</p>
+                        <p><strong>ID:</strong> {notification.complaintId}</p>
+                        <p><strong>Issue:</strong> {notification.description}</p>
+                      </div>
+                    )}
+                    {notification.type === 'payment' && (
+                      <div className="text-sm text-gray-700">
+                        <p><strong>Payment Confirmation:</strong> {notification.customerName}</p>
+                        <p><strong>Amount:</strong> RS {notification.amount}</p>
+                        <p><strong>ID:</strong> {notification.paymentId}</p>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setWhatsappNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                    className="text-gray-400 hover:text-gray-600 ml-4"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-4 mb-4 flex-wrap">
