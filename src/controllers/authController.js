@@ -72,18 +72,16 @@ const register = async (req, res, next) => {
 /* GET CURRENT USER */
 const getMe = async (req, res, next) => {
   try {
-    if (!req.session.user)
+    if (!req.user) {
       return ApiResponse.unauthorized(res, 'Not authenticated');
-
-    const user = await UserService.getById(req.session.user.userId);
-    if (!user) return ApiResponse.notFound(res, 'User');
+    }
 
     return ApiResponse.success(res, {
       user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        companyId: user.companyId,
+        id: req.user.id,
+        username: req.user.username,
+        role: req.user.role,
+        companyId: req.user.companyId,
       },
     });
   } catch (error) {
