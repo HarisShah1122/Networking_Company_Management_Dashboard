@@ -44,11 +44,7 @@ const AppRoutes = () => {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/complaints" element={<ComplaintsPage />} />
-<<<<<<< HEAD
           <Route path="/complaints-dashboard" element={<ComplaintsDashboardEnhanced />} />
-=======
-          <Route path="/complaints-dashboard" element={<ComplaintsDashboard />} />
->>>>>>> 8c37bdcc1eb9faa1dbd80e02fee7c16647ab6daf
           <Route path="/areas" element={<AreasPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
         </Route>

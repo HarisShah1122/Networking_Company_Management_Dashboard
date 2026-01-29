@@ -286,9 +286,12 @@ const DashboardPage = () => {
           <h2 className="text-xl font-semibold text-gray-900">📋 Recent Complaints</h2>
           <Link 
             to="/complaints-dashboard" 
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            className="group inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            View All →
+            <span>View All</span>
+            <svg className="ml-2 w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
           </Link>
         </div>
         <div className="space-y-3">
