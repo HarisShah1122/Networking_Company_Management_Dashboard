@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { customerService } from '../../services/customerService';
 import { connectionService } from '../../services/connectionService';
@@ -266,6 +267,61 @@ const DashboardPage = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Complaints Section */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">📋 Recent Complaints</h2>
+          <Link 
+            to="/complaints-dashboard" 
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            View All →
+          </Link>
+        </div>
+        
+        <div className="space-y-3">
+          {/* Mock recent complaints data */}
+          <div className="border-l-4 border-yellow-500 pl-4 py-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">COMP-001</p>
+                <p className="text-sm text-gray-600">Internet connection is very slow in the morning hours</p>
+              </div>
+              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-500 text-white">
+                PENDING
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
+          </div>
+          
+          <div className="border-l-4 border-blue-500 pl-4 py-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">COMP-002</p>
+                <p className="text-sm text-gray-600">WiFi router not working after power outage</p>
+              </div>
+              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-500 text-white">
+                IN PROGRESS
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">5 hours ago</p>
+          </div>
+          
+          <div className="border-l-4 border-red-500 pl-4 py-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">COMP-003</p>
+                <p className="text-sm text-gray-600">Frequent disconnections during video calls</p>
+              </div>
+              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-500 text-white">
+                OVERDUE
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">26 hours ago</p>
           </div>
         </div>
       </div>
