@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { customerService } from '../../services/customerService';
 import { connectionService } from '../../services/connectionService';
@@ -19,6 +20,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [revenueData, setRevenueData] = useState([]);
   const [complaintData, setComplaintData] = useState([]);
+  const [recentComplaints, setRecentComplaints] = useState([]);
 
   useEffect(() => {
     loadStats();
@@ -36,9 +38,10 @@ const DashboardPage = () => {
         transactionService.getSummary().catch(() => ({ summary: {} })),
         complaintService.getStats().catch(() => ({ stats: {} })),
         transactionService.getRevenueGrowth().catch(() => ({ data: [] })),
+        complaintService.getAll().catch(() => []),
       ]);
 
-      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth] = results.map(r => 
+      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth, recentComplaintsData] = results.map(r => 
         r.status === 'fulfilled' ? r.value : (r.reason || {})
       );
 
@@ -57,26 +60,8 @@ const DashboardPage = () => {
         revenue: Number(row.revenue ?? row.total_revenue ?? 0),
       }));
       
-      // If no real data, show sample 12-month data for demonstration
-      if (revenueGrowthData.length === 0) {
-        const sampleData = [
-          { month: 'Jan', revenue: 45000 },
-          { month: 'Feb', revenue: 52000 },
-          { month: 'Mar', revenue: 48000 },
-          { month: 'Apr', revenue: 61000 },
-          { month: 'May', revenue: 58000 },
-          { month: 'Jun', revenue: 67000 },
-          { month: 'Jul', revenue: 72000 },
-          { month: 'Aug', revenue: 69000 },
-          { month: 'Sep', revenue: 75000 },
-          { month: 'Oct', revenue: 71000 },
-          { month: 'Nov', revenue: 78000 },
-          { month: 'Dec', revenue: 82000 },
-        ];
-        setRevenueData(sampleData);
-      } else {
-        setRevenueData(revenueGrowthData);
-      }
+      // Use real data only
+      setRevenueData(revenueGrowthData);
 
       // Complaint Status (real data)
       const cs = complaintStats?.stats ?? complaintStats ?? {};
@@ -86,6 +71,13 @@ const DashboardPage = () => {
         { name: 'On Hold', value: Number(cs.on_hold ?? cs.onHold ?? 0), color: '#F59E0B' },
         { name: 'Closed', value: Number(cs.closed ?? cs.Closed ?? 0), color: '#22C55E' },
       ]);
+
+      // Recent Complaints (show last 5)
+      const complaints = recentComplaintsData || [];
+      const sortedComplaints = complaints
+        .sort((a, b) => new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at))
+        .slice(0, 5);
+      setRecentComplaints(sortedComplaints);
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
       // Keep default values on error
@@ -99,6 +91,35 @@ const DashboardPage = () => {
   }
 
   const profitLoss = parseFloat(stats.transactions?.total_income ?? 0) - parseFloat(stats.transactions?.total_expense ?? 0);
+
+  // Helper functions for status/priority/source colors
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'open': return 'bg-red-500 text-white';
+      case 'in_progress': return 'bg-blue-500 text-white';
+      case 'on_hold': return 'bg-yellow-500 text-white';
+      case 'closed': return 'bg-green-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-500 text-white';
+      case 'high': return 'bg-orange-500 text-white';
+      case 'medium': return 'bg-yellow-500 text-white';
+      case 'low': return 'bg-green-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
+
+  const getSourceColor = (source) => {
+    switch (source) {
+      case 'internal': return 'text-blue-600 bg-blue-100';
+      case 'external': return 'text-purple-600 bg-purple-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -193,22 +214,31 @@ const DashboardPage = () => {
                 Last 12 Months
               </button>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#3B82F6" 
-                  strokeWidth={2}
-                  name="Revenue (RS)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {revenueData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="#3B82F6" 
+                    strokeWidth={2}
+                    name="Revenue (RS)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <div className="text-center">
+                  <p className="text-lg font-medium">No revenue data available</p>
+                  <p className="text-sm mt-2">Revenue data will appear here once transactions are recorded</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -267,6 +297,69 @@ const DashboardPage = () => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Recent Complaints Section */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">📋 Recent Complaints</h2>
+          <Link 
+            to="/complaints-dashboard" 
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            View All →
+          </Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {recentComplaints.length > 0 ? (
+                recentComplaints.map((complaint) => (
+                  <tr key={complaint.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{complaint.name || 'Unknown'}</div>
+                      <div className="text-sm text-gray-500">💬 {complaint.whatsapp_number || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{complaint.title || 'No Title'}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {complaint.description?.substring(0, 60)}...
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(complaint.status)}`}>
+                        {complaint.status || 'open'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(complaint.priority)}`}>
+                        {complaint.priority || 'medium'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(complaint.createdAt || complaint.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                    No recent complaints found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
