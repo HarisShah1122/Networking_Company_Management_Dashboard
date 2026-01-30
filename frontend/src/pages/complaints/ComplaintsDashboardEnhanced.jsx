@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { complaintService } from '../../services/complaintService';
+import assignmentService from '../../services/assignmentService';
 
 const ComplaintsDashboardEnhanced = () => {
   const [complaints, setComplaints] = useState([]);
@@ -17,6 +18,11 @@ const ComplaintsDashboardEnhanced = () => {
     resolved: 0,
     overdue: 0
   });
+  const [mardanOffices, setMardanOffices] = useState([]);
+  const [availableStaff, setAvailableStaff] = useState([]);
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedComplaintForAssignment, setSelectedComplaintForAssignment] = useState(null);
 
   // Mock staff members
   const staffMembers = [
@@ -157,28 +163,80 @@ const ComplaintsDashboardEnhanced = () => {
     return `${timeRemaining.hours}h ${timeRemaining.minutes}m ${timeRemaining.seconds}s`;
   }, []);
 
-  // Assign complaint to staff member
-  const assignComplaint = useCallback((complaintId, staffId) => {
-    const staffMember = staffMembers.find(s => s.id === staffId);
-    const updatedComplaints = complaints.map(complaint => {
-      if (complaint.id === complaintId) {
-        return {
-          ...complaint,
-          assignedTo: staffId,
-          assignedAt: new Date().toISOString(),
-          status: 'in_progress',
-          fine: 0
-        };
-      }
-      return complaint;
-    });
+  const assignComplaint = useCallback(async (complaintId, staffId, officeId) => {
+    try {
+      setAssignmentLoading(true);
+      
+      const assignmentResult = await assignmentService.manualAssignment(
+        complaintId, 
+        staffId, 
+        officeId || 'mardan_main',
+        'Manual assignment from dashboard'
+      );
 
-    setComplaints(updatedComplaints);
-    setFilteredComplaints(updatedComplaints);
-    calculateStats(updatedComplaints);
-    
-    toast.success(`Complaint assigned to ${staffMember.name}`, { autoClose: 3000 });
+      const updatedComplaints = complaints.map(complaint => {
+        if (complaint.id === complaintId) {
+          const staffMember = staffMembers.find(s => s.id === staffId);
+          return {
+            ...complaint,
+            assignedTo: staffId,
+            assignedAt: new Date().toISOString(),
+            status: 'in_progress',
+            officeId: officeId || 'mardan_main',
+            fine: 0
+          };
+        }
+        return complaint;
+      });
+
+      setComplaints(updatedComplaints);
+      setFilteredComplaints(updatedComplaints);
+      calculateStats(updatedComplaints);
+      
+    } catch (error) {
+      console.error('Assignment failed:', error);
+    } finally {
+      setAssignmentLoading(false);
+    }
   }, [complaints, staffMembers, calculateStats]);
+
+  const autoAssignComplaint = useCallback(async (complaintId) => {
+    try {
+      setAssignmentLoading(true);
+      
+      const assignmentResult = await assignmentService.assignComplaint(complaintId);
+
+      if (assignmentResult.success) {
+        const updatedComplaints = complaints.map(complaint => {
+          if (complaint.id === complaintId) {
+            return {
+              ...complaint,
+              assignedTo: assignmentResult.assignedTo.id,
+              assignedAt: new Date().toISOString(),
+              status: 'in_progress',
+              officeId: assignmentResult.officeId,
+              assignmentMethod: 'automated'
+            };
+          }
+          return complaint;
+        });
+
+        setComplaints(updatedComplaints);
+        setFilteredComplaints(updatedComplaints);
+        calculateStats(updatedComplaints);
+      }
+      
+    } catch (error) {
+      console.error('Auto assignment failed:', error);
+    } finally {
+      setAssignmentLoading(false);
+    }
+  }, [complaints, calculateStats]);
+
+  const openAssignmentModal = useCallback((complaint) => {
+    setSelectedComplaintForAssignment(complaint);
+    setShowAssignmentModal(true);
+  }, []);
 
   // Update complaint status
   const updateComplaintStatus = useCallback((complaintId, newStatus) => {
@@ -282,7 +340,17 @@ const ComplaintsDashboardEnhanced = () => {
   // Load complaints on mount
   useEffect(() => {
     loadComplaints();
+    loadMardanOffices();
   }, [loadComplaints]);
+
+  const loadMardanOffices = async () => {
+    try {
+      const offices = await assignmentService.getMardanOffices();
+      setMardanOffices(offices);
+    } catch (error) {
+      console.error('Error loading Mardan offices:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -418,23 +486,26 @@ const ComplaintsDashboardEnhanced = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => viewComplaint(complaint)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
+                          className="text-blue-600 hover:text-blue-900 mr-2"
                         >
                           View Details
                         </button>
                         {complaint.status === 'pending' && (
-                          <select
-                            onChange={(e) => assignComplaint(complaint.id, parseInt(e.target.value))}
-                            className="text-sm border border-gray-300 rounded px-2 py-1"
-                            defaultValue=""
-                          >
-                            <option value="" disabled>Assign</option>
-                            {staffMembers.map(staff => (
-                              <option key={staff.id} value={staff.id}>
-                                {staff.name}
-                              </option>
-                            ))}
-                          </select>
+                          <>
+                            <button
+                              onClick={() => autoAssignComplaint(complaint.id)}
+                              disabled={assignmentLoading}
+                              className="text-green-600 hover:text-green-900 mr-2 text-sm bg-green-50 px-2 py-1 rounded"
+                            >
+                              {assignmentLoading ? 'Assigning...' : 'Auto Assign'}
+                            </button>
+                            <button
+                              onClick={() => openAssignmentModal(complaint)}
+                              className="text-purple-600 hover:text-purple-900 text-sm bg-purple-50 px-2 py-1 rounded"
+                            >
+                              Manual Assign
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -602,6 +673,99 @@ const ComplaintsDashboardEnhanced = () => {
                       Mark Resolved
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Assignment Modal */}
+        {showAssignmentModal && selectedComplaintForAssignment && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-lg bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Assign Complaint - {selectedComplaintForAssignment.id}</h3>
+                <button
+                  onClick={() => setShowAssignmentModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2">Complaint Details</h4>
+                  <p className="text-sm text-gray-600">{selectedComplaintForAssignment.description}</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    <strong>Location:</strong> {selectedComplaintForAssignment.address}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Customer:</strong> {selectedComplaintForAssignment.name}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Office</label>
+                  <select
+                    id="officeSelect"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={async (e) => {
+                      const officeId = e.target.value;
+                      if (officeId) {
+                        try {
+                          const staff = await assignmentService.getAvailableStaff(officeId);
+                          setAvailableStaff(staff);
+                        } catch (error) {
+                          console.error('Error loading staff:', error);
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">Select an office</option>
+                    {mardanOffices.map(office => (
+                      <option key={office.id} value={office.id}>
+                        {office.name} ({office.availableStaffCount} available staff)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {availableStaff.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Available Staff</label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {availableStaff.map(staff => (
+                        <div key={staff.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
+                          <div className="flex-1">
+                            <p className="font-medium">{staff.name}</p>
+                            <p className="text-sm text-gray-600">
+                              Workload: {staff.workload.activeComplaints}/{staff.workload.capacity} 
+                              (Score: {Math.round(staff.availabilityScore)})
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              assignComplaint(selectedComplaintForAssignment.id, staff.id, document.getElementById('officeSelect').value);
+                              setShowAssignmentModal(false);
+                            }}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                          >
+                            Assign
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    onClick={() => setShowAssignmentModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             </div>

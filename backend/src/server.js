@@ -28,6 +28,7 @@ const packageRenewalRoutes = require('./routes/packageRenewal.routes');
 const areaRoutes = require('./routes/area.routes');
 const testWhatsAppRoutes = require('./routes/testWhatsApp');
 const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
+const assignmentRoutes = require('./routes/assignment');
 if (!SESSION_SECRET) {
   throw new Error('SESSION_SECRET missing in .env');
 }
@@ -73,6 +74,7 @@ app.use('/api/package-renewals', packageRenewalRoutes);
 app.use('/api/areas', areaRoutes);
 app.use('/api/test-whatsapp', testWhatsAppRoutes);
 app.use('/webhook', whatsappWebhookRoutes);
+app.use('/api/assignment', assignmentRoutes);
 /* ERROR HANDLING */
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
