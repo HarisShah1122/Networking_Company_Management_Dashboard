@@ -29,7 +29,6 @@ const authenticate = async (req, res, next) => {
 
     return res.status(401).json({ error: 'Not authenticated' });
   } catch (err) {
-    console.error('Auth middleware error:', err);
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };

@@ -292,7 +292,7 @@ const ComplaintsDashboard = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer Details</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issue</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
@@ -305,10 +305,27 @@ const ComplaintsDashboard = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredComplaints.map((complaint) => (
                 <tr key={complaint.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{complaint.name}</div>
-                      <div className="text-sm text-gray-500">💬 {complaint.whatsapp_number}</div>
+                  <td className="px-6 py-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-xs font-medium text-blue-600">
+                            {complaint.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{complaint.name || 'Unknown'}</div>
+                          <div className="text-xs text-gray-500">ID: {complaint.customerId || 'N/A'}</div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-600 flex items-center">
+                        <span className="mr-2">�</span>
+                        <span>{complaint.whatsapp_number || 'No phone'}</span>
+                      </div>
+                      <div className="text-xs text-gray-600 flex items-center">
+                        <span className="mr-2">📍</span>
+                        <span>{complaint.address || 'No address'}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -385,28 +402,44 @@ const ComplaintsDashboard = () => {
       >
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column - Complaint Info */}
+            {/* Left Column - Customer Info */}
             <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
+                  <span className="mr-2">👤</span>
+                  Customer Information
+                </h3>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-sm font-medium text-blue-600">
+                        {selectedComplaint?.name?.charAt(0)?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{selectedComplaint?.name || 'Unknown Customer'}</p>
+                      <p className="text-xs text-gray-500">ID: {selectedComplaint?.customerId || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex items-center text-sm">
+                      <span className="mr-2 text-gray-500">📱</span>
+                      <span className="text-gray-900">{selectedComplaint?.whatsapp_number || 'No phone number'}</span>
+                    </div>
+                    
+                    <div className="flex items-start text-sm">
+                      <span className="mr-2 text-gray-500 mt-0.5">📍</span>
+                      <span className="text-gray-900">{selectedComplaint?.address || 'No address provided'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Complaint ID</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{selectedComplaint?.id?.substring(0, 8) || 'N/A'}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{selectedComplaint?.name || 'Unknown'}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">💬 {selectedComplaint?.whatsapp_number || 'N/A'}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                  {selectedComplaint?.address || 'No address provided'}
-                </p>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded font-mono">{selectedComplaint?.id?.substring(0, 8) || 'N/A'}</p>
               </div>
 
               <div>

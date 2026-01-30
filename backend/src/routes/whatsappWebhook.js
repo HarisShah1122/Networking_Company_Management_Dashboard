@@ -133,7 +133,7 @@ const processIncomingMessage = async (message, metadata) => {
 // Handle text messages
 const handleTextMessage = async (from, message, contact) => {
   
-  const autoReply = `Thank you for your message! 🙏\n\nOur team will review it and respond shortly.\n\nFor immediate assistance:\n📞 Call: 0342-4231806\n\n🌐 PACE Telecom`;
+  const autoReply = `Thank you for your message! 🙏\n\nOur team will review it and respond shortly.\n\nFor immediate assistance:\n📞 +923444746196\n\n🌐 PACE Telecom`;
   
   await sendAutoReply(from, autoReply);
 };
@@ -141,7 +141,7 @@ const handleTextMessage = async (from, message, contact) => {
 // Handle media messages (image, document, audio, video)
 const handleMediaMessage = async (from, mediaType, media, contact) => {
   
-  const autoReply = `Thank you for your message! 🙏\n\nOur team will review it and respond shortly.\n\nFor immediate assistance:\n📞 Call: 0342-4231806\n\n🌐 PACE Telecom`;
+  const autoReply = `Thank you for your message! 🙏\n\nOur team will review it and respond shortly.\n\nFor immediate assistance:\n📞 +923444746196\n\n🌐 PACE Telecom`;
   
   await sendAutoReply(from, autoReply);
 };
@@ -149,7 +149,7 @@ const handleMediaMessage = async (from, mediaType, media, contact) => {
 // Handle location messages
 const handleLocationMessage = async (from, location, contact) => {
   
-  const autoReply = `📍 Location received!\n\nThank you for sharing your location. Our team will use this for service delivery.\n\nFor immediate assistance: 0342-4231806`;
+  const autoReply = `📍 Location received!\n\nThank you for sharing your location. Our team will use this for service delivery.\n\nFor immediate assistance: +923444746196`;
   
   await sendAutoReply(from, autoReply);
 };
@@ -173,7 +173,7 @@ const handleInteractiveMessage = async (from, interactive, contact) => {
 // Handle unsupported message types
 const handleUnsupportedMessage = async (from, type, contact) => {
   
-  const autoReply = `We received your message but this format is not yet supported. 📱\n\nPlease try sending a text message instead.\n\nFor immediate assistance: 0342-4231806`;
+  const autoReply = `We received your message but this format is not yet supported. 📱\n\nPlease try sending a text message instead.\n\nFor immediate assistance: +923444746196`;
   
   await sendAutoReply(from, autoReply);
 };
