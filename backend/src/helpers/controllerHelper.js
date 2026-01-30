@@ -10,6 +10,10 @@ const handleValidation = (req, res) => {
   return null;
 };
 
+const handleAsyncError = (error, req, res, next) => {
+  next(error);
+};
+
 const crudHandlers = {
   getAll: async (req, res, next, serviceMethod, resourceName, filters = {}) => {
     try {
@@ -19,10 +23,7 @@ const crudHandlers = {
         : resourceName + 's';
       return ApiResponse.success(res, { [responseKey]: data }, `${resourceName} retrieved successfully`);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`Error fetching ${resourceName}:`, error.message);
-      }
-      next(error);
+      handleAsyncError(error, req, res, next);
     }
   },
 
@@ -36,7 +37,7 @@ const crudHandlers = {
 
       return ApiResponse.success(res, { [resourceName.toLowerCase()]: item }, `${resourceName} retrieved successfully`);
     } catch (error) {
-      next(error);
+      handleAsyncError(error, req, res, next);
     }
   },
 
@@ -58,7 +59,7 @@ const crudHandlers = {
 
       return ApiResponse.success(res, { [resourceName.toLowerCase()]: item }, `${resourceName} created successfully`, statusCode);
     } catch (error) {
-      next(error);
+      handleAsyncError(error, req, res, next);
     }
   },
 
@@ -84,7 +85,7 @@ const crudHandlers = {
 
       return ApiResponse.success(res, { [resourceName.toLowerCase()]: item }, `${resourceName} updated successfully`);
     } catch (error) {
-      next(error);
+      handleAsyncError(error, req, res, next);
     }
   },
 
@@ -114,13 +115,14 @@ const crudHandlers = {
 
       return ApiResponse.success(res, null, `${resourceName} deleted successfully`);
     } catch (error) {
-      next(error);
+      handleAsyncError(error, req, res, next);
     }
   }
 };
 
 module.exports = {
   handleValidation,
+  handleAsyncError,
   crudHandlers
 };
 

@@ -1,6 +1,5 @@
 const { validationResult } = require('express-validator');
 const UserService = require('../services/user.service');
-const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
 const { validateUser } = require('../helpers/validators');
 
@@ -48,13 +47,6 @@ const create = async (req, res, next) => {
 
     const user = await UserService.create(req.body);
     
-    activityLogService.logActivity(
-      req.user.id,
-      'create',
-      'users',
-      `Created user: ${user.username}`
-    );
-
     const userResponse = {
       id: user.id,
       email: user.email,
@@ -82,13 +74,6 @@ const update = async (req, res, next) => {
     if (!user) {
       return ApiResponse.notFound(res, 'User');
     }
-
-    activityLogService.logActivity(
-      req.user.id,
-      'update',
-      'users',
-      `Updated user: ${user.username}`
-    );
 
     return ApiResponse.success(res, { user }, 'User updated successfully');
   } catch (error) {

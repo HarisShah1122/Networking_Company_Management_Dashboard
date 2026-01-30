@@ -24,7 +24,7 @@ module.exports = {
         updated_at: new Date()
       }], {});
     } else {
-      console.log('Super admin user already exists, skipping...');
+
       return Promise.resolve();
     }
   },

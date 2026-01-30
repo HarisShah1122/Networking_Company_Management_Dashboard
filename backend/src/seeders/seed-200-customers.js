@@ -230,14 +230,10 @@ function generatePaceUserId(index) {
 
 async function seedDatabase() {
   try {
-    console.log('Connecting to database...');
     await sequelize.authenticate();
-    console.log('Database connected successfully');
 
     await sequelize.sync({ alter: false });
-    console.log('Models synced');
 
-    console.log('Clearing existing seed data...');
     if (Payment) {
       await Payment.destroy({ where: {}, force: true });
     }
@@ -251,7 +247,6 @@ async function seedDatabase() {
     const existingAreas = await Area.findAll();
     const existingUsers = await User.findAll();
 
-    console.log('Creating Areas...');
     let katlangArea = existingAreas.find(a => a.name === 'Katlang') || await Area.create({
       id: uuidv4(),
       name: 'Katlang',
@@ -266,7 +261,6 @@ async function seedDatabase() {
       description: 'Mardan City area, Mardan District'
     });
 
-    console.log('Areas created/found');
 
     let ceoUser = existingUsers.find(u => u.role === 'CEO');
     if (!ceoUser) {
@@ -279,12 +273,9 @@ async function seedDatabase() {
         role: 'CEO',
         status: 'active'
       });
-      console.log('CEO user created');
     } else {
-      console.log('CEO user already exists');
     }
 
-    console.log('Creating 200 Pakistani Customers...');
     const customers = [];
     for (let i = 0; i < 200; i++) {
       const name = generatePakistaniName();
@@ -312,9 +303,7 @@ async function seedDatabase() {
       });
       customers.push(customer);
     }
-    console.log(`${customers.length} customers created`);
 
-    console.log('Creating 200 Connections...');
     const connections = [];
     for (let i = 0; i < 200; i++) {
       const customer = customers[i];
@@ -335,9 +324,7 @@ async function seedDatabase() {
       });
       connections.push(connection);
     }
-    console.log(`${connections.length} connections created`);
 
-    console.log('Creating 200 Recharges...');
     const recharges = [];
     for (let i = 0; i < 200; i++) {
       const customer = customers[i];
@@ -363,9 +350,7 @@ async function seedDatabase() {
       });
       recharges.push(recharge);
     }
-    console.log(`${recharges.length} recharges created`);
 
-    console.log('Creating 50 Stock Items...');
     const stockItems = [];
     for (let i = 0; i < 50; i++) {
       const category = getRandomElement(stockCategories);
@@ -380,9 +365,7 @@ async function seedDatabase() {
       });
       stockItems.push(stock);
     }
-    console.log(`${stockItems.length} stock items created`);
 
-    console.log('Creating 100 Transactions...');
     const transactions = [];
     for (let i = 0; i < 100; i++) {
       const type = Math.random() > 0.5 ? 'income' : 'expense';
@@ -402,9 +385,7 @@ async function seedDatabase() {
       });
       transactions.push(transaction);
     }
-    console.log(`${transactions.length} transactions created`);
 
-    console.log('Creating 100 Complaints...');
     const complaints = [];
     const complaintTitles = [
       'Slow Internet Speed', 'Connection Dropping', 'Billing Issue', 'Router Not Working',
@@ -435,22 +416,10 @@ async function seedDatabase() {
       });
       complaints.push(complaint);
     }
-    console.log(`${complaints.length} complaints created`);
 
-    console.log('\n✅ Seeding completed successfully!');
-    console.log('\nSummary:');
-    console.log(`- Areas: 2 (Katlang, Mardan)`);
-    console.log(`- Customers: ${customers.length}`);
-    console.log(`- Connections: ${connections.length}`);
-    console.log(`- Recharges: ${recharges.length}`);
-    console.log(`- Stock Items: ${stockItems.length}`);
-    console.log(`- Transactions: ${transactions.length}`);
-    console.log(`- Complaints: ${complaints.length}`);
-    console.log('\nAll data seeded with 200 Pakistani users from Katlang and Mardan areas!');
 
     process.exit(0);
   } catch (error) {
-    console.error('Error seeding database:', error);
     process.exit(1);
   }
 }

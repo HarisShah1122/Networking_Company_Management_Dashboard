@@ -32,10 +32,8 @@ const sendWhatsAppMessage = async (to, message) => {
         }
       });
 
-      console.log(`WhatsApp template sent to ${recipientNumber}:`, response.data);
       return response.data;
     } catch (templateError) {
-      console.log('Template failed, trying text message:', templateError.response?.data);
       
       const textPayload = {
         messaging_product: 'whatsapp',
@@ -53,11 +51,9 @@ const sendWhatsAppMessage = async (to, message) => {
         }
       });
 
-      console.log(`WhatsApp text sent to ${recipientNumber}:`, response.data);
       return response.data;
     }
   } catch (error) {
-    console.error('WhatsApp sending failed:', error.response?.data || error.message);
     return null;
   }
 };
@@ -92,10 +88,9 @@ const sendWhatsAppTemplate = async (to, templateName, parameters = []) => {
       }
     });
 
-    console.log(`WhatsApp template sent to ${recipientNumber}:`, response.data);
+
     return response.data;
   } catch (error) {
-    console.error('WhatsApp template sending failed:', error.response?.data || error.message);
     return null;
   }
 };
@@ -122,10 +117,8 @@ const sendComplaintNotification = async (customerName, complaintId, description)
       }
     });
 
-    console.log(`Complaint notification sent to ${recipientNumber}:`, response.data);
     return response.data;
   } catch (error) {
-    console.error('Complaint notification failed:', error.response?.data || error.message);
     return null;
   }
 };

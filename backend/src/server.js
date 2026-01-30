@@ -82,10 +82,10 @@ app.use(errorHandler);
 (async () => {
   try {
     await sequelize.authenticate();
-    console.log('✅ Database connected');
+
     if (process.env.NODE_ENV !== 'production') {
       app.listen(PORT, () => {
-        console.log(`🚀 Server running on http://localhost:${PORT}`);
+
       });
     }
   } catch (error) {
