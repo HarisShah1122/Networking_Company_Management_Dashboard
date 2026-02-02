@@ -24,13 +24,32 @@ const ComplaintsDashboardEnhanced = () => {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedComplaintForAssignment, setSelectedComplaintForAssignment] = useState(null);
 
-  // Mock staff members
+  // Real areas data
+  const areas = [
+    "PACE TELECOM Katlang",
+    "PACE TELECOM Katti Garhi", 
+    "PACE TELECOM Jamal Garhi",
+    "PACE TELECOM Ghondo",
+    "PACE TELECOM Babozo",
+    "PACE TELECOM Shadand"
+  ];
+
+  // Real staff members
   const staffMembers = [
-    { id: 1, name: 'Ahmed Khan', role: 'Technician', fines: 0 },
-    { id: 2, name: 'Sara Ali', role: 'Support Staff', fines: 0 },
-    { id: 3, name: 'Muhammad Raza', role: 'Technician', fines: 0 },
-    { id: 4, name: 'Fatima Sheikh', role: 'Support Staff', fines: 0 },
-    { id: 5, name: 'Bilal Ahmed', role: 'Technician', fines: 0 }
+    { id: 1, name: 'Mansoor Khan', role: 'Manager', area: 'Katti Garhi', fines: 0 },
+    { id: 2, name: 'Shawkat Ali', role: 'Technician', fines: 0 },
+    { id: 3, name: 'Muhammad Yaseen', role: 'Technician', fines: 0 },
+    { id: 4, name: 'Muhammad Adil', role: 'Technician', fines: 0 },
+    { id: 5, name: 'Jabran', role: 'Technician', fines: 0 },
+    { id: 6, name: 'Maaz', role: 'Technician', fines: 0 },
+    { id: 7, name: 'Ubaid', role: 'Technician', area: 'Babozo', fines: 0 },
+    { id: 8, name: 'Shakeel', role: 'Technician', area: 'Katlang', fines: 0 },
+    { id: 9, name: 'Alhaj', role: 'Technician', fines: 0 },
+    { id: 10, name: 'Ihraq', role: 'Technician', fines: 0 },
+    { id: 11, name: 'Ghafar Ali', role: 'Technician', area: 'Ghondo', fines: 0 },
+    { id: 12, name: 'Muhammad Awais', role: 'Technician', fines: 0 },
+    { id: 13, name: 'Tasleem Khan', role: 'Technician', fines: 0 },
+    { id: 14, name: 'Muhammad Ejaz', role: 'Manager', area: 'Jamal Garhi', fines: 0 }
   ];
 
   // Mock complaints data
@@ -608,7 +627,7 @@ const ComplaintsDashboardEnhanced = () => {
                         <option value="" disabled>Select staff member</option>
                         {staffMembers.map(staff => (
                           <option key={staff.id} value={staff.id}>
-                            {staff.name} - {staff.role}
+                            {staff.name} - {staff.role} {staff.area ? `(${staff.area})` : ''}
                           </option>
                         ))}
                       </select>
@@ -723,10 +742,8 @@ const ComplaintsDashboardEnhanced = () => {
                     }}
                   >
                     <option value="">Select an office</option>
-                    {mardanOffices.map(office => (
-                      <option key={office.id} value={office.id}>
-                        {office.name} ({office.availableStaffCount} available staff)
-                      </option>
+                    {areas.map(area => (
+                      <option key={area} value={area}>{area}</option>
                     ))}
                   </select>
                 </div>
