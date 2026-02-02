@@ -188,13 +188,15 @@ const ComplaintsPage = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <ComplaintTable
-          complaints={complaints}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          canManage={canManage}
-          onEdit={handleEdit}
-        />
+        <div className="overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <ComplaintTable
+            complaints={complaints}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            canManage={canManage}
+            onEdit={handleEdit}
+          />
+        </div>
 
         {complaints.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t">

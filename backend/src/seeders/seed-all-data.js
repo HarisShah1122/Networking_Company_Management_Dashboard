@@ -1,8 +1,8 @@
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
-const sequelize = require('../src/config/database');
-const { User, Customer, Connection, Recharge, Stock, Transaction, Complaint, Area, Payment, Company, ActivityLog } = require('../src/models');
+const sequelize = require('../config/database');
+const { User, Customer, Connection, Recharge, Stock, Transaction, Complaint, Area, Payment, Company, ActivityLog } = require('../models');
 
 // Pakistani names for seeding
 const pakistaniNames = [

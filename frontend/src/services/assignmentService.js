@@ -23,7 +23,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error assigning complaint:', error);
       toast.error('Failed to assign complaint');
       throw error;
     }
@@ -51,7 +50,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error auto-assigning complaints:', error);
       toast.error('Failed to auto-assign complaints');
       throw error;
     }
@@ -78,7 +76,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error in manual assignment:', error);
       toast.error('Failed to assign complaint manually');
       throw error;
     }
@@ -105,7 +102,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error reassigning complaint:', error);
       toast.error('Failed to reassign complaint');
       throw error;
     }
@@ -128,7 +124,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error getting assignment stats:', error);
       throw error;
     }
   },
@@ -150,7 +145,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error getting available staff:', error);
       throw error;
     }
   },
@@ -172,7 +166,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error getting Mardan offices:', error);
       throw error;
     }
   },
@@ -194,7 +187,6 @@ const assignmentService = {
         throw new Error(data.message);
       }
     } catch (error) {
-      console.error('Error getting staff workload:', error);
       throw error;
     }
   }
