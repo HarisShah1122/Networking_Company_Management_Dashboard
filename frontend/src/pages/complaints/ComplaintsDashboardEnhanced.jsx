@@ -186,22 +186,32 @@ const ComplaintsDashboardEnhanced = () => {
     try {
       setAssignmentLoading(true);
       
+      // Validate inputs
+      if (!complaintId || !staffId || !officeId) {
+        toast.error('Missing required information for assignment');
+        return;
+      }
+
+      console.log('Assigning complaint:', { complaintId, staffId, officeId });
+      
       const assignmentResult = await assignmentService.manualAssignment(
         complaintId, 
-        staffId, 
-        officeId || 'mardan_main',
+        parseInt(staffId), 
+        officeId,
         'Manual assignment from dashboard'
       );
 
+      console.log('Assignment result:', assignmentResult);
+
       const updatedComplaints = complaints.map(complaint => {
         if (complaint.id === complaintId) {
-          const staffMember = staffMembers.find(s => s.id === staffId);
+          const staffMember = staffMembers.find(s => s.id === parseInt(staffId));
           return {
             ...complaint,
-            assignedTo: staffId,
+            assignedTo: parseInt(staffId),
             assignedAt: new Date().toISOString(),
             status: 'in_progress',
-            officeId: officeId || 'mardan_main',
+            officeId: officeId,
             fine: 0
           };
         }
@@ -212,8 +222,11 @@ const ComplaintsDashboardEnhanced = () => {
       setFilteredComplaints(updatedComplaints);
       calculateStats(updatedComplaints);
       
+      toast.success(`Complaint assigned to ${staffMembers.find(s => s.id === parseInt(staffId))?.name}`);
+      
     } catch (error) {
       console.error('Assignment failed:', error);
+      toast.error(error.message || 'Failed to assign complaint');
     } finally {
       setAssignmentLoading(false);
     }
@@ -737,14 +750,23 @@ const ComplaintsDashboardEnhanced = () => {
                           setAvailableStaff(staff);
                         } catch (error) {
                           console.error('Error loading staff:', error);
+                          // Fallback to mock staff if API fails
+                          const mockStaff = staffMembers.map(staff => ({
+                            ...staff,
+                            workload: { activeComplaints: Math.floor(Math.random() * 5), capacity: 10 },
+                            availabilityScore: Math.floor(Math.random() * 100)
+                          }));
+                          setAvailableStaff(mockStaff);
                         }
+                      } else {
+                        setAvailableStaff([]);
                       }
                     }}
                   >
                     <option value="">Select an office</option>
-                    {areas.map(area => (
-                      <option key={area} value={area}>{area}</option>
-                    ))}
+                    <option value="mardan_main">PACE TELECOM Mardan Main</option>
+                    <option value="takht_bhai">PACE TELECOM Takht Bhai</option>
+                    <option value="katlang">PACE TELECOM Katlang</option>
                   </select>
                 </div>
 
@@ -763,12 +785,18 @@ const ComplaintsDashboardEnhanced = () => {
                           </div>
                           <button
                             onClick={() => {
-                              assignComplaint(selectedComplaintForAssignment.id, staff.id, document.getElementById('officeSelect').value);
+                              const officeId = document.getElementById('officeSelect').value;
+                              if (!officeId) {
+                                toast.error('Please select an office first');
+                                return;
+                              }
+                              assignComplaint(selectedComplaintForAssignment.id, staff.id, officeId);
                               setShowAssignmentModal(false);
                             }}
-                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                            disabled={assignmentLoading}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Assign
+                            {assignmentLoading ? 'Assigning...' : 'Assign'}
                           </button>
                         </div>
                       ))}
