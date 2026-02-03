@@ -1,6 +1,5 @@
 const { MARDAN_OFFICE_LOCATIONS, MARDAN_DISTRICT_MAPPING, ASSIGNMENT_PRIORITY, WORKLOAD_LIMITS, DISTANCE_MATRIX } = require('../config/geographicConfig');
-const Complaint = require('../models/Complaint');
-const User = require('../models/User');
+const { Complaint, User } = require('../models');
 
 class AssignmentService {
   constructor() {
@@ -109,11 +108,10 @@ class AssignmentService {
     try {
       const staffMembers = await User.findAll({
         where: {
-          role: 'staff',
-          officeId: officeId,
-          isActive: true
+          role: 'Staff',
+          status: 'active'
         },
-        attributes: ['id', 'name', 'email', 'phone', 'role', 'officeId']
+        attributes: ['id', 'username', 'email', 'phone', 'role', 'status']
       });
 
       const availableStaff = [];

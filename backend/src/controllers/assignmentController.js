@@ -1,5 +1,5 @@
+const { Complaint } = require('../models');
 const assignmentService = require('../services/assignmentService');
-const Complaint = require('../models/Complaint');
 const ApiResponse = require('../helpers/responses');
 
 class AssignmentController {
@@ -161,8 +161,10 @@ class AssignmentController {
       const { complaintId } = req.params;
       const { staffId, officeId, reason } = req.body;
       
-      if (!staffId || !officeId) {
-        return ApiResponse.error(res, 'Staff ID and Office ID are required', 400);
+      console.log('Manual assignment request:', { complaintId, staffId, officeId, reason });
+      
+      if (!staffId) {
+        return ApiResponse.error(res, 'Staff ID is required', 400);
       }
 
       const complaint = await Complaint.findByPk(complaintId);
@@ -174,30 +176,30 @@ class AssignmentController {
         return ApiResponse.error(res, 'Complaint is already assigned', 400);
       }
 
+      console.log('Updating complaint with staffId:', staffId);
+      
       await Complaint.update(
         {
           assignedTo: staffId,
-          assignedAt: new Date(),
-          officeId: officeId,
-          status: 'in_progress',
-          assignmentMethod: 'manual',
-          assignmentReason: reason || 'Manual assignment by administrator'
+          status: 'in_progress'
         },
         {
           where: { id: complaintId }
         }
       );
 
-      assignmentService.updateWorkloadCache(staffId, 'increment');
+      // assignmentService.updateWorkloadCache(staffId, 'increment');
+
+      console.log('Assignment successful for complaint:', complaintId);
 
       return ApiResponse.success(res, {
         complaintId,
         staffId,
-        officeId,
         assignmentMethod: 'manual'
       }, 'Complaint assigned manually successfully');
     } catch (error) {
       console.error('Error in manualAssignment:', error);
+      console.error('Error details:', error.stack);
       return ApiResponse.error(res, 'Failed to assign complaint manually', 500);
     }
   }
@@ -205,10 +207,10 @@ class AssignmentController {
   async reassignComplaint(req, res) {
     try {
       const { complaintId } = req.params;
-      const { newStaffId, newOfficeId, reason } = req.body;
+      const { newStaffId, reason } = req.body;
       
-      if (!newStaffId || !newOfficeId) {
-        return ApiResponse.error(res, 'New Staff ID and Office ID are required', 400);
+      if (!newStaffId) {
+        return ApiResponse.error(res, 'New Staff ID is required', 400);
       }
 
       const complaint = await Complaint.findByPk(complaintId);
@@ -217,35 +219,22 @@ class AssignmentController {
       }
 
       const oldStaffId = complaint.assignedTo;
-      const oldOfficeId = complaint.officeId;
-
-      if (oldStaffId) {
-        assignmentService.updateWorkloadCache(oldStaffId, 'decrement');
-      }
 
       await Complaint.update(
         {
           assignedTo: newStaffId,
-          officeId: newOfficeId,
-          reassignedAt: new Date(),
-          previousStaffId: oldStaffId,
-          previousOfficeId: oldOfficeId,
-          reassignmentReason: reason || 'Reassigned by administrator'
+          status: 'in_progress'
         },
         {
           where: { id: complaintId }
         }
       );
 
-      assignmentService.updateWorkloadCache(newStaffId, 'increment');
-
       return ApiResponse.success(res, {
         complaintId,
         oldStaffId,
         newStaffId,
-        oldOfficeId,
-        newOfficeId,
-        reassignmentReason: reason
+        assignmentMethod: 'reassigned'
       }, 'Complaint reassigned successfully');
     } catch (error) {
       console.error('Error in reassignComplaint:', error);

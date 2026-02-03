@@ -30,6 +30,7 @@ const ComplaintsDashboardEnhanced = () => {
     overdue: 0
   });
   const [availableStaff, setAvailableStaff] = useState([]);
+  const [staffMembers, setStaffMembers] = useState([]);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedComplaintForAssignment, setSelectedComplaintForAssignment] = useState(null);
@@ -44,23 +45,31 @@ const ComplaintsDashboardEnhanced = () => {
     "PACE TELECOM Shadand"
   ];
 
-  // Real staff members
-  const staffMembers = [
-    { id: 1, name: 'Mansoor Khan', role: 'Manager', area: 'Katti Garhi', fines: 0 },
-    { id: 2, name: 'Shawkat Ali', role: 'Technician', fines: 0 },
-    { id: 3, name: 'Muhammad Yaseen', role: 'Technician', fines: 0 },
-    { id: 4, name: 'Muhammad Adil', role: 'Technician', fines: 0 },
-    { id: 5, name: 'Jabran', role: 'Technician', fines: 0 },
-    { id: 6, name: 'Maaz', role: 'Technician', fines: 0 },
-    { id: 7, name: 'Ubaid', role: 'Technician', area: 'Babozo', fines: 0 },
-    { id: 8, name: 'Shakeel', role: 'Technician', area: 'Katlang', fines: 0 },
-    { id: 9, name: 'Alhaj', role: 'Technician', fines: 0 },
-    { id: 10, name: 'Ihraq', role: 'Technician', fines: 0 },
-    { id: 11, name: 'Ghafar Ali', role: 'Technician', area: 'Ghondo', fines: 0 },
-    { id: 12, name: 'Muhammad Awais', role: 'Technician', fines: 0 },
-    { id: 13, name: 'Tasleem Khan', role: 'Technician', fines: 0 },
-    { id: 14, name: 'Muhammad Ejaz', role: 'Manager', area: 'Jamal Garhi', fines: 0 }
-  ];
+  // Load staff members from database
+  const loadStaff = useCallback(async () => {
+    try {
+      const response = await fetch('/api/users/staff-list', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const staffData = data.data || data;
+        setStaffMembers(staffData);
+        console.log('Loaded staff members:', staffData);
+      } else {
+        console.error('Staff fetch failed:', response.status);
+        setStaffMembers([]);
+      }
+    } catch (error) {
+      console.error('Error loading staff:', error);
+      // Fallback to empty array
+      setStaffMembers([]);
+    }
+  }, []);
 
   // Load complaints
   const loadComplaints = useCallback(async () => {
@@ -139,7 +148,7 @@ const ComplaintsDashboardEnhanced = () => {
     try {
       setAssignmentLoading(true);
       
-      // Validate inputs - officeId is optional for manual assignment
+      // Validate inputs
       if (!complaintId || !staffId) {
         toast.error('Missing required information for assignment');
         return;
@@ -149,22 +158,23 @@ const ComplaintsDashboardEnhanced = () => {
       
       const assignmentResult = await assignmentService.manualAssignment(
         complaintId, 
-        parseInt(staffId), 
-        officeId || 'default', // Provide default officeId if not provided
+        staffId, 
+        officeId || null,
         'Manual assignment from dashboard'
       );
 
       console.log('Assignment result:', assignmentResult);
 
+      // Update local state
       const updatedComplaints = complaints.map(complaint => {
         if (complaint.id === complaintId) {
-          const staffMember = staffMembers.find(s => s.id === parseInt(staffId));
+          const staffMember = staffMembers.find(s => s.id === staffId);
           return {
             ...complaint,
-            assignedTo: parseInt(staffId),
+            assignedTo: staffId,
             assignedAt: new Date().toISOString(),
             status: 'in_progress',
-            officeId: officeId,
+            officeId: officeId || null,
             fine: 0
           };
         }
@@ -175,7 +185,8 @@ const ComplaintsDashboardEnhanced = () => {
       setFilteredComplaints(updatedComplaints);
       calculateStats(updatedComplaints);
       
-      toast.success(`Complaint assigned to ${staffMembers.find(s => s.id === parseInt(staffId))?.name}`);
+      const staffName = staffMembers.find(s => s.id === staffId)?.name || staffMembers.find(s => s.id === staffId)?.username;
+      toast.success(`Complaint assigned to ${staffName}`);
       
     } catch (error) {
       console.error('Assignment failed:', error);
@@ -325,7 +336,16 @@ const ComplaintsDashboardEnhanced = () => {
   // Load complaints on mount
   useEffect(() => {
     loadComplaints();
-  }, [loadComplaints]);
+    loadMardanOffices();
+    loadStaff();
+  }, [loadComplaints, loadStaff]);
+
+  // Debug function to test staff loading
+  const debugStaff = () => {
+    console.log('Current staff members:', staffMembers);
+    console.log('Staff count:', staffMembers.length);
+    console.log('First staff:', staffMembers[0]);
+  };
 
   if (loading) {
     return (
@@ -454,7 +474,7 @@ const ComplaintsDashboardEnhanced = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {assignedStaff ? `${assignedStaff.name} (${assignedStaff.role})` : 'Unassigned'}
+                        {assignedStaff ? `${assignedStaff.name || assignedStaff.username} (${assignedStaff.role})` : 'Unassigned'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className={`font-medium ${getTimerColor(timeRemaining)}`}>
@@ -480,6 +500,23 @@ const ComplaintsDashboardEnhanced = () => {
                             >
                               {assignmentLoading ? 'Assigning...' : 'Auto Assign'}
                             </button>
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  assignComplaint(complaint.id, e.target.value);
+                                  e.target.value = ''; // Reset after selection
+                                }
+                              }}
+                              className="text-xs border border-gray-300 rounded px-2 py-1 mr-2"
+                              defaultValue=""
+                            >
+                              <option value="">Quick Assign</option>
+                              {staffMembers.slice(0, 5).map(staff => (
+                                <option key={staff.id} value={staff.id}>
+                                  {staff.name || staff.username}
+                                </option>
+                              ))}
+                            </select>
                             <button
                               onClick={() => openAssignmentModal(complaint)}
                               className="text-purple-600 hover:text-purple-900 text-sm bg-purple-50 px-2 py-1 rounded"
@@ -584,18 +621,18 @@ const ComplaintsDashboardEnhanced = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Staff Member</label>
                     {selectedComplaint.assignedTo ? (
                       <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                        {STAFF_MEMBERS.find(s => s.id === selectedComplaint.assignedTo)?.name || 'Unknown Staff'}
+                        {staffMembers.find(s => s.id === selectedComplaint.assignedTo)?.name || staffMembers.find(s => s.id === selectedComplaint.assignedTo)?.username || 'Unknown Staff'}
                       </p>
                     ) : (
                       <select
-                        onChange={(e) => assignComplaint(selectedComplaint.id, parseInt(e.target.value))}
+                        onChange={(e) => assignComplaint(selectedComplaint.id, e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         defaultValue=""
                       >
                         <option value="" disabled>Select staff member</option>
                         {STAFF_MEMBERS.map(staff => (
                           <option key={staff.id} value={staff.id}>
-                            {staff.name} - {staff.role} {staff.area ? `(${staff.area})` : ''}
+                            {staff.name || staff.username} - {staff.role}
                           </option>
                         ))}
                       </select>
@@ -605,15 +642,17 @@ const ComplaintsDashboardEnhanced = () => {
 
                 {/* Timer Section */}
                 {selectedComplaint.assignedAt && selectedComplaint.status !== 'resolved' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Time Remaining</label>
-                    <div className="space-y-2">
-                      <div className={`text-lg font-bold ${getTimerColor(calculateTimeRemaining(selectedComplaint.assignedAt))}`}>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ⏰ Time Remaining (24-hour SLA)
+                    </label>
+                    <div className="space-y-3">
+                      <div className={`text-2xl font-bold ${getTimerColor(calculateTimeRemaining(selectedComplaint.assignedAt))}`}>
                         {formatTimeRemaining(calculateTimeRemaining(selectedComplaint.assignedAt))}
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-4">
+                      <div className="w-full bg-gray-200 rounded-full h-6 relative">
                         <div 
-                          className={`h-4 rounded-full transition-all duration-1000 ${
+                          className={`h-6 rounded-full transition-all duration-1000 ${
                             calculateTimeRemaining(selectedComplaint.assignedAt)?.expired 
                               ? 'bg-red-500' 
                               : calculateTimeRemaining(selectedComplaint.assignedAt)?.hours < 2 
@@ -628,6 +667,15 @@ const ComplaintsDashboardEnhanced = () => {
                               : `${((24 * 60 * 60 * 1000 - (currentTime - new Date(selectedComplaint.assignedAt))) / (24 * 60 * 60 * 1000)) * 100}%`
                           }}
                         ></div>
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-medium">
+                          {calculateTimeRemaining(selectedComplaint.assignedAt)?.expired 
+                            ? 'OVERDUE' 
+                            : `${Math.round(((24 * 60 * 60 * 1000 - (currentTime - new Date(selectedComplaint.assignedAt))) / (24 * 60 * 60 * 1000)) * 100)}% Complete`
+                          }
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        Assigned: {new Date(selectedComplaint.assignedAt).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -732,12 +780,10 @@ const ComplaintsDashboardEnhanced = () => {
                       {availableStaff.map(staff => (
                         <div key={staff.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
                           <div className="flex-1">
-                            <p className="font-medium">{staff.name}</p>
+                            <p className="font-medium">{staff.name || staff.username}</p>
                             <p className="text-sm text-gray-600">
-                              {staff.role} {staff.area ? `- ${staff.area}` : ''}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              📱 {staff.phone}
+                              Role: {staff.role}
+                              {staff.workload && ` - Workload: ${staff.workload.activeComplaints}/${staff.workload.capacity}`}
                             </p>
                           </div>
                           <button
