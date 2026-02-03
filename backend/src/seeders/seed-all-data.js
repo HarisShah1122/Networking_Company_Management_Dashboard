@@ -123,10 +123,14 @@ const stockCategories = ['Router', 'Cable', 'Connector', 'Switch', 'Modem', 'Ant
 
 async function seedDatabase() {
   try {
+    console.log('Connecting to database...');
     await sequelize.authenticate();
+    console.log('Database connected successfully');
 
     await sequelize.sync({ alter: false });
+    console.log('Models synced');
 
+    console.log('Clearing existing seed data...');
     // Delete in order to respect foreign key constraints
     if (Payment) {
       await Payment.destroy({ where: {}, force: true });
@@ -143,6 +147,7 @@ async function seedDatabase() {
 
     const existingAreas = await Area.findAll();
 
+    console.log('Creating Areas...');
     let katlangArea = existingAreas.find(a => a.name === 'Katlang') || await Area.create({
       id: uuidv4(),
       name: 'Katlang',
@@ -157,8 +162,10 @@ async function seedDatabase() {
       description: 'Mardan City area, Mardan District'
     });
 
+    console.log('Areas created/found');
 
     // Create test companies for multi-tenant testing
+    console.log('Creating Test Companies...');
     const company1 = await Company.create({
       id: uuidv4(),
       name: 'PACE Telecom Mardan',
@@ -175,8 +182,10 @@ async function seedDatabase() {
       status: 'active'
     });
 
+    console.log('Test companies created');
 
     // Create CEO users for each company
+    console.log('Creating Company Users...');
     const passwordHash = await bcrypt.hash('admin123', 10);
     
     const ceoUser1 = await User.create({
@@ -199,7 +208,9 @@ async function seedDatabase() {
       companyId: company2.id
     });
 
+    console.log('Company users created');
 
+    console.log('Creating 200 Pakistani Customers...');
     const customers = [];
     const names = generatePakistaniNames(200);
     const addresses = generatePakistaniAddresses(200);
@@ -226,9 +237,12 @@ async function seedDatabase() {
       customers.push(customer);
       
       if ((i + 1) % 50 === 0) {
+        console.log(`Created ${i + 1} customers...`);
       }
     }
+    console.log(`${customers.length} customers created`);
 
+    console.log('Creating 200 Connections...');
     const connections = [];
     for (let i = 0; i < 200; i++) {
       const customer = customers[i];
@@ -251,9 +265,12 @@ async function seedDatabase() {
       connections.push(connection);
       
       if ((i + 1) % 50 === 0) {
+        console.log(`Created ${i + 1} connections...`);
       }
     }
+    console.log(`${connections.length} connections created`);
 
+    console.log('Creating 200 Recharges...');
     const recharges = [];
     for (let i = 0; i < 200; i++) {
       const customer = customers[i];
@@ -279,9 +296,12 @@ async function seedDatabase() {
       recharges.push(recharge);
       
       if ((i + 1) % 50 === 0) {
+        console.log(`Created ${i + 1} recharges...`);
       }
     }
+    console.log(`${recharges.length} recharges created`);
 
+    console.log('Creating 12 Stock Items...');
     const stockItems = [];
     for (let i = 0; i < 12; i++) {
       const category = stockCategories[i % stockCategories.length];
@@ -296,7 +316,9 @@ async function seedDatabase() {
       });
       stockItems.push(stock);
     }
+    console.log(`${stockItems.length} stock items created`);
 
+    console.log('Creating 12 Transactions...');
     const transactions = [];
     for (let i = 0; i < 12; i++) {
       const type = i % 2 === 0 ? 'income' : 'expense';
@@ -317,7 +339,9 @@ async function seedDatabase() {
       });
       transactions.push(transaction);
     }
+    console.log(`${transactions.length} transactions created`);
 
+    console.log('Creating 12 Payments...');
     const payments = [];
     for (let i = 0; i < 12; i++) {
       const customer = customers[i];
@@ -339,7 +363,9 @@ async function seedDatabase() {
       });
       payments.push(payment);
     }
+    console.log(`${payments.length} payments created`);
 
+    console.log('Creating 12 Complaints...');
     const complaints = [];
     const complaintTitles = [
       'Slow Internet Speed',
@@ -377,10 +403,30 @@ async function seedDatabase() {
       });
       complaints.push(complaint);
     }
+    console.log(`${complaints.length} complaints created`);
 
+    console.log('\n✅ Multi-Tenant Seeding completed successfully!');
+    console.log('\nSummary:');
+    console.log(`- Companies: 2 (PACE Telecom Mardan, FastNet Pakistan)`);
+    console.log(`- Company Users: 2 CEOs`);
+    console.log(`- Areas: 2 (Katlang, Mardan)`);
+    console.log(`- Customers: ${customers.length} (100 per company)`);
+    console.log(`- Connections: ${connections.length} (100 per company)`);
+    console.log(`- Recharges: ${recharges.length} (100 per company)`);
+    console.log(`- Payments: ${payments.length}`);
+    console.log(`- Stock Items: ${stockItems.length}`);
+    console.log(`- Transactions: ${transactions.length}`);
+    console.log(`- Complaints: ${complaints.length}`);
+    console.log('\n🔒 Multi-Tenant Test Data Created:');
+    console.log(`- Company 1 (PACE Telecom): ${company1.name} - ID: ${company1.id}`);
+    console.log(`- Company 2 (FastNet): ${company2.name} - ID: ${company2.id}`);
+    console.log(`- CEO 1: admin (password: admin123)`);
+    console.log(`- CEO 2: fastnet_admin (password: admin123)`);
+    console.log('\nAll data seeded with proper company_id assignments for testing!');
 
     process.exit(0);
   } catch (error) {
+    console.error('Error seeding database:', error);
     process.exit(1);
   }
 }
