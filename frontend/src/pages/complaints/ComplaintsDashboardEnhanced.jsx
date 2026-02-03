@@ -34,6 +34,34 @@ const ComplaintsDashboardEnhanced = () => {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedComplaintForAssignment, setSelectedComplaintForAssignment] = useState(null);
 
+  // Real areas data
+  const areas = [
+    "PACE TELECOM Katlang",
+    "PACE TELECOM Katti Garhi", 
+    "PACE TELECOM Jamal Garhi",
+    "PACE TELECOM Ghondo",
+    "PACE TELECOM Babozo",
+    "PACE TELECOM Shadand"
+  ];
+
+  // Real staff members
+  const staffMembers = [
+    { id: 1, name: 'Mansoor Khan', role: 'Manager', area: 'Katti Garhi', fines: 0 },
+    { id: 2, name: 'Shawkat Ali', role: 'Technician', fines: 0 },
+    { id: 3, name: 'Muhammad Yaseen', role: 'Technician', fines: 0 },
+    { id: 4, name: 'Muhammad Adil', role: 'Technician', fines: 0 },
+    { id: 5, name: 'Jabran', role: 'Technician', fines: 0 },
+    { id: 6, name: 'Maaz', role: 'Technician', fines: 0 },
+    { id: 7, name: 'Ubaid', role: 'Technician', area: 'Babozo', fines: 0 },
+    { id: 8, name: 'Shakeel', role: 'Technician', area: 'Katlang', fines: 0 },
+    { id: 9, name: 'Alhaj', role: 'Technician', fines: 0 },
+    { id: 10, name: 'Ihraq', role: 'Technician', fines: 0 },
+    { id: 11, name: 'Ghafar Ali', role: 'Technician', area: 'Ghondo', fines: 0 },
+    { id: 12, name: 'Muhammad Awais', role: 'Technician', fines: 0 },
+    { id: 13, name: 'Tasleem Khan', role: 'Technician', fines: 0 },
+    { id: 14, name: 'Muhammad Ejaz', role: 'Manager', area: 'Jamal Garhi', fines: 0 }
+  ];
+
   // Mock complaints data
   const mockComplaints = [
     {
@@ -166,21 +194,33 @@ const ComplaintsDashboardEnhanced = () => {
   const assignComplaint = useCallback(async (complaintId, staffId, officeId) => {
     try {
       setAssignmentLoading(true);
+      
+      // Validate inputs
+      if (!complaintId || !staffId || !officeId) {
+        toast.error('Missing required information for assignment');
+        return;
+      }
+
+      console.log('Assigning complaint:', { complaintId, staffId, officeId });
+      
       const assignmentResult = await assignmentService.manualAssignment(
         complaintId, 
-        staffId, 
-        officeId || 'mardan_main',
+        parseInt(staffId), 
+        officeId,
         'Manual assignment from dashboard'
       );
 
+      console.log('Assignment result:', assignmentResult);
+
       const updatedComplaints = complaints.map(complaint => {
         if (complaint.id === complaintId) {
+          const staffMember = staffMembers.find(s => s.id === parseInt(staffId));
           return {
             ...complaint,
-            assignedTo: staffId,
+            assignedTo: parseInt(staffId),
             assignedAt: new Date().toISOString(),
             status: 'in_progress',
-            officeId: officeId || 'mardan_main',
+            officeId: officeId,
             fine: 0
           };
         }
@@ -191,8 +231,11 @@ const ComplaintsDashboardEnhanced = () => {
       setFilteredComplaints(updatedComplaints);
       calculateStats(updatedComplaints);
       
+      toast.success(`Complaint assigned to ${staffMembers.find(s => s.id === parseInt(staffId))?.name}`);
+      
     } catch (error) {
-      // Handle assignment error
+      console.error('Assignment failed:', error);
+      toast.error(error.message || 'Failed to assign complaint');
     } finally {
       setAssignmentLoading(false);
     }
@@ -596,7 +639,7 @@ const ComplaintsDashboardEnhanced = () => {
                         <option value="" disabled>Select staff member</option>
                         {STAFF_MEMBERS.map(staff => (
                           <option key={staff.id} value={staff.id}>
-                            {staff.name} - {staff.role}
+                            {staff.name} - {staff.role} {staff.area ? `(${staff.area})` : ''}
                           </option>
                         ))}
                       </select>
@@ -701,13 +744,18 @@ const ComplaintsDashboardEnhanced = () => {
                     onChange={(e) => {
                       const officeId = e.target.value;
                       if (officeId) {
-                        // Filter staff by area when office is selected
-                        const selectedOffice = PACE_OFFICES.find(office => office.id === officeId);
-                        if (selectedOffice) {
-                          const filteredStaff = STAFF_MEMBERS.filter(staff => 
-                            !staff.area || staff.area === selectedOffice.area
-                          );
-                          setAvailableStaff(filteredStaff);
+                        try {
+                          const staff = await assignmentService.getAvailableStaff(officeId);
+                          setAvailableStaff(staff);
+                        } catch (error) {
+                          console.error('Error loading staff:', error);
+                          // Fallback to mock staff if API fails
+                          const mockStaff = staffMembers.map(staff => ({
+                            ...staff,
+                            workload: { activeComplaints: Math.floor(Math.random() * 5), capacity: 10 },
+                            availabilityScore: Math.floor(Math.random() * 100)
+                          }));
+                          setAvailableStaff(mockStaff);
                         }
                       } else {
                         setAvailableStaff([]);
@@ -715,11 +763,9 @@ const ComplaintsDashboardEnhanced = () => {
                     }}
                   >
                     <option value="">Select an office</option>
-                    {PACE_OFFICES.map(office => (
-                      <option key={office.id} value={office.id}>
-                        {office.name}
-                      </option>
-                    ))}
+                    <option value="mardan_main">PACE TELECOM Mardan Main</option>
+                    <option value="takht_bhai">PACE TELECOM Takht Bhai</option>
+                    <option value="katlang">PACE TELECOM Katlang</option>
                   </select>
                 </div>
 
@@ -740,12 +786,18 @@ const ComplaintsDashboardEnhanced = () => {
                           </div>
                           <button
                             onClick={() => {
-                              assignComplaint(selectedComplaintForAssignment.id, staff.id, document.getElementById('officeSelect').value);
+                              const officeId = document.getElementById('officeSelect').value;
+                              if (!officeId) {
+                                toast.error('Please select an office first');
+                                return;
+                              }
+                              assignComplaint(selectedComplaintForAssignment.id, staff.id, officeId);
                               setShowAssignmentModal(false);
                             }}
-                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                            disabled={assignmentLoading}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Assign
+                            {assignmentLoading ? 'Assigning...' : 'Assign'}
                           </button>
                         </div>
                       ))}
