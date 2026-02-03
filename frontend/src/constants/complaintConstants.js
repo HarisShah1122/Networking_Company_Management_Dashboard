@@ -42,6 +42,12 @@ export const DISTRICTS = [
 ];
 
 export const AREAS = [
+  "Katlang",
+  "Katti Garhi",
+  "Jamal Garhi",
+  "Ghondo",
+  "Babozo",
+  "Shadand",
   'Main Market', 'City Center', 'University Road', 'Kotla Mohsin Khan',
   'Katlang Bazaar', 'Shahbaz Garhi', 'Takht Bhai',
   'University Town', 'Hayatabad', 'Cantt', 'Karkhano Market',
@@ -50,16 +56,31 @@ export const AREAS = [
 ];
 
 export const STAFF_MEMBERS = [
-  { id: 1, name: 'Ahmed Khan', role: 'Technician' },
-  { id: 2, name: 'Sara Ali', role: 'Support Staff' },
-  { id: 3, name: 'Muhammad Raza', role: 'Technician' },
-  { id: 4, name: 'Fatima Sheikh', role: 'Support Staff' },
-  { id: 5, name: 'Bilal Ahmed', role: 'Technician' }
+  { id: 1, name: 'Ahmed Khan', role: 'Technician', phone: '03001234567' },
+  { id: 2, name: 'Sara Ali', role: 'Support Staff', phone: '03011234568' },
+  { id: 3, name: 'Muhammad Raza', role: 'Technician', phone: '03021234569' },
+  { id: 4, name: 'Fatima Sheikh', role: 'Support Staff', phone: '03031234570' },
+  { id: 5, name: 'Bilal Ahmed', role: 'Technician', phone: '03041234571' },
+  // Your new staff members with phone numbers
+  { id: 6, name: 'Mansoor Khan', role: 'Manager', area: 'Katti Garhi', phone: '03001234567' },
+  { id: 7, name: 'Shawkat Ali', role: 'Technician', phone: '03011234568' },
+  { id: 8, name: 'Muhammad Yaseen', role: 'Technician', phone: '03021234569' },
+  { id: 9, name: 'Muhammad Adil', role: 'Technician', phone: '03031234570' },
+  { id: 10, name: 'Jabran', role: 'Technician', phone: '03041234571' },
+  { id: 11, name: 'Maaz', role: 'Technician', phone: '03051234572' },
+  { id: 12, name: 'Ubaid', role: 'Technician', area: 'Babozo', phone: '03061234573' },
+  { id: 13, name: 'Shakeel', role: 'Technician', area: 'Katlang', phone: '03071234574' },
+  { id: 14, name: 'Alhaj', role: 'Technician', phone: '03081234575' },
+  { id: 15, name: 'Ihraq', role: 'Technician', phone: '03091234576' },
+  { id: 16, name: 'Ghafar Ali', role: 'Technician', area: 'Ghondo', phone: '03101234577' },
+  { id: 17, name: 'Muhammad Awais', role: 'Technician', phone: '03111234578' },
+  { id: 18, name: 'Tasleem Khan', role: 'Technician', phone: '03121234579' },
+  { id: 19, name: 'Muhammad Ejaz', role: 'Manager', area: 'Jamal Garhi', phone: '03131234580' }
 ];
 
 export const BRANCHES = [
   { id: 'all', name: 'All Branches', district: 'all', areas: [] },
-  { id: 'mardan', name: 'Mardan Branch', district: 'Mardan', areas: ['Main Market', 'City Center', 'University Road', 'Kotla Mohsin Khan'] },
+  { id: 'mardan', name: 'Mardan Branch', district: 'Mardan', areas: ["Katlang", "Katti Garhi", "Jamal Garhi", "Ghondo", "Babozo", "Shadand", 'Main Market', 'City Center', 'University Road', 'Kotla Mohsin Khan'] },
   { id: 'katlang', name: 'Katlang Branch', district: 'Mardan', areas: ['Katlang Bazaar', 'Shahbaz Garhi', 'Takht Bhai'] },
   { id: 'peshawar', name: 'Peshawar Branch', district: 'Peshawar', areas: ['University Town', 'Hayatabad', 'Cantt', 'Karkhano Market'] },
   { id: 'islamabad', name: 'Islamabad Branch', district: 'Islamabad', areas: ['Blue Area', 'F-10 Markaz', 'G-11 Markaz', 'I-8 Markaz'] },
