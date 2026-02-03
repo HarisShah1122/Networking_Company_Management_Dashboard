@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const StockService = require('../services/stock.service');
+const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
 const { validateStock } = require('../helpers/validators');
 
@@ -39,6 +40,14 @@ const create = async (req, res, next) => {
     }
 
     const item = await StockService.create(req.body);
+    
+    activityLogService.logActivity(
+      req.user.id,
+      'create',
+      'stock',
+      `Created stock item: ${item.name}`
+    );
+
     return ApiResponse.success(res, { item }, 'Stock item created successfully', 201);
   } catch (error) {
     next(error);
@@ -57,6 +66,13 @@ const update = async (req, res, next) => {
     if (!item) {
       return ApiResponse.notFound(res, 'Stock item');
     }
+
+    activityLogService.logActivity(
+      req.user.id,
+      'update',
+      'stock',
+      `Updated stock item: ${item.name}`
+    );
 
     return ApiResponse.success(res, { item }, 'Stock item updated successfully');
   } catch (error) {

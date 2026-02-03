@@ -319,77 +319,163 @@ const DashboardPage = () => {
       </div>
 
       {/* Recent Complaints Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">📋 Recent Complaints</h2>
-          <Link 
-            to="/complaints-dashboard" 
-            className="group inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            <span>View All</span>
-            <svg className="ml-2 w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center">
+              <span className="mr-2">📋</span>
+              Recent Complaints
+            </h2>
+            <Link 
+              to="/complaints-dashboard" 
+              className="group inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <span>View All</span>
+              <svg className="ml-2 w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
         </div>
-        <div className="space-y-3">
+        <div className="p-6 space-y-4">
           {recentComplaints.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p className="text-lg font-medium">No complaints yet</p>
+            <div className="text-center py-12 text-gray-500">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📋</span>
+              </div>
+              <p className="text-lg font-medium text-gray-900">No complaints yet</p>
               <p className="text-sm mt-2">Complaints will appear here once they are created</p>
             </div>
           ) : (
-            recentComplaints.map((complaint) => (
-              <div 
-                key={complaint.id} 
-                className={`border-l-4 pl-4 py-2 ${
-                  complaint.status === 'pending' ? 'border-yellow-500' :
-                  complaint.status === 'in_progress' ? 'border-blue-500' :
-                  complaint.status === 'resolved' ? 'border-green-500' :
-                  'border-red-500'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {complaint.id ? `COMP-${complaint.id.slice(-6)}` : 'Unknown'}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {complaint.description || 'No description available'}
-                    </p>
-                    {complaint.customer_name && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Customer: {complaint.customer_name}
+            recentComplaints.map((complaint) => {
+              // Status styling function
+              const getStatusStyle = (status) => {
+                const styles = {
+                  pending: {
+                    bg: 'bg-amber-50',
+                    text: 'text-amber-700',
+                    border: 'border-amber-200',
+                    icon: '⏳'
+                  },
+                  in_progress: {
+                    bg: 'bg-blue-50',
+                    text: 'text-blue-700',
+                    border: 'border-blue-200',
+                    icon: '🔄'
+                  },
+                  resolved: {
+                    bg: 'bg-emerald-50',
+                    text: 'text-emerald-700',
+                    border: 'border-emerald-200',
+                    icon: '✅'
+                  },
+                  overdue: {
+                    bg: 'bg-red-50',
+                    text: 'text-red-700',
+                    border: 'border-red-200',
+                    icon: '⚠️'
+                  }
+                };
+                return styles[status] || {
+                  bg: 'bg-gray-50',
+                  text: 'text-gray-700',
+                  border: 'border-gray-200',
+                  icon: '📋'
+                };
+              };
+
+              // Priority styling function
+              const getPriorityStyle = (priority) => {
+                const styles = {
+                  high: {
+                    bg: 'bg-red-100',
+                    text: 'text-red-800',
+                    border: 'border-red-300',
+                    icon: '🔴'
+                  },
+                  medium: {
+                    bg: 'bg-orange-100',
+                    text: 'text-orange-800',
+                    border: 'border-orange-300',
+                    icon: '🟡'
+                  },
+                  low: {
+                    bg: 'bg-slate-100',
+                    text: 'text-slate-700',
+                    border: 'border-slate-300',
+                    icon: '⚪'
+                  }
+                };
+                return styles[priority] || {
+                  bg: 'bg-slate-100',
+                  text: 'text-slate-700',
+                  border: 'border-slate-300',
+                  icon: '⚪'
+                };
+              };
+
+              const statusStyle = getStatusStyle(complaint.status);
+              const priorityStyle = getPriorityStyle(complaint.priority);
+
+              return (
+                <div 
+                  key={complaint.id} 
+                  className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-all duration-200 border border-gray-200 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-sm font-bold text-white">
+                            {complaint.customer_name?.charAt(0)?.toUpperCase() || 'C'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">
+                            {complaint.id ? `COMP-${complaint.id.slice(-6).toUpperCase()}` : 'UNKNOWN'}
+                          </p>
+                          {complaint.customer_name && (
+                            <p className="text-xs text-gray-600 font-medium">
+                              {complaint.customer_name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 ml-11 line-clamp-2">
+                        {complaint.description || 'No description available'}
                       </p>
-                    )}
+                    </div>
+                    <div className="flex flex-col items-end space-y-2">
+                      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
+                        <span className="mr-1.5">{statusStyle.icon}</span>
+                        {complaint.status ? complaint.status.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
+                      </span>
+                      {complaint.priority && (
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${priorityStyle.bg} ${priorityStyle.text} ${priorityStyle.border}`}>
+                          <span className="mr-1">{priorityStyle.icon}</span>
+                          {complaint.priority.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <span 
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      complaint.status === 'pending' ? 'bg-yellow-500 text-white' :
-                      complaint.status === 'in_progress' ? 'bg-blue-500 text-white' :
-                      complaint.status === 'resolved' ? 'bg-green-500 text-white' :
-                      'bg-red-500 text-white'
-                    }`}
-                  >
-                    {complaint.status ? complaint.status.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
-                  </span>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-xs text-gray-500 flex items-center">
+                      <span className="mr-1">🕒</span>
+                      {formatTimeAgo(complaint.createdAt)}
+                    </p>
+                    <Link 
+                      to={`/complaints-dashboard`}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                    >
+                      <span>View Details</span>
+                      <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center mt-1">
-                  <p className="text-xs text-gray-500">
-                    {formatTimeAgo(complaint.createdAt)}
-                  </p>
-                  {complaint.priority && (
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      complaint.priority === 'high' ? 'bg-red-500 text-white' :
-                      complaint.priority === 'medium' ? 'bg-yellow-500 text-white' :
-                      'bg-gray-500 text-white'
-                    }`}>
-                      {complaint.priority}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

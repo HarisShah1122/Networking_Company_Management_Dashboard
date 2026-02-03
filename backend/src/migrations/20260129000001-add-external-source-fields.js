@@ -17,7 +17,9 @@ module.exports = {
           allowNull: true,
           defaultValue: field.defaultValue
         });
+        console.log(`Added column ${field.name}`);
       } catch (error) {
+        console.log(`Column ${field.name} already exists, skipping...`);
       }
     }
 
@@ -27,7 +29,9 @@ module.exports = {
     for (const index of indexes) {
       try {
         await queryInterface.addIndex('complaints', [index]);
+        console.log(`Added index for ${index}`);
       } catch (error) {
+        console.log(`Index for ${index} already exists, skipping...`);
       }
     }
   },
@@ -39,7 +43,9 @@ module.exports = {
     for (const field of fields) {
       try {
         await queryInterface.removeColumn('complaints', field);
+        console.log(`Removed column ${field.name}`);
       } catch (error) {
+        console.log(`Column ${field.name} doesn't exist, skipping...`);
       }
     }
   }
