@@ -3,6 +3,17 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { complaintService } from '../../services/complaintService';
 import assignmentService from '../../services/assignmentService';
+import { STAFF_MEMBERS } from '../../constants/complaintConstants';
+
+// Your areas with PACE TELECOM prefix
+const PACE_OFFICES = [
+  { id: 'katlang', name: 'PACE TELECOM Katlang', area: 'Katlang' },
+  { id: 'katti_garhi', name: 'PACE TELECOM Katti Garhi', area: 'Katti Garhi' },
+  { id: 'jamal_garhi', name: 'PACE TELECOM Jamal Garhi', area: 'Jamal Garhi' },
+  { id: 'ghondo', name: 'PACE TELECOM Ghondo', area: 'Ghondo' },
+  { id: 'babozo', name: 'PACE TELECOM Babozo', area: 'Babozo' },
+  { id: 'shadand', name: 'PACE TELECOM Shadand', area: 'Shadand' }
+];
 
 const ComplaintsDashboardEnhanced = () => {
   const [complaints, setComplaints] = useState([]);
@@ -18,7 +29,6 @@ const ComplaintsDashboardEnhanced = () => {
     resolved: 0,
     overdue: 0
   });
-  const [mardanOffices, setMardanOffices] = useState([]);
   const [availableStaff, setAvailableStaff] = useState([]);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
@@ -134,7 +144,6 @@ const ComplaintsDashboardEnhanced = () => {
       setFilteredComplaints(allComplaints);
       calculateStats(allComplaints);
     } catch (error) {
-      console.error('Error loading complaints:', error);
       toast.error('Failed to load complaints', { autoClose: 3000 });
       setComplaints([]);
       setFilteredComplaints([]);
@@ -230,7 +239,7 @@ const ComplaintsDashboardEnhanced = () => {
     } finally {
       setAssignmentLoading(false);
     }
-  }, [complaints, staffMembers, calculateStats]);
+  }, [complaints, STAFF_MEMBERS, calculateStats]);
 
   const autoAssignComplaint = useCallback(async (complaintId) => {
     try {
@@ -259,7 +268,7 @@ const ComplaintsDashboardEnhanced = () => {
       }
       
     } catch (error) {
-      console.error('Auto assignment failed:', error);
+      // Handle auto assignment error
     } finally {
       setAssignmentLoading(false);
     }
@@ -302,7 +311,7 @@ const ComplaintsDashboardEnhanced = () => {
         const timeRemaining = calculateTimeRemaining(complaint.assignedAt);
         
         if (timeRemaining && timeRemaining.expired && complaint.fine === 0) {
-          const staffMember = staffMembers.find(s => s.id === complaint.assignedTo);
+          const staffMember = STAFF_MEMBERS.find(s => s.id === complaint.assignedTo);
           toast.error(`⚠️ Fine applied: ${staffMember.name} - RS500 for overdue complaint ${complaint.id}`, { autoClose: 5000 });
           
           return {
@@ -324,7 +333,7 @@ const ComplaintsDashboardEnhanced = () => {
       setFilteredComplaints(updatedComplaints);
       calculateStats(updatedComplaints);
     }
-  }, [complaints, calculateTimeRemaining, staffMembers, calculateStats]);
+  }, [complaints, calculateTimeRemaining, STAFF_MEMBERS, calculateStats]);
 
   // View complaint details
   const viewComplaint = useCallback((complaint) => {
@@ -372,17 +381,7 @@ const ComplaintsDashboardEnhanced = () => {
   // Load complaints on mount
   useEffect(() => {
     loadComplaints();
-    loadMardanOffices();
   }, [loadComplaints]);
-
-  const loadMardanOffices = async () => {
-    try {
-      const offices = await assignmentService.getMardanOffices();
-      setMardanOffices(offices);
-    } catch (error) {
-      console.error('Error loading Mardan offices:', error);
-    }
-  };
 
   if (loading) {
     return (
@@ -466,7 +465,7 @@ const ComplaintsDashboardEnhanced = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredComplaints.map((complaint) => {
                   const timeRemaining = calculateTimeRemaining(complaint.assignedAt);
-                  const assignedStaff = staffMembers.find(s => s.id === complaint.assignedTo);
+                  const assignedStaff = STAFF_MEMBERS.find(s => s.id === complaint.assignedTo);
                   
                   return (
                     <tr key={complaint.id} className="hover:bg-gray-50">
@@ -629,7 +628,7 @@ const ComplaintsDashboardEnhanced = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Staff Member</label>
                     {selectedComplaint.assignedTo ? (
                       <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                        {staffMembers.find(s => s.id === selectedComplaint.assignedTo)?.name || 'Unknown Staff'}
+                        {STAFF_MEMBERS.find(s => s.id === selectedComplaint.assignedTo)?.name || 'Unknown Staff'}
                       </p>
                     ) : (
                       <select
@@ -638,7 +637,7 @@ const ComplaintsDashboardEnhanced = () => {
                         defaultValue=""
                       >
                         <option value="" disabled>Select staff member</option>
-                        {staffMembers.map(staff => (
+                        {STAFF_MEMBERS.map(staff => (
                           <option key={staff.id} value={staff.id}>
                             {staff.name} - {staff.role} {staff.area ? `(${staff.area})` : ''}
                           </option>
@@ -742,7 +741,7 @@ const ComplaintsDashboardEnhanced = () => {
                   <select
                     id="officeSelect"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       const officeId = e.target.value;
                       if (officeId) {
                         try {
@@ -779,8 +778,10 @@ const ComplaintsDashboardEnhanced = () => {
                           <div className="flex-1">
                             <p className="font-medium">{staff.name}</p>
                             <p className="text-sm text-gray-600">
-                              Workload: {staff.workload.activeComplaints}/{staff.workload.capacity} 
-                              (Score: {Math.round(staff.availabilityScore)})
+                              {staff.role} {staff.area ? `- ${staff.area}` : ''}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              📱 {staff.phone}
                             </p>
                           </div>
                           <button
@@ -803,6 +804,42 @@ const ComplaintsDashboardEnhanced = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Phone-based Assignment */}
+                <div className="border-t pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Assign by Phone Number</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="tel"
+                      id="phoneInput"
+                      placeholder="Enter phone number (e.g., 03001234567)"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        const phoneNumber = document.getElementById('phoneInput').value.trim();
+                        if (phoneNumber) {
+                          const staff = STAFF_MEMBERS.find(s => s.phone === phoneNumber);
+                          if (staff) {
+                            assignComplaint(selectedComplaintForAssignment.id, staff.id, document.getElementById('officeSelect').value);
+                            setShowAssignmentModal(false);
+                            toast.success(`Task assigned to ${staff.name} via phone ${phoneNumber}`);
+                          } else {
+                            toast.error('No staff member found with this phone number');
+                          }
+                        } else {
+                          toast.error('Please enter a phone number');
+                        }
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                    >
+                      Assign by Phone
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quick assign by entering staff phone number
+                  </p>
+                </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button

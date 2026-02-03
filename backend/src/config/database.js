@@ -1,12 +1,18 @@
 const { Sequelize } = require('sequelize');
-const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT } = require('./env');
+const { 
+  DB_HOST, 
+  DB_PORT, 
+  DB_NAME, 
+  DB_USER, 
+  DB_PASSWORD,
+  NODE_ENV 
+} = require('./env');
 
-// Create Sequelize instance
 const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   host: DB_HOST,
   port: DB_PORT,
   dialect: 'mysql',
-  logging: false,
+  logging: NODE_ENV === 'development' ? console.log : false,
   pool: {
     max: 10,
     min: 0,
@@ -14,8 +20,5 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
     idle: 10000
   }
 });
-
-// Don't authenticate here - let server.js handle it
-// This prevents premature connection attempts before env is fully loaded
 
 module.exports = sequelize;
