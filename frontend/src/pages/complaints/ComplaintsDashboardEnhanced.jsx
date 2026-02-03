@@ -52,87 +52,31 @@ const ComplaintsDashboardEnhanced = () => {
     { id: 14, name: 'Muhammad Ejaz', role: 'Manager', area: 'Jamal Garhi', fines: 0 }
   ];
 
-  // Mock complaints data
-  const mockComplaints = [
-    {
-      id: 'COMP-001',
-      description: 'Internet connection is very slow in the morning hours',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      status: 'pending',
-      assignedTo: null,
-      assignedAt: null,
-      fine: 0,
-      name: 'Ahmed Hassan',
-      whatsapp_number: '03123456789',
-      address: 'Main Market, Mardan',
-      customerId: 'CUST-001'
-    },
-    {
-      id: 'COMP-002',
-      description: 'WiFi router not working after power outage',
-      createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-      status: 'in_progress',
-      assignedTo: 1,
-      assignedAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      fine: 0,
-      name: 'Sara Khan',
-      whatsapp_number: '03234567890',
-      address: 'University Town, Peshawar',
-      customerId: 'CUST-002'
-    },
-    {
-      id: 'COMP-003',
-      description: 'Frequent disconnections during video calls',
-      createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000), // 26 hours ago
-      status: 'overdue',
-      assignedTo: 2,
-      assignedAt: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25 hours ago
-      fine: 500,
-      name: 'Muhammad Raza',
-      whatsapp_number: '03345678901',
-      address: 'Blue Area, Islamabad',
-      customerId: 'CUST-003'
-    },
-    {
-      id: 'COMP-004',
-      description: 'No internet connection in bedroom area',
-      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-      status: 'resolved',
-      assignedTo: 3,
-      assignedAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-      resolvedAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-      fine: 0,
-      name: 'Fatima Sheikh',
-      whatsapp_number: '03456789012',
-      address: 'Saddar, Rawalpindi',
-      customerId: 'CUST-004'
-    },
-    {
-      id: 'COMP-005',
-      description: 'High ping issues while gaming',
-      createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-      status: 'pending',
-      assignedTo: null,
-      assignedAt: null,
-      fine: 0,
-      name: 'Bilal Ahmed',
-      whatsapp_number: '03567890123',
-      address: 'Hayatabad, Peshawar',
-      customerId: 'CUST-005'
-    }
-  ];
-
   // Load complaints
   const loadComplaints = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Use mock data for now
-      const allComplaints = mockComplaints;
+      // Fetch real complaints from database
+      const response = await complaintService.getAll();
+      let complaintsData = [];
       
-      setComplaints(allComplaints);
-      setFilteredComplaints(allComplaints);
-      calculateStats(allComplaints);
+      // Handle different response formats
+      if (response?.data?.complaints) {
+        complaintsData = response.data.complaints;
+      } else if (response?.complaints) {
+        complaintsData = response.complaints;
+      } else if (Array.isArray(response)) {
+        complaintsData = response;
+      } else if (Array.isArray(response?.data)) {
+        complaintsData = response.data;
+      }
+      
+      console.log('Loaded complaints:', complaintsData);
+      
+      setComplaints(complaintsData);
+      setFilteredComplaints(complaintsData);
+      calculateStats(complaintsData);
     } catch (error) {
       console.error('Error loading complaints:', error);
       toast.error('Failed to load complaints', { autoClose: 3000 });
@@ -186,8 +130,8 @@ const ComplaintsDashboardEnhanced = () => {
     try {
       setAssignmentLoading(true);
       
-      // Validate inputs
-      if (!complaintId || !staffId || !officeId) {
+      // Validate inputs - officeId is optional for manual assignment
+      if (!complaintId || !staffId) {
         toast.error('Missing required information for assignment');
         return;
       }
@@ -197,7 +141,7 @@ const ComplaintsDashboardEnhanced = () => {
       const assignmentResult = await assignmentService.manualAssignment(
         complaintId, 
         parseInt(staffId), 
-        officeId,
+        officeId || 'default', // Provide default officeId if not provided
         'Manual assignment from dashboard'
       );
 
@@ -497,7 +441,13 @@ const ComplaintsDashboardEnhanced = () => {
                         {complaint.description}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(complaint.createdAt).toLocaleString()}
+                        {complaint.createdAt ? 
+                          (isNaN(new Date(complaint.createdAt).getTime()) ? 
+                            'Invalid Date' : 
+                            new Date(complaint.createdAt).toLocaleString()
+                          ) : 
+                          'Not available'
+                        }
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(complaint.status)}`}>
@@ -605,7 +555,13 @@ const ComplaintsDashboardEnhanced = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time Created</label>
                     <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                      {new Date(selectedComplaint.createdAt).toLocaleString()}
+                      {selectedComplaint.createdAt ? 
+                        (isNaN(new Date(selectedComplaint.createdAt).getTime()) ? 
+                          'Invalid Date' : 
+                          new Date(selectedComplaint.createdAt).toLocaleString()
+                        ) : 
+                        'Not available'
+                      }
                     </p>
                   </div>
                 </div>
