@@ -30,6 +30,7 @@ const createComplaint = async (req, res, next) => {
         const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
         const WHATSAPP_API_URL = `https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`;
         
+        console.log(`📱 Opening conversation with template first...`);
         
         const templatePayload = {
           messaging_product: 'whatsapp',
@@ -50,9 +51,11 @@ const createComplaint = async (req, res, next) => {
           }
         });
         
+        console.log(`✅ Template sent to open conversation:`, templateResponse.data);
         
         await new Promise(resolve => setTimeout(resolve, 3000));
         
+        console.log(`📱 Now sending real complaint message...`);
         
         const customerMessage = `🎫 PACE Telecom
 
@@ -69,6 +72,7 @@ We'll resolve this soon. Thank you!
 📞 0342-4231806
 🌐 pacetelecom.com`;
         
+        console.log(`📝 Real message content:`, customerMessage);
         
         const payload = {
           messaging_product: 'whatsapp',
@@ -79,6 +83,7 @@ We'll resolve this soon. Thank you!
           }
         };
 
+        console.log(`📦 Real message payload:`, JSON.stringify(payload, null, 2));
 
         const response = await axios.post(WHATSAPP_API_URL, payload, {
           headers: {
@@ -87,9 +92,13 @@ We'll resolve this soon. Thank you!
           }
         });
         
+        console.log(`✅ Real complaint message sent successfully to ${recipientNumber}:`, response.data);
       } catch (error) {
+        console.error(`❌ Customer WhatsApp failed for ${recipientNumber}:`, error.response?.data || error.message);
+        console.error(`🔍 Full error:`, error);
       }
     } else {
+      console.log(`⚠️ No WhatsApp number provided for customer`);
     }
 
     await sendComplaintNotification(complaint.name || 'N/A', complaint.id, complaint.description || 'No description');

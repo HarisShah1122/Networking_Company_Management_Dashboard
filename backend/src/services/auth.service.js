@@ -52,6 +52,7 @@ const register = async ({ username, email, password, companyName }) => {
   if (companyName) {
     company = await Company.create({
       name: companyName,
+      email: email,
       company_id: `ISP-${Date.now()}`,
       status: 'active'
     });

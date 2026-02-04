@@ -38,18 +38,7 @@ router.post(
 // GET CURRENT USER
 router.get('/me', authenticate, authController.getMe);
 
-// ✅ LOGOUT (FIXED)
-router.post('/logout', authenticate, (req, res) => {
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-  });
-
-  return res.status(200).json({
-    success: true,
-    message: 'Logged out successfully',
-  });
-});
+// LOGOUT
+router.post('/logout', authController.logout);
 
 module.exports = router;

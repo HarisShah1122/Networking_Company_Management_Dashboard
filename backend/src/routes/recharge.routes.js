@@ -10,15 +10,14 @@ const { validateRecharge } = require('../helpers/validators/recharge.validator')
 router.use(authenticate);
 
 router.get('/', rechargeController.getAll);
-router.get('/:id', rechargeController.getById);
+router.get('/summary', rechargeController.getSummary);
 router.get('/due', rechargeController.getDuePayments);
 router.get('/stats', rechargeController.getStats);
+router.get('/:id', rechargeController.getById);
 
 router.post(
   '/',
   requireRole('CEO', 'Manager'),
-  validateRecharge,
-  handleValidationErrors,
   rechargeController.create
 );
 

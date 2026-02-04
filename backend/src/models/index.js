@@ -36,7 +36,7 @@ const models = {
 // Wire up all associations (this is critical!)
 Object.keys(models).forEach(modelName => {
   if (models[modelName].associate) {
-
+    // console.log(`[Models] Registering associations for: ${modelName}`);
     models[modelName].associate(models);
   }
 });

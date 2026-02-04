@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const RechargeService = require('../services/recharge.service');
+const activityLogService = require('../services/activityLog.service');
 const ApiResponse = require('../helpers/responses');
 const { validateRecharge } = require('../helpers/validators');
 
@@ -39,6 +40,14 @@ const create = async (req, res, next) => {
     }
 
     const recharge = await RechargeService.create(req.body);
+    
+    activityLogService.logActivity(
+      req.user.id,
+      'create',
+      'recharges',
+      `Created recharge: RS ${recharge.amount}`
+    );
+
     return ApiResponse.success(res, { recharge }, 'Recharge created successfully', 201);
   } catch (error) {
     next(error);
@@ -57,6 +66,13 @@ const update = async (req, res, next) => {
     if (!recharge) {
       return ApiResponse.notFound(res, 'Recharge not found');
     }
+
+    activityLogService.logActivity(
+      req.user.id,
+      'update',
+      'recharges',
+      `Updated recharge: RS ${recharge.amount}`
+    );
 
     return ApiResponse.success(res, { recharge }, 'Recharge updated successfully');
   } catch (error) {
@@ -82,6 +98,15 @@ const getStats = async (req, res, next) => {
   }
 };
 
+const getSummary = async (req, res, next) => {
+  try {
+    const summary = await RechargeService.getSummary();
+    return ApiResponse.success(res, summary, 'Recharge summary retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -89,4 +114,5 @@ module.exports = {
   update,
   getDuePayments,
   getStats,
+  getSummary,
 };

@@ -1,26 +1,17 @@
 import { toast } from 'react-toastify';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import apiClient from './api/apiClient';
 
 const assignmentService = {
   assignComplaint: async (complaintId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/complaints/${complaintId}/assign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
+      const response = await apiClient.post(`/assignment/complaints/${complaintId}/assign`);
+      
+      if (response.data.success) {
         toast.success('Complaint assigned successfully');
-        return data.data;
+        return response.data.data;
       } else {
-        toast.error(data.message || 'Failed to assign complaint');
-        throw new Error(data.message);
+        toast.error(response.data.message || 'Failed to assign complaint');
+        throw new Error(response.data.message);
       }
     } catch (error) {
       toast.error('Failed to assign complaint');
@@ -30,24 +21,15 @@ const assignmentService = {
 
   autoAssignMultiple: async (complaintIds) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/complaints/auto-assign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ complaintIds })
-      });
+      const response = await apiClient.post('/assignment/complaints/auto-assign', { complaintIds });
 
-      const data = await response.json();
-
-      if (data.success) {
-        const { successful, failed, total } = data.data;
+      if (response.data.success) {
+        const { successful, failed, total } = response.data.data;
         toast.success(`Processed ${total} complaints: ${successful} assigned, ${failed} failed`);
-        return data.data;
+        return response.data.data;
       } else {
-        toast.error(data.message || 'Failed to auto-assign complaints');
-        throw new Error(data.message);
+        toast.error(response.data.message || 'Failed to auto-assign complaints');
+        throw new Error(response.data.message);
       }
     } catch (error) {
       toast.error('Failed to auto-assign complaints');
@@ -57,23 +39,14 @@ const assignmentService = {
 
   manualAssignment: async (complaintId, staffId, officeId, reason) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/complaints/${complaintId}/manual-assign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ staffId, officeId, reason })
-      });
+      const response = await apiClient.post(`/assignment/complaints/${complaintId}/manual-assign`, { staffId, officeId, reason });
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.data.success) {
         toast.success('Complaint assigned manually');
-        return data.data;
+        return response.data.data;
       } else {
-        toast.error(data.message || 'Failed to assign complaint manually');
-        throw new Error(data.message);
+        toast.error(response.data.message || 'Failed to assign complaint manually');
+        throw new Error(response.data.message);
       }
     } catch (error) {
       toast.error('Failed to assign complaint manually');
@@ -83,23 +56,14 @@ const assignmentService = {
 
   reassignComplaint: async (complaintId, newStaffId, newOfficeId, reason) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/complaints/${complaintId}/reassign`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ newStaffId, newOfficeId, reason })
-      });
+      const response = await apiClient.put(`/assignment/complaints/${complaintId}/reassign`, { newStaffId, newOfficeId, reason });
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.data.success) {
         toast.success('Complaint reassigned successfully');
-        return data.data;
+        return response.data.data;
       } else {
-        toast.error(data.message || 'Failed to reassign complaint');
-        throw new Error(data.message);
+        toast.error(response.data.message || 'Failed to reassign complaint');
+        throw new Error(response.data.message);
       }
     } catch (error) {
       toast.error('Failed to reassign complaint');
@@ -109,19 +73,12 @@ const assignmentService = {
 
   getAssignmentStats: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/stats`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await apiClient.get('/assignment/stats');
 
-      const data = await response.json();
-
-      if (data.success) {
-        return data.data;
+      if (response.data.success) {
+        return response.data.data;
       } else {
-        throw new Error(data.message);
+        throw new Error(response.data.message);
       }
     } catch (error) {
       throw error;
@@ -130,19 +87,12 @@ const assignmentService = {
 
   getAvailableStaff: async (officeId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/staff/available?officeId=${officeId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await apiClient.get(`/assignment/staff/available?officeId=${officeId}`);
 
-      const data = await response.json();
-
-      if (data.success) {
-        return data.data;
+      if (response.data.success) {
+        return response.data.data;
       } else {
-        throw new Error(data.message);
+        throw new Error(response.data.message);
       }
     } catch (error) {
       throw error;
@@ -151,19 +101,12 @@ const assignmentService = {
 
   getMardanOffices: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/mardan/offices`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await apiClient.get('/assignment/mardan/offices');
 
-      const data = await response.json();
-
-      if (data.success) {
-        return data.data;
+      if (response.data.success) {
+        return response.data.data;
       } else {
-        throw new Error(data.message);
+        throw new Error(response.data.message);
       }
     } catch (error) {
       throw error;
@@ -172,19 +115,12 @@ const assignmentService = {
 
   getStaffWorkload: async (staffId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignment/staff/${staffId}/workload`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await apiClient.get(`/assignment/staff/${staffId}/workload`);
 
-      const data = await response.json();
-
-      if (data.success) {
-        return data.data;
+      if (response.data.success) {
+        return response.data.data;
       } else {
-        throw new Error(data.message);
+        throw new Error(response.data.message);
       }
     } catch (error) {
       throw error;
