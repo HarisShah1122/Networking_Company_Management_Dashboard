@@ -96,9 +96,11 @@ const update = async (id, data, companyId) => {
 };
 
 const getStats = async (companyId) => {
+  const whereClause = companyId ? { company_id: companyId } : {};
+  
   const [total, active] = await Promise.all([
-    Customer.count({ where: { company_id: companyId } }),
-    Customer.count({ where: { status: 'active', company_id: companyId } })
+    Customer.count({ where: whereClause }),
+    Customer.count({ where: { ...whereClause, status: 'active' } })
   ]);
 
   return { total, active };

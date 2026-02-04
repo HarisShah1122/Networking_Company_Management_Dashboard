@@ -6,6 +6,7 @@ module.exports = (sequelize) => {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     email: { type: DataTypes.STRING(255), allowNull: false, unique: true, validate: { isEmail: true } },
     username: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+    phone: { type: DataTypes.STRING(20), allowNull: true },
     password: {
       type: DataTypes.VIRTUAL,
       set(value) { this.setDataValue('password', value); }
