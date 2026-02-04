@@ -92,12 +92,8 @@ const DashboardPage = () => {
         stock: stock?.stats ?? { total_items: 0, total_value: 0 },
         transactions: transactions?.summary ?? { total_income: 0, total_expense: 0 },
       };
-<<<<<<< HEAD
       
       console.log('📈 Final Stats:', updatedStats);
-=======
-
->>>>>>> b2c7465789e2ce3bc336ddb386ce230d32d7ff1c
       setStats(updatedStats);
 
       // Update complaint data for pie chart
@@ -132,16 +128,6 @@ const DashboardPage = () => {
         setRevenueData(sampleData);
       }
 
-<<<<<<< HEAD
-      // Complaint Status (real data)
-      const cs = complaintStats?.stats ?? {};
-      setComplaintData([
-        { name: 'Open', value: Number(cs.open ?? cs.Open ?? 0), color: '#EF4444' },
-        { name: 'In Progress', value: Number(cs.in_progress ?? cs.inProgress ?? 0), color: '#F97316' },
-        { name: 'On Hold', value: Number(cs.on_hold ?? cs.onHold ?? 0), color: '#F59E0B' },
-        { name: 'Closed', value: Number(cs.closed ?? cs.Closed ?? 0), color: '#22C55E' },
-      ]);
-=======
       // Update recent complaints
       let complaintsData = [];
       if (recentComplaintsRes?.data?.complaints) {
@@ -157,7 +143,6 @@ const DashboardPage = () => {
       // Get only the 3 most recent complaints
       const recentComplaints = complaintsData.slice(0, 3);
       setRecentComplaints(recentComplaints);
->>>>>>> b2c7465789e2ce3bc336ddb386ce230d32d7ff1c
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
       // Set default values on error
