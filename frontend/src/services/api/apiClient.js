@@ -3,10 +3,11 @@ import { getToken } from '../../utils/storage.utils';
 
 const apiClient = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  withCredentials: true, // Enable for session cookies
   timeout: 10000,
 });
 
-// Add request interceptor to include JWT token
+// Add request interceptor to include JWT token and handle sessions
 apiClient.interceptors.request.use(
   (config) => {
     const token = getToken();
@@ -15,8 +16,9 @@ apiClient.interceptors.request.use(
       console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
       console.log('🔑 JWT token attached to request');
     } else {
-      console.log('⚠️ API Request without token:', config.method?.toUpperCase(), config.url);
+      console.log('⚠️ API Request without JWT token (using session):', config.method?.toUpperCase(), config.url);
     }
+    console.log('🍪 Session cookies will be sent automatically');
     return config;
   },
   (error) => {

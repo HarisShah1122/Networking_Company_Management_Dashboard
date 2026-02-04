@@ -53,16 +53,20 @@ const useAuthStore = create((set) => ({
 
   login: async (username, password) => {
     try {
-      console.log('🔐 Attempting JWT login...');
-      const { token, user, company } = await authService.login(username, password);
+      console.log('🔐 Attempting hybrid login (JWT + Session)...');
+      const { token, user, company, authMethod } = await authService.login(username, password);
       
       // Store JWT token and user data
-      setToken(token);
+      if (token) {
+        setToken(token);
+        console.log('💾 JWT token stored');
+      }
+      
       setUser({ ...user, company });
       set({ user: { ...user, company }, isAuthenticated: true, error: null });
       
-      console.log('✅ JWT login successful');
-      return { success: true };
+      console.log('✅ Hybrid login successful - Auth method:', authMethod);
+      return { success: true, authMethod };
     } catch (err) {
       let message = 'Login failed';
       
@@ -104,16 +108,20 @@ const useAuthStore = create((set) => ({
 
   registerUser: async (payload) => {
     try {
-      console.log('🔐 Attempting JWT registration...');
-      const { token, user, company } = await authService.register(payload);
+      console.log('🔐 Attempting hybrid registration (JWT + Session)...');
+      const { token, user, company, authMethod } = await authService.register(payload);
       
       // Store JWT token and user data
-      setToken(token);
+      if (token) {
+        setToken(token);
+        console.log('💾 JWT token stored');
+      }
+      
       setUser({ ...user, company });
       set({ user: { ...user, company }, isAuthenticated: true, error: null });
       
-      console.log('✅ JWT registration successful');
-      return { success: true };
+      console.log('✅ Hybrid registration successful - Auth method:', authMethod);
+      return { success: true, authMethod };
     } catch (err) {
       let message = 'Registration failed';
       

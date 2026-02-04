@@ -14,7 +14,14 @@ const login = async (req, res, next) => {
     const { username, password } = req.body;
     const result = await AuthService.login(username, password);
 
-    console.log('🔐 Login successful - sending JWT token');
+    // Create session for session-based auth
+    req.session.user = {
+      userId: result.user.id,
+      role: result.user.role,
+      companyId: result.user.companyId,
+    };
+
+    console.log('🔐 Login successful - sending JWT token and creating session');
 
     return ApiResponse.success(
       res,
@@ -22,6 +29,7 @@ const login = async (req, res, next) => {
         token: result.token,
         user: result.user,
         company: result.company,
+        authMethod: 'hybrid', // Both JWT and session available
       },
       'Login successful'
     );
@@ -42,7 +50,14 @@ const register = async (req, res, next) => {
 
     const result = await AuthService.register(req.body);
 
-    console.log('🔐 Registration successful - sending JWT token');
+    // Create session for session-based auth
+    req.session.user = {
+      userId: result.user.id,
+      role: result.user.role,
+      companyId: result.user.companyId,
+    };
+
+    console.log('🔐 Registration successful - sending JWT token and creating session');
 
     return ApiResponse.success(
       res,
@@ -50,6 +65,7 @@ const register = async (req, res, next) => {
         token: result.token,
         user: result.user,
         company: result.company,
+        authMethod: 'hybrid', // Both JWT and session available
       },
       'User registered successfully',
       201
@@ -82,8 +98,15 @@ const getMe = async (req, res, next) => {
 /* LOGOUT */
 const logout = async (req, res) => {
   try {
-    // JWT tokens are stateless - just return success
-    // Client will handle token removal
+    // Clear session for session-based auth
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destroy error:', err);
+      }
+    });
+    
+    // JWT tokens are stateless - client will handle token removal
+    console.log('🔐 Logout successful - session cleared, JWT tokens to be cleared by client');
     return ApiResponse.success(res, null, 'Logged out successfully');
   } catch (error) {
     return ApiResponse.error(res, 'Failed to logout');
