@@ -15,7 +15,7 @@ module.exports = {
         `UPDATE users SET company_id = '${companyId}' WHERE role = 'CEO' AND company_id IS NULL`
       );
       
-
+      console.log('CEO users linked to PACE TELECOM');
     }
     
     return Promise.resolve();

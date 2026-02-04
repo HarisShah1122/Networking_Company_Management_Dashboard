@@ -25,8 +25,33 @@ const CustomerDetailPage = () => {
         ]);
 
         setCustomer(custRes?.customer || custRes?.data || null);
-        const connectionsData = connRes?.connections || connRes?.data?.connections || connRes?.data || [];
-        const rechargesData = rechRes?.recharges || rechRes?.data?.recharges || rechRes?.data || [];
+        
+        // Handle different response formats for connections
+        let connectionsData = [];
+        if (connRes?.data?.connections) {
+          connectionsData = connRes.data.connections;
+        } else if (connRes?.connections) {
+          connectionsData = connRes.connections;
+        } else if (Array.isArray(connRes)) {
+          connectionsData = connRes;
+        } else if (Array.isArray(connRes?.data)) {
+          connectionsData = connRes.data;
+        }
+        
+        // Handle different response formats for recharges
+        let rechargesData = [];
+        if (rechRes?.data?.recharges) {
+          rechargesData = rechRes.data.recharges;
+        } else if (rechRes?.recharges) {
+          rechargesData = rechRes.recharges;
+        } else if (Array.isArray(rechRes)) {
+          rechargesData = rechRes;
+        } else if (Array.isArray(rechRes?.data)) {
+          rechargesData = rechRes.data;
+        }
+        
+        console.log('Connections data:', connectionsData);
+        console.log('Recharges data:', rechargesData);
         
         setConnections(connectionsData);
         setRecharges(rechargesData);

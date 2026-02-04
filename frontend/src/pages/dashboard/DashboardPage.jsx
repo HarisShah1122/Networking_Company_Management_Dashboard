@@ -17,9 +17,15 @@ const DashboardPage = () => {
     stock: { total_items: 0, total_value: 0 },
     transactions: { total_income: 0, total_expense: 0 },
   });
-  const [loading, setLoading] = useState(true);
+  const [complaintData, setComplaintData] = useState([
+    { name: 'Pending', value: 0, color: '#F59E0B' },
+    { name: 'In Progress', value: 0, color: '#3B82F6' },
+    { name: 'Resolved', value: 0, color: '#10B981' },
+    { name: 'Overdue', value: 0, color: '#EF4444' }
+  ]);
   const [revenueData, setRevenueData] = useState([]);
-  const [complaintData, setComplaintData] = useState([]);
+  const [recentComplaints, setRecentComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadStats();
@@ -59,9 +65,13 @@ const DashboardPage = () => {
           console.warn('❌ Revenue growth failed:', err);
           return { data: [] };
         }),
+        complaintService.getAll().catch(err => {
+          console.warn('❌ Recent complaints failed:', err);
+          return { data: [] };
+        }),
       ]);
 
-      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth] = results.map(r => 
+      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth, recentComplaintsRes] = results.map(r => 
         r.status === 'fulfilled' ? r.value : {}
       );
 
@@ -82,18 +92,29 @@ const DashboardPage = () => {
         stock: stock?.stats ?? { total_items: 0, total_value: 0 },
         transactions: transactions?.summary ?? { total_income: 0, total_expense: 0 },
       };
+<<<<<<< HEAD
       
       console.log('📈 Final Stats:', updatedStats);
+=======
+
+>>>>>>> b2c7465789e2ce3bc336ddb386ce230d32d7ff1c
       setStats(updatedStats);
 
-      // Revenue Growth (real data - last 12 months)
-      const revenueGrowthData = (revenueGrowth?.data ?? []).map((row) => ({
-        month: row.month || row.month_name || '',
-        revenue: Number(row.revenue ?? row.total_revenue ?? 0),
-      }));
-      
-      // If no real data, show sample 12-month data for demonstration
-      if (revenueGrowthData.length === 0) {
+      // Update complaint data for pie chart
+      if (complaintStats?.stats) {
+        setComplaintData([
+          { name: 'Pending', value: complaintStats.stats.pending || 0, color: '#F59E0B' },
+          { name: 'In Progress', value: complaintStats.stats.in_progress || 0, color: '#3B82F6' },
+          { name: 'Resolved', value: complaintStats.stats.resolved || 0, color: '#10B981' },
+          { name: 'Overdue', value: complaintStats.stats.overdue || 0, color: '#EF4444' }
+        ]);
+      }
+
+      // Update revenue data
+      if (revenueGrowth?.data && Array.isArray(revenueGrowth.data) && revenueGrowth.data.length > 0) {
+        setRevenueData(revenueGrowth.data);
+      } else {
+        // Fallback to sample data if no real data available
         const sampleData = [
           { month: 'Jan', revenue: 45000 },
           { month: 'Feb', revenue: 52000 },
@@ -109,10 +130,9 @@ const DashboardPage = () => {
           { month: 'Dec', revenue: 82000 },
         ];
         setRevenueData(sampleData);
-      } else {
-        setRevenueData(revenueGrowthData);
       }
 
+<<<<<<< HEAD
       // Complaint Status (real data)
       const cs = complaintStats?.stats ?? {};
       setComplaintData([
@@ -121,6 +141,23 @@ const DashboardPage = () => {
         { name: 'On Hold', value: Number(cs.on_hold ?? cs.onHold ?? 0), color: '#F59E0B' },
         { name: 'Closed', value: Number(cs.closed ?? cs.Closed ?? 0), color: '#22C55E' },
       ]);
+=======
+      // Update recent complaints
+      let complaintsData = [];
+      if (recentComplaintsRes?.data?.complaints) {
+        complaintsData = recentComplaintsRes.data.complaints;
+      } else if (recentComplaintsRes?.complaints) {
+        complaintsData = recentComplaintsRes.complaints;
+      } else if (Array.isArray(recentComplaintsRes)) {
+        complaintsData = recentComplaintsRes;
+      } else if (Array.isArray(recentComplaintsRes?.data)) {
+        complaintsData = recentComplaintsRes.data;
+      }
+      
+      // Get only the 3 most recent complaints
+      const recentComplaints = complaintsData.slice(0, 3);
+      setRecentComplaints(recentComplaints);
+>>>>>>> b2c7465789e2ce3bc336ddb386ce230d32d7ff1c
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
       // Set default values on error
@@ -133,6 +170,24 @@ const DashboardPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Time unknown';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) {
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else {
+      return 'Just now';
     }
   };
 
@@ -322,59 +377,164 @@ const DashboardPage = () => {
       </div>
 
       {/* Recent Complaints Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">📋 Recent Complaints</h2>
-          <Link 
-            to="/complaints-dashboard" 
-            className="group inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            <span>View All</span>
-            <svg className="ml-2 w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center">
+              <span className="mr-2">📋</span>
+              Recent Complaints
+            </h2>
+            <Link 
+              to="/complaints-dashboard" 
+              className="group inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <span>View All</span>
+              <svg className="ml-2 w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
         </div>
-        <div className="space-y-3">
-          {/* Mock recent complaints data */}
-          <div className="border-l-4 border-yellow-500 pl-4 py-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">COMP-001</p>
-                <p className="text-sm text-gray-600">Internet connection is very slow in the morning hours</p>
+        <div className="p-6 space-y-4">
+          {recentComplaints.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📋</span>
               </div>
-              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-500 text-white">
-                PENDING
-              </span>
+              <p className="text-lg font-medium text-gray-900">No complaints yet</p>
+              <p className="text-sm mt-2">Complaints will appear here once they are created</p>
             </div>
-            <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
-          </div>
-          
-          <div className="border-l-4 border-blue-500 pl-4 py-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">COMP-002</p>
-                <p className="text-sm text-gray-600">WiFi router not working after power outage</p>
-              </div>
-              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-500 text-white">
-                IN PROGRESS
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">5 hours ago</p>
-          </div>
-          
-          <div className="border-l-4 border-red-500 pl-4 py-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">COMP-003</p>
-                <p className="text-sm text-gray-600">Frequent disconnections during video calls</p>
-              </div>
-              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-500 text-white">
-                OVERDUE
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">26 hours ago</p>
-          </div>
+          ) : (
+            recentComplaints.map((complaint) => {
+              // Status styling function
+              const getStatusStyle = (status) => {
+                const styles = {
+                  pending: {
+                    bg: 'bg-amber-50',
+                    text: 'text-amber-700',
+                    border: 'border-amber-200',
+                    icon: '⏳'
+                  },
+                  in_progress: {
+                    bg: 'bg-blue-50',
+                    text: 'text-blue-700',
+                    border: 'border-blue-200',
+                    icon: '🔄'
+                  },
+                  resolved: {
+                    bg: 'bg-emerald-50',
+                    text: 'text-emerald-700',
+                    border: 'border-emerald-200',
+                    icon: '✅'
+                  },
+                  overdue: {
+                    bg: 'bg-red-50',
+                    text: 'text-red-700',
+                    border: 'border-red-200',
+                    icon: '⚠️'
+                  }
+                };
+                return styles[status] || {
+                  bg: 'bg-gray-50',
+                  text: 'text-gray-700',
+                  border: 'border-gray-200',
+                  icon: '📋'
+                };
+              };
+
+              // Priority styling function
+              const getPriorityStyle = (priority) => {
+                const styles = {
+                  high: {
+                    bg: 'bg-red-100',
+                    text: 'text-red-800',
+                    border: 'border-red-300',
+                    icon: '🔴'
+                  },
+                  medium: {
+                    bg: 'bg-orange-100',
+                    text: 'text-orange-800',
+                    border: 'border-orange-300',
+                    icon: '🟡'
+                  },
+                  low: {
+                    bg: 'bg-slate-100',
+                    text: 'text-slate-700',
+                    border: 'border-slate-300',
+                    icon: '⚪'
+                  }
+                };
+                return styles[priority] || {
+                  bg: 'bg-slate-100',
+                  text: 'text-slate-700',
+                  border: 'border-slate-300',
+                  icon: '⚪'
+                };
+              };
+
+              const statusStyle = getStatusStyle(complaint.status);
+              const priorityStyle = getPriorityStyle(complaint.priority);
+
+              return (
+                <div 
+                  key={complaint.id} 
+                  className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-all duration-200 border border-gray-200 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-sm font-bold text-white">
+                            {complaint.customer_name?.charAt(0)?.toUpperCase() || 'C'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">
+                            {complaint.id ? `COMP-${complaint.id.slice(-6).toUpperCase()}` : 'UNKNOWN'}
+                          </p>
+                          {complaint.customer_name && (
+                            <p className="text-xs text-gray-600 font-medium">
+                              {complaint.customer_name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 ml-11 line-clamp-2">
+                        {complaint.description || 'No description available'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end space-y-2">
+                      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
+                        <span className="mr-1.5">{statusStyle.icon}</span>
+                        {complaint.status ? complaint.status.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
+                      </span>
+                      {complaint.priority && (
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${priorityStyle.bg} ${priorityStyle.text} ${priorityStyle.border}`}>
+                          <span className="mr-1">{priorityStyle.icon}</span>
+                          {complaint.priority.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-xs text-gray-500 flex items-center">
+                      <span className="mr-1">🕒</span>
+                      {formatTimeAgo(complaint.createdAt)}
+                    </p>
+                    <Link 
+                      to={`/complaints-dashboard`}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                    >
+                      <span>View Details</span>
+                      <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

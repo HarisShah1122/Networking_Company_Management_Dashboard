@@ -22,7 +22,7 @@ module.exports = {
         updated_at: new Date()
       }], {});
     } else {
-
+      console.log('PACE TELECOM company already exists, skipping...');
       return Promise.resolve();
     }
   },
