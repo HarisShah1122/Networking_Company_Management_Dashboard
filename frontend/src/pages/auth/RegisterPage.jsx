@@ -15,6 +15,7 @@ const RegisterPage = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,17 +27,14 @@ const RegisterPage = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     clearError();
+    setFieldErrors({});
 
     try {
       const payload = {
         username: data.username,
         email: data.email,
         password: data.password,
-        role: 'CEO',
-        company: {
-          name: data.companyName,
-          email: data.email,
-        },
+        companyName: data.companyName,
       };
 
       const result = await registerUser(payload);
@@ -45,6 +43,19 @@ const RegisterPage = () => {
         toast.success('Account created successfully!');
         navigate('/dashboard', { replace: true });
       } else {
+        // Check if it's a validation error with field-specific errors
+        if (result.error && result.error.includes(',')) {
+          // Parse field errors from the error message
+          const errors = result.error.split(', ').reduce((acc, err) => {
+            // Try to extract field name from error message
+            if (err.toLowerCase().includes('email')) acc.email = err;
+            else if (err.toLowerCase().includes('username')) acc.username = err;
+            else if (err.toLowerCase().includes('password')) acc.password = err;
+            else if (err.toLowerCase().includes('company')) acc.companyName = err;
+            return acc;
+          }, {});
+          setFieldErrors(errors);
+        }
         toast.error(result.error ?? 'Registration failed');
       }
     } catch (err) {
@@ -85,6 +96,7 @@ const RegisterPage = () => {
                   placeholder="Enter company name"
                 />
                 {errors.companyName && <p className="mt-1 text-sm text-red-600">{errors.companyName.message}</p>}
+                {fieldErrors.companyName && <p className="mt-1 text-sm text-red-600">{fieldErrors.companyName}</p>}
               </div>
 
               <div>
@@ -99,6 +111,7 @@ const RegisterPage = () => {
                   placeholder="ceo@company.com"
                 />
                 {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+                {fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
               </div>
 
               <div>
@@ -113,6 +126,7 @@ const RegisterPage = () => {
                   placeholder="Enter your username"
                 />
                 {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>}
+                {fieldErrors.username && <p className="mt-1 text-sm text-red-600">{fieldErrors.username}</p>}
               </div>
 
               <div>
@@ -149,6 +163,7 @@ const RegisterPage = () => {
                   </button>
                 </div>
                 {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
+                {fieldErrors.password && <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>}
               </div>
 
               <button

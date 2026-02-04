@@ -91,10 +91,17 @@ const getMe = async (req, res, next) => {
 
 /* LOGOUT */
 const logout = async (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie('pace.sid');
-    return ApiResponse.success(res, null, 'Logged out');
-  });
+  try {
+    req.session.destroy((err) => {
+      if (err) {
+        return ApiResponse.error(res, 'Failed to logout');
+      }
+      res.clearCookie('pace.sid');
+      return ApiResponse.success(res, null, 'Logged out successfully');
+    });
+  } catch (error) {
+    return ApiResponse.error(res, 'Failed to logout');
+  }
 };
 
 module.exports = {

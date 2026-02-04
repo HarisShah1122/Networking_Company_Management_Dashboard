@@ -82,6 +82,15 @@ const getStats = async (req, res, next) => {
   }
 };
 
+const getSummary = async (req, res, next) => {
+  try {
+    const summary = await RechargeService.getSummary();
+    return ApiResponse.success(res, summary, 'Recharge summary retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -89,4 +98,5 @@ module.exports = {
   update,
   getDuePayments,
   getStats,
+  getSummary,
 };

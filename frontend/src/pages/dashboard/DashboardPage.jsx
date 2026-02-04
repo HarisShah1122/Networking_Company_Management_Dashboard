@@ -28,28 +28,62 @@ const DashboardPage = () => {
   const loadStats = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Starting dashboard data fetch...');
       
       const results = await Promise.allSettled([
-        customerService.getStats().catch(() => ({ stats: {} })),
-        connectionService.getStats().catch(() => ({ stats: {} })),
-        rechargeService.getSummary().catch(() => ({ total_paid: 0, total_pending: 0 })),
-        stockService.getStats().catch(() => ({ stats: {} })),
-        transactionService.getSummary().catch(() => ({ summary: {} })),
-        complaintService.getStats().catch(() => ({ stats: {} })),
-        transactionService.getRevenueGrowth().catch(() => ({ data: [] })),
+        customerService.getStats().catch(err => {
+          console.warn('❌ Customer stats failed:', err);
+          return { stats: { total: 0, active: 0 } };
+        }),
+        connectionService.getStats().catch(err => {
+          console.warn('❌ Connection stats failed:', err);
+          return { stats: { total: 0, pending: 0 } };
+        }),
+        rechargeService.getSummary().catch(err => {
+          console.warn('❌ Recharge summary failed:', err);
+          return { total_paid: 0, total_pending: 0 };
+        }),
+        stockService.getStats().catch(err => {
+          console.warn('❌ Stock stats failed:', err);
+          return { stats: { total_items: 0, total_value: 0 } };
+        }),
+        transactionService.getSummary().catch(err => {
+          console.warn('❌ Transaction summary failed:', err);
+          return { summary: { total_income: 0, total_expense: 0 } };
+        }),
+        complaintService.getStats().catch(err => {
+          console.warn('❌ Complaint stats failed:', err);
+          return { stats: { open: 0, in_progress: 0, on_hold: 0, closed: 0 } };
+        }),
+        transactionService.getRevenueGrowth().catch(err => {
+          console.warn('❌ Revenue growth failed:', err);
+          return { data: [] };
+        }),
       ]);
 
       const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth] = results.map(r => 
-        r.status === 'fulfilled' ? r.value : (r.reason || {})
+        r.status === 'fulfilled' ? r.value : {}
       );
 
+      console.log('📊 API Results:', {
+        customers,
+        connections,
+        recharges,
+        stock,
+        transactions,
+        complaintStats,
+        revenueGrowth
+      });
+
       const updatedStats = {
-        customers: customers?.stats ?? customers ?? {},
-        connections: connections?.stats ?? connections ?? {},
-        recharges: recharges ?? {},
-        stock: stock?.stats ?? stock ?? {},
-        transactions: transactions?.summary ?? transactions ?? {},
+        customers: customers?.stats ?? { total: 0, active: 0 },
+        connections: connections?.stats ?? { total: 0, pending: 0 },
+        recharges: recharges ?? { total_paid: 0, total_pending: 0 },
+        stock: stock?.stats ?? { total_items: 0, total_value: 0 },
+        transactions: transactions?.summary ?? { total_income: 0, total_expense: 0 },
       };
+      
+      console.log('📈 Final Stats:', updatedStats);
       setStats(updatedStats);
 
       // Revenue Growth (real data - last 12 months)
@@ -80,7 +114,7 @@ const DashboardPage = () => {
       }
 
       // Complaint Status (real data)
-      const cs = complaintStats?.stats ?? complaintStats ?? {};
+      const cs = complaintStats?.stats ?? {};
       setComplaintData([
         { name: 'Open', value: Number(cs.open ?? cs.Open ?? 0), color: '#EF4444' },
         { name: 'In Progress', value: Number(cs.in_progress ?? cs.inProgress ?? 0), color: '#F97316' },
@@ -89,7 +123,14 @@ const DashboardPage = () => {
       ]);
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
-      // Keep default values on error
+      // Set default values on error
+      setStats({
+        customers: { total: 0, active: 0 },
+        connections: { total: 0, pending: 0 },
+        recharges: { total_paid: 0, total_pending: 0 },
+        stock: { total_items: 0, total_value: 0 },
+        transactions: { total_income: 0, total_expense: 0 },
+      });
     } finally {
       setLoading(false);
     }

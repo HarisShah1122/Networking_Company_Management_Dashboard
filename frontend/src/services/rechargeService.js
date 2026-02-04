@@ -33,15 +33,10 @@ export const rechargeService = {
   },
   getSummary: async () => {
     try {
-      const all = await rechargeService.getAll();
-      const total_paid = all
-        .filter(r => r.status === 'paid')
-        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
-      const total_pending = all
-        .filter(r => r.status === 'pending')
-        .reduce((sum, r) => sum + Number(r.amount || 0), 0);
-      return { total_paid, total_pending };
-    } catch {
+      const response = await apiClient.get('/recharges/summary');
+      return response.data.data ?? response.data ?? { total_paid: 0, total_pending: 0 };
+    } catch (error) {
+      console.warn('Recharge summary failed, using fallback:', error);
       return { total_paid: 0, total_pending: 0 };
     }
   },

@@ -157,6 +157,18 @@ const getStats = async () => {
   }
 };
 
+const getSummary = async () => {
+  try {
+    const stats = await getStats();
+    return {
+      total_paid: Number(stats.total_paid || 0),
+      total_pending: Number(stats.total_pending || 0)
+    };
+  } catch (error) {
+    return { total_paid: 0, total_pending: 0 };
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -164,5 +176,6 @@ module.exports = {
   update,
   delete: deleteRecharge,
   getDuePayments,
-  getStats
+  getStats,
+  getSummary
 };

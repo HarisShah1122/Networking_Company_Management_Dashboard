@@ -10,24 +10,32 @@ const useAuthStore = create((set) => ({
 
   initialize: async () => {
     try {
+      console.log('🔐 Initializing auth store...');
       const storedUser = getUser();
+      console.log('📝 Stored user:', storedUser);
+      
       if (storedUser) {
         set({ user: storedUser, isAuthenticated: true });
         
         // Verify session is still valid
         try {
+          console.log('🔍 Verifying session with backend...');
           const { user } = await authService.getMe();
+          console.log('✅ Session valid, user:', user);
           set({ user, isAuthenticated: true });
         } catch (error) {
+          console.warn('❌ Session invalid:', error);
           removeUser();
           set({ user: null, isAuthenticated: false });
         }
       }
     } catch (error) {
+      console.error('❌ Auth initialization error:', error);
       removeUser();
       set({ user: null, isAuthenticated: false });
     } finally {
       set({ isInitializing: false });
+      console.log('🏁 Auth initialization complete');
     }
   },
 
@@ -38,16 +46,40 @@ const useAuthStore = create((set) => ({
       set({ user: { ...user, company }, isAuthenticated: true, error: null });
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || 'Login failed';
+      let message = 'Login failed';
+      
+      if (err.response?.data) {
+        const data = err.response.data;
+        
+        // Handle validation errors (422)
+        if (data.errors && Array.isArray(data.errors)) {
+          message = data.errors.map(err => err.message).join(', ');
+        } 
+        // Handle regular error messages
+        else if (data.message) {
+          message = data.message;
+        }
+        // Handle error field
+        else if (data.error) {
+          message = data.error;
+        }
+      }
+      
       set({ error: message });
       return { success: false };
     }
   },
 
   logout: async () => {
-    await authService.logout();
-    removeUser();
-    set({ user: null, isAuthenticated: false });
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Continue with local cleanup even if API call fails
+    } finally {
+      removeUser();
+      set({ user: null, isAuthenticated: false });
+    }
   },
 
   registerUser: async (payload) => {
@@ -57,7 +89,25 @@ const useAuthStore = create((set) => ({
       set({ user: { ...user, company }, isAuthenticated: true, error: null });
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || 'Registration failed';
+      let message = 'Registration failed';
+      
+      if (err.response?.data) {
+        const data = err.response.data;
+        
+        // Handle validation errors (422)
+        if (data.errors && Array.isArray(data.errors)) {
+          message = data.errors.map(err => err.message).join(', ');
+        } 
+        // Handle regular error messages
+        else if (data.message) {
+          message = data.message;
+        }
+        // Handle error field
+        else if (data.error) {
+          message = data.error;
+        }
+      }
+      
       set({ error: message });
       return { success: false, error: message };
     }
