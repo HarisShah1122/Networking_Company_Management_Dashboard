@@ -14,12 +14,7 @@ const login = async (req, res, next) => {
     const { username, password } = req.body;
     const result = await AuthService.login(username, password);
 
-    // SESSION LOGIN
-    req.session.user = {
-      userId: result.user.id,
-      role: result.user.role,
-      companyId: result.user.companyId,
-    };
+    console.log('🔐 Login successful - sending JWT token');
 
     return ApiResponse.success(
       res,
@@ -47,12 +42,7 @@ const register = async (req, res, next) => {
 
     const result = await AuthService.register(req.body);
 
-    // AUTO LOGIN
-    req.session.user = {
-      userId: result.user.id,
-      role: result.user.role,
-      companyId: result.user.companyId,
-    };
+    console.log('🔐 Registration successful - sending JWT token');
 
     return ApiResponse.success(
       res,
@@ -92,13 +82,9 @@ const getMe = async (req, res, next) => {
 /* LOGOUT */
 const logout = async (req, res) => {
   try {
-    req.session.destroy((err) => {
-      if (err) {
-        return ApiResponse.error(res, 'Failed to logout');
-      }
-      res.clearCookie('pace.sid');
-      return ApiResponse.success(res, null, 'Logged out successfully');
-    });
+    // JWT tokens are stateless - just return success
+    // Client will handle token removal
+    return ApiResponse.success(res, null, 'Logged out successfully');
   } catch (error) {
     return ApiResponse.error(res, 'Failed to logout');
   }

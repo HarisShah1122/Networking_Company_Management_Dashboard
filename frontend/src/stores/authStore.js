@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
-import { getUser, setUser, removeUser } from '../utils/storage.utils';
+import { getUser, setUser, removeUser, getToken, setToken, removeToken, clearAuth } from '../utils/storage.utils';
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -10,40 +10,58 @@ const useAuthStore = create((set) => ({
 
   initialize: async () => {
     try {
-      console.log('🔐 Initializing auth store...');
+      console.log('🔐 Initializing JWT auth store...');
+      const token = getToken();
       const storedUser = getUser();
-      console.log('📝 Stored user:', storedUser);
       
-      if (storedUser) {
+      console.log('� JWT token found:', token ? 'yes' : 'no');
+      console.log('� Stored user:', storedUser);
+      
+      if (token && storedUser) {
+        // Set authenticated state immediately from localStorage
         set({ user: storedUser, isAuthenticated: true });
         
-        // Verify session is still valid
+        // Verify token is still valid with backend
         try {
-          console.log('🔍 Verifying session with backend...');
-          const { user } = await authService.getMe();
-          console.log('✅ Session valid, user:', user);
-          set({ user, isAuthenticated: true });
+          console.log('🔍 Verifying JWT token with backend...');
+          const response = await authService.getMe();
+          console.log('✅ JWT token valid, user:', response.user);
+          
+          // Update user data with fresh data from backend
+          set({ user: response.user, isAuthenticated: true });
         } catch (error) {
-          console.warn('❌ Session invalid:', error);
-          removeUser();
+          console.warn('❌ JWT token verification failed:', error.response?.status, error.message);
+          
+          // If token is invalid, clear everything
+          clearAuth();
           set({ user: null, isAuthenticated: false });
+          console.log('🔄 JWT token invalid - user will need to login again');
         }
+      } else {
+        console.log('📝 No JWT token or user found');
+        set({ user: null, isAuthenticated: false });
       }
     } catch (error) {
-      console.error('❌ Auth initialization error:', error);
-      removeUser();
+      console.error('❌ JWT auth initialization error:', error);
+      clearAuth();
       set({ user: null, isAuthenticated: false });
     } finally {
       set({ isInitializing: false });
-      console.log('🏁 Auth initialization complete');
+      console.log('🏁 JWT auth initialization complete - isAuthenticated:', useAuthStore.getState().isAuthenticated);
     }
   },
 
   login: async (username, password) => {
     try {
-      const { user, company } = await authService.login(username, password);
+      console.log('🔐 Attempting JWT login...');
+      const { token, user, company } = await authService.login(username, password);
+      
+      // Store JWT token and user data
+      setToken(token);
       setUser({ ...user, company });
       set({ user: { ...user, company }, isAuthenticated: true, error: null });
+      
+      console.log('✅ JWT login successful');
       return { success: true };
     } catch (err) {
       let message = 'Login failed';
@@ -72,21 +90,29 @@ const useAuthStore = create((set) => ({
 
   logout: async () => {
     try {
+      console.log('🔐 Logging out...');
       await authService.logout();
     } catch (error) {
       console.error('Logout error:', error);
       // Continue with local cleanup even if API call fails
     } finally {
-      removeUser();
+      clearAuth();
       set({ user: null, isAuthenticated: false });
+      console.log('✅ JWT logout complete');
     }
   },
 
   registerUser: async (payload) => {
     try {
-      const { user, company } = await authService.register(payload);
+      console.log('🔐 Attempting JWT registration...');
+      const { token, user, company } = await authService.register(payload);
+      
+      // Store JWT token and user data
+      setToken(token);
       setUser({ ...user, company });
       set({ user: { ...user, company }, isAuthenticated: true, error: null });
+      
+      console.log('✅ JWT registration successful');
       return { success: true };
     } catch (err) {
       let message = 'Registration failed';
