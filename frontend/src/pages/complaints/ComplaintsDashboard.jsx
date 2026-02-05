@@ -2,9 +2,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { complaintService } from '../../services/complaintService';
+import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
 import { 
-  STAFF_MEMBERS, 
   BRANCHES, 
   SOURCES, 
   getStatusColor, 
@@ -30,6 +30,8 @@ const ComplaintsDashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [pagination, setPagination] = useState(null);
   const [paginationState, setPaginationState] = useState({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     open: 0,
@@ -187,6 +189,32 @@ const ComplaintsDashboard = () => {
     setPaginationState(prev => ({ ...prev, pageSize: newPageSize, page: 1 }));
   }, []);
 
+  const loadStaffMembers = useCallback(async () => {
+    try {
+      setStaffLoading(true);
+      let response;
+      if (user?.role === 'CEO') {
+        response = await userService.getAll();
+      } else {
+        response = await userService.getStaffList();
+      }
+      
+      const staffList = Array.isArray(response) ? response : [];
+      // Filter for active staff members only
+      const activeStaff = staffList.filter(staff => 
+        staff.status === 'active' && 
+        ['Technician', 'Manager', 'Staff'].includes(staff.role)
+      );
+      setStaffMembers(activeStaff);
+    } catch (error) {
+      console.error('Error loading staff members:', error);
+      toast.error('Failed to load staff members');
+      setStaffMembers([]);
+    } finally {
+      setStaffLoading(false);
+    }
+  }, [user?.role]);
+
   const assignComplaint = async (complaintId, technicianId) => {
     try {
       await complaintService.assignToTechnician(complaintId, technicianId);
@@ -194,8 +222,8 @@ const ComplaintsDashboard = () => {
       // Refresh complaints list
       await loadComplaints();
       
-      const staffMember = STAFF_MEMBERS.find(s => s.id === technicianId);
-      toast.success(`Complaint assigned to ${staffMember?.name || 'Staff Member'}! SLA timer started.`, {
+      const staffMember = staffMembers.find(s => s.id === technicianId);
+      toast.success(`Complaint assigned to ${staffMember?.username || staffMember?.name || 'Staff Member'}! SLA timer started.`, {
         autoClose: 3000,
         position: 'top-right'
       });
@@ -296,7 +324,8 @@ const ComplaintsDashboard = () => {
 
   useEffect(() => {
     loadComplaints();
-  }, [loadComplaints]);
+    loadStaffMembers();
+  }, [loadComplaints, loadStaffMembers]);
 
   useEffect(() => {
     filterComplaints();
@@ -442,6 +471,7 @@ const ComplaintsDashboard = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer Details</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issue</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Area</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA Status</th>
@@ -488,6 +518,11 @@ const ComplaintsDashboard = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {complaint.area || complaint.district || 'Not specified'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(complaint.priority)}`}>
                       {complaint.priority}
                     </span>
@@ -529,12 +564,35 @@ const ComplaintsDashboard = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
-                      onClick={() => openComplaintModal(complaint)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      View
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      {!complaint.assignedTo && staffMembers.length > 0 && (
+                        <div className="relative">
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                assignComplaint(complaint.id, e.target.value);
+                                e.target.value = ''; // Reset select
+                              }
+                            }}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded text-indigo-600 hover:bg-indigo-50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Assign</option>
+                            {staffMembers.slice(0, 5).map(staff => (
+                              <option key={staff.id} value={staff.id}>
+                                {staff.username || staff.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <button 
+                        onClick={() => openComplaintModal(complaint)}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        View
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -602,6 +660,13 @@ const ComplaintsDashboard = () => {
                       <span className="mr-2 text-gray-500 mt-0.5">📍</span>
                       <span className="text-gray-900">{selectedComplaint?.address || 'No address provided'}</span>
                     </div>
+
+                    <div className="flex items-center text-sm">
+                      <span className="mr-2 text-gray-500">🏢</span>
+                      <span className="text-gray-900">
+                        {selectedComplaint?.area || selectedComplaint?.district || 'No area specified'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -624,6 +689,25 @@ const ComplaintsDashboard = () => {
                   {new Date(selectedComplaint?.createdAt || selectedComplaint?.created_at).toLocaleString()}
                 </p>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Service Area</label>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedComplaint?.area || selectedComplaint?.district || 'No area specified'}
+                  </p>
+                  {selectedComplaint?.city && (
+                    <p className="text-xs text-gray-500">
+                      City: {selectedComplaint.city}
+                    </p>
+                  )}
+                  {selectedComplaint?.province && (
+                    <p className="text-xs text-gray-500">
+                      Province: {selectedComplaint.province}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Right Column - Status & Assignment */}
@@ -637,26 +721,66 @@ const ComplaintsDashboard = () => {
 
               {!selectedComplaint?.assignedTo ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assign Staff Member</label>
-                  <select
-                    onChange={(e) => assignComplaint(selectedComplaint.id, parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Select staff member</option>
-                    {STAFF_MEMBERS.map(staff => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name} - {staff.role}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Assign Staff Member</label>
+                    <button
+                      onClick={loadStaffMembers}
+                      disabled={staffLoading}
+                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-50"
+                      title="Refresh staff list"
+                    >
+                      {staffLoading ? '...' : '↻'}
+                    </button>
+                  </div>
+                  {staffLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                      <span className="text-sm text-gray-500">Loading staff...</span>
+                    </div>
+                  ) : staffMembers.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded">
+                      No active staff members available. 
+                      <Link to="/staff" className="text-blue-600 hover:underline ml-1">
+                        Add staff members here.
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            assignComplaint(selectedComplaint.id, e.target.value);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Select staff member</option>
+                        {staffMembers.map(staff => (
+                          <option key={staff.id} value={staff.id}>
+                            {staff.username || staff.name} - {staff.role}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="text-xs text-gray-500">
+                        {staffMembers.length} active staff members available
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Staff Member</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {STAFF_MEMBERS.find(s => s.id === selectedComplaint.assignedTo)?.name || 'Unknown Staff'}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded flex-1">
+                      {staffMembers.find(s => s.id === selectedComplaint.assignedTo)?.username || 
+                       staffMembers.find(s => s.id === selectedComplaint.assignedTo)?.name || 
+                       'Unknown Staff'}
+                    </p>
+                    <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                      {staffMembers.find(s => s.id === selectedComplaint.assignedTo)?.role || 'Staff'}
+                    </span>
+                  </div>
                 </div>
               )}
 
