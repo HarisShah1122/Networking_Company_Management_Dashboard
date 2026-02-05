@@ -77,7 +77,7 @@ const update = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const user = await UserService.update(req.params.id, req.body);
+    const user = await UserService.update(req.params.id, req.body, req.companyId);
     
     if (!user) {
       return ApiResponse.notFound(res, 'User');
@@ -96,10 +96,22 @@ const update = async (req, res, next) => {
   }
 };
 
+const getStaffList = async (req, res, next) => {
+  try {
+    const users = await UserService.getAll(req.companyId);
+    // Filter out CEO users from staff list - only show Manager, Staff, and Technician
+    const staffUsers = users.filter(user => user.role !== 'CEO');
+    return ApiResponse.success(res, { data: staffUsers }, 'Staff list retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
+  getStaffList,
   validateUser
 };

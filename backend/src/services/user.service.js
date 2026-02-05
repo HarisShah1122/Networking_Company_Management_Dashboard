@@ -62,10 +62,13 @@ const create = async (data, companyId) => {
 };
 
 const update = async (id, data, companyId) => {
-  const user = await User.findByPk(id, {
-    where: { company_id: companyId }
-  });
+  const user = await User.findByPk(id);
   if (!user) return null;
+  
+  // Verify the user belongs to the specified company
+  if (user.company_id !== companyId) {
+    return null;
+  }
 
   const fields = [];
   
@@ -86,15 +89,15 @@ const update = async (id, data, companyId) => {
     fields.push('status');
   }
   if (data.password && data.password.trim()) {
-    user.password = data.password.trim();
-    fields.push('password');
+    user.password_hash = await bcrypt.hash(data.password.trim(), 10);
+    fields.push('password_hash');
   }
 
   if (fields.length > 0) {
     await user.save({ fields });
   }
   
-  return await getById(id);
+  return await getById(id, companyId);
 };
 
 const emailExists = async (email, excludeId = null) => {
