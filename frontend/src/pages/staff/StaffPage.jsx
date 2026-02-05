@@ -43,7 +43,7 @@ const StaffPage = () => {
   }, []);
 
   const loadUsers = useCallback(async (search = '', role = '', isInitialLoad = false) => {
-    console.log('🚀 loadUsers called with:', { search, role, isInitialLoad });
+    console.log('🚀 loadUsers called with:', { search, role, isInitialLoad, userRole: user?.role, userCompanyId: user?.companyId });
     try {
       if (isInitialLoad) {
         setLoading(true);
@@ -54,20 +54,26 @@ const StaffPage = () => {
       // Use different endpoints based on user role
       let response;
       if (user?.role === 'CEO') {
+        console.log('👑 CEO user, calling userService.getAll()');
         response = await userService.getAll();
       } else {
+        console.log('👨 Manager/Staff user, calling userService.getStaffList()');
         response = await userService.getStaffList();
       }
       
       console.log('🔍 API Response:', response);
       console.log('👤 User Role:', user?.role);
+      console.log('🏢 User Company ID:', user?.companyId);
       
       let usersList = [];
       if (Array.isArray(response)) {
         usersList = response;
         console.log('✅ Response is array, length:', usersList.length);
+        console.log('👥 Sample user:', usersList[0]);
       } else {
         console.log('❌ Response is not an array:', response);
+        console.log('📊 Response type:', typeof response);
+        console.log('📊 Response keys:', Object.keys(response || {}));
       }
 
       console.log('👥 Users list before filtering:', usersList);
@@ -94,6 +100,7 @@ const StaffPage = () => {
       setUsers(usersList);
     } catch (error) {
       console.error('❌ Error in loadUsers:', error);
+      console.error('📊 Error details:', error.response?.data);
       const errorMsg = error.response?.data?.message ?? error.message ?? 'Failed to load users';
       toast.error(errorMsg);
       setUsers([]);
@@ -225,11 +232,11 @@ const StaffPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Staff Management</h1>
       </div>
 
-      <div className="flex gap-4 mb-4 flex-wrap">
-            <div className="flex-1 relative min-w-[280px]">
+      <div className="flex items-center space-x-4 mb-6">
+            <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Search staff by username, email..."
+                placeholder="Search by username or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -252,6 +259,13 @@ const StaffPage = () => {
               <option value="Staff">Staff</option>
               <option value="Technician">Technician</option>
             </select>
+
+            <button
+              onClick={() => loadUsers(searchTerm, roleFilter, false)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+            >
+              🔄 Refresh
+            </button>
 
             {canManage && (
               <button

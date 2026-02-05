@@ -12,6 +12,7 @@ const {
 } = require('./config/env');
 const { errorHandler } = require('./middleware/error.middleware');
 const { sequelize } = require('./models');
+const slaMonitor = require('./services/slaMonitor.service');
 /* ROUTES */
 const authRoutes = require('./routes/auth.routes');
 const companyRoutes = require('./routes/company.routes');
@@ -86,9 +87,17 @@ app.use(errorHandler);
   try {
     await sequelize.authenticate();
     console.log('✅ Database connected');
+    
+    // Start SLA Monitor
+    console.log('🕒 Starting SLA Monitor...');
+    slaMonitor.start();
+    
     if (process.env.NODE_ENV !== 'production') {
       app.listen(PORT, () => {
         console.log(`🚀 Server running on http://localhost:${PORT}`);
+        console.log('📊 SLA monitoring is active');
+        console.log('⏰ Checking overdue complaints every 5 minutes');
+        console.log('💰 Applying penalties every 10 minutes');
       });
     }
   } catch (error) {
@@ -96,6 +105,5 @@ app.use(errorHandler);
     process.exit(1);
   }
 })();
-
 
 module.exports = app;

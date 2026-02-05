@@ -1,4 +1,5 @@
 const activityLogService = require('./activityLog.service');
+const SLAService = require('./sla.service');
 const models = require('../models');
 const { Complaint, sequelize } = models;
 const { fetchCustomerData } = require('../helpers/customerHelper');
@@ -26,7 +27,14 @@ const create = async (data, userId, companyId) => {
 
     if (data.customerId) { sqlFields.push('customer_id'); placeholders.push('?'); values.push(data.customerId); }
     if (data.connectionId) { sqlFields.push('connection_id'); placeholders.push('?'); values.push(data.connectionId); }
-    if (data.assignedTo) { sqlFields.push('assigned_to'); placeholders.push('?'); values.push(data.assignedTo); }
+    if (data.assignedTo) { 
+      sqlFields.push('assigned_to'); placeholders.push('?'); values.push(data.assignedTo);
+      // If assigned, start SLA timer
+      const slaDeadline = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+      sqlFields.push('assigned_at', 'sla_deadline', 'sla_status'); 
+      placeholders.push('?', '?', '?'); 
+      values.push(now, slaDeadline, 'pending');
+    }
 
     const sql = `INSERT INTO complaints (${sqlFields.join(',')}) VALUES (${placeholders.join(',')})`;
 
@@ -54,11 +62,14 @@ const create = async (data, userId, companyId) => {
   }
 };
 
-const getAll = async (companyId) => {
+const getAll = async (companyId, areaId = null) => {
   try {
     let whereClause = '';
     if (companyId) {
       whereClause = `WHERE company_id = '${companyId}'`;
+      if (areaId) {
+        whereClause += ` AND area = '${areaId}'`;
+      }
     }
     
     const sql = `SELECT * FROM complaints ${whereClause} ORDER BY created_at DESC`;
@@ -106,7 +117,31 @@ const update = async (id, data, userId, companyId) => {
 
     if (customerId) updateData.customerId = customerId;
     if (data.connectionId !== undefined) updateData.connectionId = data.connectionId ?? complaintData.connectionId;
-    if (data.assignedTo !== undefined) updateData.assignedTo = data.assignedTo ?? complaintData.assignedTo;
+    
+    // Handle assignment changes
+    if (data.assignedTo !== undefined) {
+      const oldAssignedTo = complaintData.assigned_to;
+      const newAssignedTo = data.assignedTo ?? complaintData.assigned_to;
+      
+      updateData.assignedTo = newAssignedTo;
+      
+      // If assignment changed and new assignment exists
+      if (oldAssignedTo !== newAssignedTo && newAssignedTo) {
+        const now = new Date();
+        const slaDeadline = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+        
+        updateData.assigned_at = now;
+        updateData.sla_deadline = slaDeadline;
+        updateData.sla_status = 'pending';
+        
+        console.log(` SLA timer started for complaint ${id} assigned to technician ${newAssignedTo}`);
+      }
+    }
+
+    // If status is being changed to closed, check SLA
+    if (data.status === 'closed' && complaintData.status !== 'closed') {
+      await SLAService.checkSLAStatus(id);
+    }
 
     await complaint.update(updateData);
     activityLogService.logActivity(userId, 'update_complaint', 'complaint', `Updated complaint #${id}`);
@@ -130,8 +165,11 @@ const deleteComplaint = async (id, userId, companyId) => {
   }
 };
 
-const getStatusStats = async (companyId) => {
-  const whereClause = companyId ? { company_id: companyId } : {};
+const getStatusStats = async (companyId, areaId = null) => {
+  let whereClause = companyId ? { company_id: companyId } : {};
+  if (areaId) {
+    whereClause.area = areaId;
+  }
   
   const rows = await Complaint.findAll({
     where: whereClause,
@@ -150,4 +188,57 @@ const getStatusStats = async (companyId) => {
   return stats;
 };
 
-module.exports = { create, getAll, update, delete: deleteComplaint, getStatusStats };
+const assignToTechnician = async (complaintId, technicianId, userId, companyId) => {
+  try {
+    const complaint = await Complaint.findOne({ 
+      where: { id: complaintId, company_id: companyId } 
+    });
+    
+    if (!complaint) {
+      throw new Error('Complaint not found');
+    }
+
+    // Start SLA timer
+    const slaData = await SLAService.startSLATimer(complaintId, technicianId);
+    
+    // Update complaint
+    await complaint.update({
+      assignedTo: technicianId,
+      status: 'in_progress' // Auto-update status when assigned
+    });
+
+    activityLogService.logActivity(
+      userId, 
+      'assign_complaint', 
+      'complaint', 
+      `Complaint #${complaintId} assigned to technician ${technicianId}`
+    );
+
+    return {
+      ...complaint.toJSON(),
+      ...slaData
+    };
+  } catch (error) {
+    console.error('Error assigning complaint:', error);
+    throw error;
+  }
+};
+
+const getSLAStats = async (companyId, areaId = null) => {
+  try {
+    return await SLAService.getSLAStats(companyId, areaId);
+  } catch (error) {
+    console.error('Error getting SLA stats:', error);
+    throw error;
+  }
+};
+
+module.exports = { 
+  create, 
+  getAll, 
+  update, 
+  delete: deleteComplaint, 
+  getStatusStats,
+  assignToTechnician,
+  getSLAStats
+};

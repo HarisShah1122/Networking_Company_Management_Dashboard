@@ -9,7 +9,7 @@ module.exports = (sequelize) => {
     description: { type: DataTypes.TEXT, allowNull: false },
     status: { type: DataTypes.ENUM('open','in_progress','on_hold','closed'), defaultValue: 'open' },
     priority: { type: DataTypes.ENUM('low','medium','high','urgent'), defaultValue: 'medium' },
-    assignedTo: { type: DataTypes.UUID, allowNull: true },
+    assignedTo: { type: DataTypes.UUID, allowNull: true, field: 'assigned_to' },
     name: { type: DataTypes.STRING(255), allowNull: true },
     address: { type: DataTypes.TEXT, allowNull: true },
     whatsapp_number: { type: DataTypes.STRING(20), allowNull: true },
@@ -26,7 +26,18 @@ module.exports = (sequelize) => {
     postal_code: { type: DataTypes.STRING(20), allowNull: true },
     landmark: { type: DataTypes.STRING(255), allowNull: true },
     latitude: { type: DataTypes.DECIMAL(10, 8), allowNull: true },
-    longitude: { type: DataTypes.DECIMAL(11, 8), allowNull: true }
+    longitude: { type: DataTypes.DECIMAL(11, 8), allowNull: true },
+    // SLA tracking fields
+    assigned_at: { type: DataTypes.DATE, allowNull: true, field: 'assigned_at' },
+    sla_deadline: { type: DataTypes.DATE, allowNull: true, field: 'sla_deadline' },
+    sla_status: { 
+      type: DataTypes.ENUM('pending', 'met', 'breached', 'pending_penalty'), 
+      defaultValue: 'pending', 
+      field: 'sla_status' 
+    },
+    penalty_applied: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'penalty_applied' },
+    penalty_amount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0, field: 'penalty_amount' },
+    penalty_applied_at: { type: DataTypes.DATE, allowNull: true, field: 'penalty_applied_at' }
   }, {
     tableName: 'complaints',
     timestamps: true,

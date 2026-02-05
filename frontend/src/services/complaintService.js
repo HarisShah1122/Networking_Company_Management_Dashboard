@@ -3,8 +3,8 @@ import { extractDataArray, extractData } from '../utils/apiResponseHelper';
 
 export const complaintService = {
   // Get all complaints
-  getAll: async () => {
-    const response = await apiClient.get('/complaints');
+  getAll: async (params = {}) => {
+    const response = await apiClient.get('/complaints', { params });
     return extractDataArray(response, 'complaints');
   },
 
@@ -35,6 +35,19 @@ export const complaintService = {
   // Get statistics
   getStats: async () => {
     const response = await apiClient.get('/complaints/stats');
+    return extractData(response);
+  },
+
+  // Assign complaint to technician
+  assignToTechnician: async (complaintId, technicianId) => {
+    const response = await apiClient.post(`/complaints/${complaintId}/assign`, { technicianId });
+    return extractData(response);
+  },
+
+  // Get SLA statistics
+  getSLAStats: async (areaId = null) => {
+    const params = areaId ? { areaId } : {};
+    const response = await apiClient.get('/complaints/sla-stats', { params });
     return extractData(response);
   },
 };

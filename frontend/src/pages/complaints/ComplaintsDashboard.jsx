@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { complaintService } from '../../services/complaintService';
+import useAuthStore from '../../stores/authStore';
 import { 
   STAFF_MEMBERS, 
   BRANCHES, 
@@ -16,6 +17,7 @@ import TablePagination from '../../components/common/TablePagination';
 import { transformBackendPagination } from '../../utils/pagination.utils';
 
 const ComplaintsDashboard = () => {
+  const { user } = useAuthStore();
   const [complaints, setComplaints] = useState([]);
   const [filteredComplaints, setFilteredComplaints] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState('all');
@@ -24,6 +26,7 @@ const ComplaintsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [pagination, setPagination] = useState(null);
   const [paginationState, setPaginationState] = useState({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
@@ -31,7 +34,28 @@ const ComplaintsDashboard = () => {
     total: 0,
     open: 0,
     inProgress: 0,
-    closed: 0
+    closed: 0,
+    overdue: 0,
+    penalties: 0
+  });
+  const [slaStats, setSlaStats] = useState({
+    total_assigned: 0,
+    sla_met: 0,
+    sla_breached: 0,
+    compliance_rate: 0,
+    total_penalties: 0
+  });
+  const [newComplaint, setNewComplaint] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    name: '',
+    address: '',
+    whatsapp_number: '',
+    area: '',
+    district: '',
+    city: '',
+    province: ''
   });
 
   const calculateStats = (complaintsList) => {
@@ -39,25 +63,73 @@ const ComplaintsDashboard = () => {
       total: complaintsList.length,
       open: complaintsList.filter(c => c.status === 'open').length,
       inProgress: complaintsList.filter(c => c.status === 'in_progress').length,
-      closed: complaintsList.filter(c => c.status === 'closed').length
+      closed: complaintsList.filter(c => c.status === 'closed').length,
+      overdue: complaintsList.filter(c => 
+        c.assigned_at && 
+        c.status !== 'closed' && 
+        new Date() > new Date(c.sla_deadline)
+      ).length,
+      penalties: complaintsList.reduce((sum, c) => sum + (parseFloat(c.penalty_amount) || 0), 0)
     };
     setStats(newStats);
   };
 
-  const calculateTimeRemaining = (assignedAt) => {
-    if (!assignedAt) return null;
-    const now = currentTime; // Use current time state instead of new Date()
-    const assigned = new Date(assignedAt);
-    const timeDiff = 24 * 60 * 60 * 1000 - (now - assigned); // 24 hours in milliseconds
+  const calculateTimeRemaining = (slaDeadline) => {
+    if (!slaDeadline) return null;
+    const now = new Date();
+    const deadline = new Date(slaDeadline);
+    const timeDiff = deadline - now;
     return timeDiff > 0 ? timeDiff : 0;
   };
 
   const formatTimeRemaining = (milliseconds) => {
-    if (!milliseconds) return 'Overdue';
+    if (!milliseconds || milliseconds <= 0) return 'Overdue';
     const hours = Math.floor(milliseconds / (1000 * 60 * 60));
     const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
     return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  const getSLAStatusColor = (slaStatus, assignedAt, slaDeadline) => {
+    if (!assignedAt || !slaDeadline) return 'bg-gray-100 text-gray-800';
+    
+    const now = new Date();
+    const deadline = new Date(slaDeadline);
+    const isOverdue = now > deadline;
+    
+    switch (slaStatus) {
+      case 'met':
+        return 'bg-green-100 text-green-800';
+      case 'breached':
+        return 'bg-red-100 text-red-800';
+      case 'pending_penalty':
+        return 'bg-orange-100 text-orange-800';
+      case 'pending':
+        return isOverdue ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getSLAStatusText = (slaStatus, assignedAt, slaDeadline) => {
+    if (!assignedAt || !slaDeadline) return 'Not Assigned';
+    
+    const now = new Date();
+    const deadline = new Date(slaDeadline);
+    const isOverdue = now > deadline;
+    
+    switch (slaStatus) {
+      case 'met':
+        return 'SLA Met';
+      case 'breached':
+        return 'SLA Breached';
+      case 'pending_penalty':
+        return 'Penalty Pending';
+      case 'pending':
+        return isOverdue ? 'Overdue' : 'In Progress';
+      default:
+        return 'Unknown';
+    }
   };
 
   const loadComplaints = useCallback(async () => {
@@ -73,9 +145,23 @@ const ComplaintsDashboard = () => {
       const allComplaints = response?.complaints || response || [];
       const paginationData = response?.pagination ? transformBackendPagination(response.pagination) : null;
       
+      console.log('🔍 Loaded complaints:', allComplaints.length);
+      console.log('📊 Sample complaint data:', allComplaints[0]);
+      
       setComplaints(allComplaints);
       setPagination(paginationData);
       calculateStats(allComplaints);
+      
+      // Load SLA stats
+      if (user?.company_id) {
+        try {
+          const slaData = await complaintService.getSLAStats(user.company_id);
+          console.log('📈 SLA Stats:', slaData);
+          setSlaStats(slaData);
+        } catch (slaError) {
+          console.error('Error loading SLA stats:', slaError);
+        }
+      }
     } catch (error) {
       console.error('Error loading complaints:', error);
       toast.error('Failed to load complaints', { autoClose: 3000 });
@@ -84,7 +170,7 @@ const ComplaintsDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [paginationState.page, paginationState.pageSize]);
+  }, [paginationState.page, paginationState.pageSize, user?.company_id]);
 
   const filterComplaints = useCallback(() => {
     let filtered = complaints;
@@ -101,75 +187,47 @@ const ComplaintsDashboard = () => {
     setPaginationState(prev => ({ ...prev, pageSize: newPageSize, page: 1 }));
   }, []);
 
-  const assignComplaint = (complaintId, staffId) => {
-    const staffMember = STAFF_MEMBERS.find(s => s.id === staffId);
-    const updatedComplaints = complaints.map(complaint => {
-      if (complaint.id === complaintId) {
-        return {
-          ...complaint,
-          assignedTo: staffId,
-          assignedAt: new Date().toISOString(),
-          status: 'in_progress',
-          fine: 0
-        };
-      }
-      return complaint;
-    });
-    setComplaints(updatedComplaints);
-    setFilteredComplaints(updatedComplaints);
-    
-    // Show success toast
-    toast.success(`Complaint assigned to ${staffMember?.name || 'Staff Member'} successfully!`, {
-      autoClose: 3000,
-      position: 'top-right'
-    });
-  };
-
-  const updateComplaintStatus = (complaintId, newStatus) => {
-    const updatedComplaints = complaints.map(complaint => {
-      if (complaint.id === complaintId) {
-        return {
-          ...complaint,
-          status: newStatus,
-          resolvedAt: newStatus === 'closed' ? new Date().toISOString() : null
-        };
-      }
-      return complaint;
-    });
-    setComplaints(updatedComplaints);
-    setFilteredComplaints(updatedComplaints);
-    
-    // Show success toast
-    if (newStatus === 'closed') {
-      toast.success('Complaint resolved successfully!', {
+  const assignComplaint = async (complaintId, technicianId) => {
+    try {
+      await complaintService.assignToTechnician(complaintId, technicianId);
+      
+      // Refresh complaints list
+      await loadComplaints();
+      
+      const staffMember = STAFF_MEMBERS.find(s => s.id === technicianId);
+      toast.success(`Complaint assigned to ${staffMember?.name || 'Staff Member'}! SLA timer started.`, {
         autoClose: 3000,
         position: 'top-right'
       });
-    } else if (newStatus === 'in_progress') {
-      toast.success('Complaint status updated to In Progress!', {
-        autoClose: 3000,
-        position: 'top-right'
-      });
+    } catch (error) {
+      console.error('Error assigning complaint:', error);
+      toast.error('Failed to assign complaint', { autoClose: 3000 });
     }
   };
 
-  const checkOverdueComplaints = useCallback(() => {
-    const updatedComplaints = complaints.map(complaint => {
-      if (complaint.assignedAt && complaint.status !== 'closed') {
-        const timeRemaining = calculateTimeRemaining(complaint.assignedAt);
-        if (timeRemaining === 0 && !complaint.fine) {
-          return {
-            ...complaint,
-            status: 'overdue',
-            fine: 500
-          };
-        }
+  const updateComplaintStatus = async (complaintId, newStatus) => {
+    try {
+      await complaintService.update(complaintId, { status: newStatus });
+      
+      // Refresh complaints list
+      await loadComplaints();
+      
+      if (newStatus === 'closed') {
+        toast.success('Complaint resolved successfully! SLA status updated.', {
+          autoClose: 3000,
+          position: 'top-right'
+        });
+      } else if (newStatus === 'in_progress') {
+        toast.success('Complaint status updated to In Progress!', {
+          autoClose: 3000,
+          position: 'top-right'
+        });
       }
-      return complaint;
-    });
-    setComplaints(updatedComplaints);
-    setFilteredComplaints(updatedComplaints);
-  }, [complaints, calculateTimeRemaining]);
+    } catch (error) {
+      console.error('Error updating complaint status:', error);
+      toast.error('Failed to update complaint status', { autoClose: 3000 });
+    }
+  };
 
   const openComplaintModal = (complaint) => {
     setSelectedComplaint(complaint);
@@ -179,6 +237,61 @@ const ComplaintsDashboard = () => {
   const closeModal = () => {
     setShowModal(false);
     setSelectedComplaint(null);
+  };
+
+  const openAddModal = () => {
+    // Pre-fill with user data if available
+    if (user) {
+      setNewComplaint(prev => ({
+        ...prev,
+        name: user.name || '',
+        whatsapp_number: user.phone || user.whatsapp_number || ''
+      }));
+    }
+    setShowAddModal(true);
+  };
+
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setNewComplaint({
+      title: '',
+      description: '',
+      priority: 'medium',
+      name: '',
+      address: '',
+      whatsapp_number: '',
+      area: '',
+      district: '',
+      city: '',
+      province: ''
+    });
+  };
+
+  const handleNewComplaintChange = (e) => {
+    const { name, value } = e.target;
+    setNewComplaint(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddComplaint = async (e) => {
+    e.preventDefault();
+    
+    if (!newComplaint.title.trim() || !newComplaint.description.trim()) {
+      toast.error('Title and description are required');
+      return;
+    }
+
+    try {
+      await complaintService.create(newComplaint);
+      toast.success('Complaint created successfully!');
+      closeAddModal();
+      await loadComplaints(); // Refresh the list
+    } catch (error) {
+      console.error('Error creating complaint:', error);
+      toast.error(error.response?.data?.message || 'Failed to create complaint');
+    }
   };
 
   useEffect(() => {
@@ -191,8 +304,8 @@ const ComplaintsDashboard = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date()); // Update current time every second
-    }, 1000); // Check every second for real-time updates
+      setCurrentTime(new Date()); // Update current time every second for real-time SLA updates
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -208,14 +321,24 @@ const ComplaintsDashboard = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <Link 
-            to="/dashboard" 
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 mb-4"
-          >
-            ← Back to Dashboard
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900">🎯 Complaints Dashboard</h1>
-          <p className="text-gray-600 mt-2">Branch-wise complaint management</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <Link 
+                to="/dashboard" 
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 mb-4"
+              >
+                ← Back to Dashboard
+              </Link>
+              <h1 className="text-3xl font-bold text-gray-900">🎯 Complaints Dashboard</h1>
+              <p className="text-gray-600 mt-2">Branch-wise complaint management</p>
+            </div>
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
+            >
+              + Add Complaint
+            </button>
+          </div>
         </div>
 
       {/* Statistics Cards */}
@@ -235,6 +358,30 @@ const ComplaintsDashboard = () => {
         <div className="bg-green-50 rounded-lg shadow p-6 border border-green-200">
           <div className="text-2xl font-bold text-green-600">{stats.closed}</div>
           <div className="text-sm text-green-600">Closed</div>
+        </div>
+      </div>
+
+      {/* SLA Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="text-2xl font-bold text-gray-900">{slaStats.total_assigned}</div>
+          <div className="text-sm text-gray-600">Assigned</div>
+        </div>
+        <div className="bg-green-50 rounded-lg shadow p-6 border border-green-200">
+          <div className="text-2xl font-bold text-green-600">{slaStats.sla_met}</div>
+          <div className="text-sm text-green-600">SLA Met</div>
+        </div>
+        <div className="bg-red-50 rounded-lg shadow p-6 border border-red-200">
+          <div className="text-2xl font-bold text-red-600">{slaStats.sla_breached}</div>
+          <div className="text-sm text-red-600">SLA Breached</div>
+        </div>
+        <div className="bg-yellow-50 rounded-lg shadow p-6 border border-yellow-200">
+          <div className="text-2xl font-bold text-yellow-600">{slaStats.compliance_rate}%</div>
+          <div className="text-sm text-yellow-600">Compliance Rate</div>
+        </div>
+        <div className="bg-orange-50 rounded-lg shadow p-6 border border-orange-200">
+          <div className="text-2xl font-bold text-orange-600">PKR {slaStats.total_penalties}</div>
+          <div className="text-sm text-orange-600">Total Penalties</div>
         </div>
       </div>
 
@@ -295,9 +442,10 @@ const ComplaintsDashboard = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer Details</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issue</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SLA Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time Remaining</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
@@ -340,11 +488,6 @@ const ComplaintsDashboard = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-500 text-white">
-                      Internal App
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(complaint.priority)}`}>
                       {complaint.priority}
                     </span>
@@ -355,8 +498,34 @@ const ComplaintsDashboard = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSLAStatusColor(complaint.sla_status, complaint.assigned_at, complaint.sla_deadline)}`}>
+                      {getSLAStatusText(complaint.sla_status, complaint.assigned_at, complaint.sla_deadline)}
+                    </span>
+                    {complaint.penalty_applied && (
+                      <div className="text-xs text-red-600 mt-1">
+                        Penalty: PKR {complaint.penalty_amount || 500}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {complaint.assigned_at && complaint.sla_deadline ? (
+                      <div>
+                        <div className={`text-sm font-medium ${
+                          calculateTimeRemaining(complaint.sla_deadline) > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {formatTimeRemaining(calculateTimeRemaining(complaint.sla_deadline))}
+                        </div>
+                        {complaint.penalty_applied && (
+                          <div className="text-xs text-red-500">Penalty Applied</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">Not Assigned</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {new Date(complaint.createdAt).toLocaleDateString()}
+                      {new Date(complaint.created_at).toLocaleDateString()}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -585,6 +754,171 @@ const ComplaintsDashboard = () => {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Add Complaint Modal */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={closeAddModal}
+        title="Add New Complaint"
+        maxWidth="max-w-2xl"
+      >
+        <form onSubmit={handleAddComplaint} className="space-y-6">
+          {/* Customer Information */}
+          <div className="border-b pb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">👤 Customer Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={newComplaint.name}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter customer name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Number *</label>
+                <input
+                  type="tel"
+                  name="whatsapp_number"
+                  value={newComplaint.whatsapp_number}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="03XX-XXXXXXX"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Complaint Details */}
+          <div className="border-b pb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">🎯 Complaint Details</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Complaint Title *</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={newComplaint.title}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Brief description of the issue"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Description *</label>
+                <textarea
+                  name="description"
+                  value={newComplaint.description}
+                  onChange={handleNewComplaintChange}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Provide detailed information about the complaint"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                <select
+                  name="priority"
+                  value={newComplaint.priority}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Location Information */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">📍 Location Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Area</label>
+                <input
+                  type="text"
+                  name="area"
+                  value={newComplaint.area}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter area name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
+                <input
+                  type="text"
+                  name="district"
+                  value={newComplaint.district}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter district"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={newComplaint.city}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter city"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Province</label>
+                <input
+                  type="text"
+                  name="province"
+                  value={newComplaint.province}
+                  onChange={handleNewComplaintChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Enter province"
+                />
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Full Address</label>
+              <textarea
+                name="address"
+                value={newComplaint.address}
+                onChange={handleNewComplaintChange}
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Complete address"
+              />
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-4 pt-6">
+            <button
+              type="button"
+              onClick={closeAddModal}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            >
+              Create Complaint
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
     </div>

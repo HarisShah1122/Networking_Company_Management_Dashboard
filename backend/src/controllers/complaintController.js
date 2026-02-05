@@ -137,4 +137,37 @@ const getStats = async ( req, res, next) => {
   }
 };
 
-module.exports = { createComplaint, getAllComplaints, updateComplaint, getStats };
+const assignToTechnician = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { technicianId } = req.body;
+    
+    if (!technicianId) {
+      return ApiResponse.badRequest(res, 'Technician ID is required');
+    }
+    
+    const complaint = await ComplaintService.assignToTechnician(id, technicianId, req.user?.id || null, req.companyId);
+    return ApiResponse.success(res, complaint, 'Complaint assigned successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getSLAStats = async (req, res, next) => {
+  try {
+    const { areaId } = req.query;
+    const stats = await ComplaintService.getSLAStats(req.companyId, areaId);
+    return ApiResponse.success(res, stats, 'SLA statistics retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  createComplaint,
+  getAllComplaints,
+  updateComplaint,
+  getStats,
+  assignToTechnician,
+  getSLAStats
+};
