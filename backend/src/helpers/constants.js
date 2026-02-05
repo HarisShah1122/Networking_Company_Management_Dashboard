@@ -2,7 +2,8 @@ module.exports = {
   ROLES: {
     CEO: 'CEO',
     MANAGER: 'Manager',
-    STAFF: 'Staff'
+    STAFF: 'Staff',
+    TECHNICIAN: 'Technician'
   },
 
   USER_STATUS: {
