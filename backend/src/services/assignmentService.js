@@ -43,7 +43,6 @@ class AssignmentService {
       };
 
     } catch (error) {
-      console.error('Error in automated assignment:', error);
       return {
         success: false,
         message: 'Assignment failed due to system error',
@@ -131,7 +130,6 @@ class AssignmentService {
       return availableStaff.sort((a, b) => b.availabilityScore - a.availabilityScore);
       
     } catch (error) {
-      console.error('Error getting available staff:', error);
       return [];
     }
   }
@@ -176,7 +174,6 @@ class AssignmentService {
       return workload;
       
     } catch (error) {
-      console.error('Error getting staff workload:', error);
       return {
         activeComplaints: 0,
         todayComplaints: 0,
@@ -233,7 +230,6 @@ class AssignmentService {
         }
       );
     } catch (error) {
-      console.error('Error performing assignment:', error);
       throw error;
     }
   }
@@ -286,7 +282,6 @@ class AssignmentService {
         automationRate: assignedComplaints > 0 ? (automatedAssignments / assignedComplaints) * 100 : 0
       };
     } catch (error) {
-      console.error('Error getting assignment stats:', error);
       return null;
     }
   }
@@ -327,7 +322,6 @@ class AssignmentService {
         officeStats
       };
     } catch (error) {
-      console.error('Error getting Mardan district stats:', error);
       return null;
     }
   }

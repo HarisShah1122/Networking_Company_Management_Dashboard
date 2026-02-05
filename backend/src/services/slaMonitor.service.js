@@ -12,19 +12,16 @@ class SLAMonitor {
    */
   start() {
     if (this.isRunning) {
-      console.log('⚠️ SLA Monitor is already running');
       return;
     }
 
-    console.log('🚀 Starting SLA Monitor...');
 
     // Check overdue complaints every 5 minutes
     const overdueCheckTask = cron.schedule('*/5 * * * *', async () => {
       try {
-        console.log('⏰ Running overdue complaints check...');
         await SLAService.checkOverdueComplaints();
       } catch (error) {
-        console.error('❌ Error in overdue complaints check:', error);
+        // Error in overdue complaints check
       }
     }, {
       scheduled: false
@@ -33,10 +30,9 @@ class SLAMonitor {
     // Apply pending penalties every 10 minutes
     const penaltyApplicationTask = cron.schedule('*/10 * * * *', async () => {
       try {
-        console.log('💰 Running penalty application check...');
         await this.applyPendingPenalties();
       } catch (error) {
-        console.error('❌ Error in penalty application check:', error);
+        // Error in penalty application check
       }
     }, {
       scheduled: false
@@ -45,10 +41,9 @@ class SLAMonitor {
     // Daily SLA report at 9 AM
     const dailyReportTask = cron.schedule('0 9 * * *', async () => {
       try {
-        console.log('📊 Generating daily SLA report...');
         await this.generateDailyReport();
       } catch (error) {
-        console.error('❌ Error generating daily SLA report:', error);
+        // Error generating daily SLA report
       }
     }, {
       scheduled: false
@@ -63,11 +58,9 @@ class SLAMonitor {
     // Start all tasks
     this.tasks.forEach(({ name, task }) => {
       task.start();
-      console.log(`✅ Started SLA monitoring task: ${name}`);
     });
 
     this.isRunning = true;
-    console.log('🎯 SLA Monitor started successfully');
   }
 
   /**
@@ -75,20 +68,16 @@ class SLAMonitor {
    */
   stop() {
     if (!this.isRunning) {
-      console.log('⚠️ SLA Monitor is not running');
       return;
     }
 
-    console.log('🛑 Stopping SLA Monitor...');
 
     this.tasks.forEach(({ name, task }) => {
       task.stop();
-      console.log(`⏹️ Stopped SLA monitoring task: ${name}`);
     });
 
     this.tasks = [];
     this.isRunning = false;
-    console.log('✅ SLA Monitor stopped');
   }
 
   /**

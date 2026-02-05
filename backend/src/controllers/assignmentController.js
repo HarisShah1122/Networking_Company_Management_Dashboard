@@ -1,5 +1,6 @@
 const { Complaint } = require('../models');
 const assignmentService = require('../services/assignmentService');
+const areaAssignmentService = require('../services/areaAssignmentService');
 const ApiResponse = require('../helpers/responses');
 
 class AssignmentController {
@@ -32,7 +33,6 @@ class AssignmentController {
         });
       }
     } catch (error) {
-      console.error('Error in assignComplaint:', error);
       return ApiResponse.error(res, 'Failed to assign complaint', 500);
     }
   }
@@ -89,7 +89,6 @@ class AssignmentController {
         results
       }, `Processed ${complaintIds.length} complaints`);
     } catch (error) {
-      console.error('Error in autoAssignMultipleComplaints:', error);
       return ApiResponse.error(res, 'Failed to process assignments', 500);
     }
   }
@@ -104,7 +103,6 @@ class AssignmentController {
         mardanDistrict: mardanStats
       }, 'Assignment statistics retrieved successfully');
     } catch (error) {
-      console.error('Error in getAssignmentStats:', error);
       return ApiResponse.error(res, 'Failed to get assignment statistics', 500);
     }
   }
@@ -121,7 +119,6 @@ class AssignmentController {
       
       return ApiResponse.success(res, availableStaff, 'Available staff retrieved successfully');
     } catch (error) {
-      console.error('Error in getAvailableStaff:', error);
       return ApiResponse.error(res, 'Failed to get available staff', 500);
     }
   }
@@ -134,7 +131,6 @@ class AssignmentController {
       
       return ApiResponse.success(res, workload, 'Staff workload retrieved successfully');
     } catch (error) {
-      console.error('Error in getStaffWorkload:', error);
       return ApiResponse.error(res, 'Failed to get staff workload', 500);
     }
   }
@@ -161,7 +157,6 @@ class AssignmentController {
       
       return ApiResponse.success(res, officesWithStats, 'Mardan offices retrieved successfully');
     } catch (error) {
-      console.error('Error in getMardanOffices:', error);
       return ApiResponse.error(res, 'Failed to get Mardan offices', 500);
     }
   }
@@ -170,8 +165,6 @@ class AssignmentController {
     try {
       const { complaintId } = req.params;
       const { staffId, officeId, reason } = req.body;
-      
-      console.log('Manual assignment request:', { complaintId, staffId, officeId, reason });
       
       if (!staffId) {
         return ApiResponse.error(res, 'Staff ID is required', 400);
@@ -186,8 +179,6 @@ class AssignmentController {
         return ApiResponse.error(res, 'Complaint is already assigned', 400);
       }
 
-      console.log('Updating complaint with staffId:', staffId);
-      
       await Complaint.update(
         {
           assignedTo: staffId,
@@ -200,17 +191,103 @@ class AssignmentController {
 
       // assignmentService.updateWorkloadCache(staffId, 'increment');
 
-      console.log('Assignment successful for complaint:', complaintId);
-
       return ApiResponse.success(res, {
         complaintId,
         staffId,
         assignmentMethod: 'manual'
       }, 'Complaint assigned manually successfully');
     } catch (error) {
-      console.error('Error in manualAssignment:', error);
-      console.error('Error details:', error.stack);
       return ApiResponse.error(res, 'Failed to assign complaint manually', 500);
+    }
+  }
+
+  async assignComplaintByArea(req, res) {
+    try {
+      const { complaintId } = req.params;
+      
+      const complaint = await Complaint.findOne({ 
+        where: { 
+          id: complaintId,
+          company_id: req.companyId 
+        } 
+      });
+      if (!complaint) {
+        return ApiResponse.notFound(res, 'Complaint');
+      }
+
+      if (complaint.assignedTo) {
+        return ApiResponse.error(res, 'Complaint is already assigned', 400);
+      }
+
+      const assignmentResult = await areaAssignmentService.assignComplaintToNearestTechnician(complaintId);
+      
+      if (assignmentResult.success) {
+        return ApiResponse.success(res, assignmentResult, 'Complaint assigned to nearest technician successfully');
+      } else {
+        return ApiResponse.error(res, assignmentResult.message, 400, {
+          requiresManualAssignment: assignmentResult.requiresManualAssignment,
+          suggestedArea: assignmentResult.suggestedArea
+        });
+      }
+    } catch (error) {
+      return ApiResponse.error(res, 'Failed to assign complaint by area', 500);
+    }
+  }
+
+  async getAreaAssignmentStats(req, res) {
+    try {
+      const stats = await areaAssignmentService.getAreaAssignmentStats(req.companyId);
+      
+      return ApiResponse.success(res, stats, 'Area assignment statistics retrieved successfully');
+    } catch (error) {
+      return ApiResponse.error(res, 'Failed to get area assignment statistics', 500);
+    }
+  }
+
+  async getAvailableTechniciansByArea(req, res) {
+    try {
+      const { areaId } = req.query;
+      
+      if (!areaId) {
+        return ApiResponse.error(res, 'Area ID is required', 400);
+      }
+
+      const availableTechnicians = await areaAssignmentService.getAvailableTechnicians(areaId, req.companyId);
+      
+      return ApiResponse.success(res, availableTechnicians, 'Available technicians retrieved successfully');
+    } catch (error) {
+      return ApiResponse.error(res, 'Failed to get available technicians', 500);
+    }
+  }
+
+  async findNearestAreaWithTechnicians(req, res) {
+    try {
+      const { complaintId } = req.params;
+      
+      const complaint = await Complaint.findOne({ 
+        where: { 
+          id: complaintId,
+          company_id: req.companyId 
+        } 
+      });
+      
+      if (!complaint) {
+        return ApiResponse.notFound(res, 'Complaint');
+      }
+
+      const complaintLocation = await areaAssignmentService.getComplaintLocation(complaint);
+      const nearestArea = await areaAssignmentService.findNearestAreaWithTechnicians(complaintLocation);
+      
+      if (nearestArea) {
+        return ApiResponse.success(res, {
+          nearestArea: nearestArea,
+          complaintLocation: complaintLocation
+        }, 'Nearest area with technicians found');
+      } else {
+        return ApiResponse.error(res, 'No areas with available technicians found', 404);
+      }
+    } catch (error) {
+      return ApiResponse.error(res, 'Failed to find nearest area', 500);
     }
   }
 
@@ -247,7 +324,6 @@ class AssignmentController {
         assignmentMethod: 'reassigned'
       }, 'Complaint reassigned successfully');
     } catch (error) {
-      console.error('Error in reassignComplaint:', error);
       return ApiResponse.error(res, 'Failed to reassign complaint', 500);
     }
   }

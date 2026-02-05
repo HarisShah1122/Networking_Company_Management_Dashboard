@@ -45,5 +45,10 @@ module.exports = (sequelize) => {
     return this.findOne({ where: { username } });
   };
 
+  User.associate = (models) => {
+    User.belongsTo(models.Area, { foreignKey: 'companyId', as: 'area' });
+    User.hasMany(models.Complaint, { foreignKey: 'assignedTo', as: 'assignedComplaints' });
+  };
+
   return User;
 };

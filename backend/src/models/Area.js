@@ -32,6 +32,7 @@ module.exports = (sequelize) => {
 
   Area.associate = (models) => {
     Area.hasMany(models.Customer, { foreignKey: 'area_id' });
+    Area.hasMany(models.User, { foreignKey: 'companyId', as: 'users' });
   };
 
   return Area;

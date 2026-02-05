@@ -44,11 +44,12 @@ module.exports = (sequelize) => {
     underscored: true
   });
 
-  // Complaint.associate = (models) => {
-  //   Complaint.belongsTo(models.Customer, { foreignKey: 'customerId', constraints: false });
-  //   Complaint.belongsTo(models.Connection, { foreignKey: 'connectionId', constraints: false });
-  //   Complaint.belongsTo(models.User, { as: 'Assignee', foreignKey: 'assignedTo', constraints: false });
-  // };
+  Complaint.associate = (models) => {
+    Complaint.belongsTo(models.Customer, { foreignKey: 'customerId', as: 'customer' });
+    Complaint.belongsTo(models.Connection, { foreignKey: 'connectionId', as: 'connection' });
+    Complaint.belongsTo(models.User, { as: 'assignee', foreignKey: 'assignedTo' });
+    Complaint.belongsTo(models.Area, { foreignKey: 'company_id', as: 'companyArea' });
+  };
 
   return Complaint;
 };

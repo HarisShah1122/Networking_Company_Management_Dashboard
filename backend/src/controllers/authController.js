@@ -21,8 +21,6 @@ const login = async (req, res, next) => {
       companyId: result.user.companyId,
     };
 
-    console.log('🔐 Login successful - sending JWT token and creating session');
-
     return ApiResponse.success(
       res,
       {
@@ -56,8 +54,6 @@ const register = async (req, res, next) => {
       role: result.user.role,
       companyId: result.user.companyId,
     };
-
-    console.log('🔐 Registration successful - sending JWT token and creating session');
 
     return ApiResponse.success(
       res,
@@ -101,12 +97,11 @@ const logout = async (req, res) => {
     // Clear session for session-based auth
     req.session.destroy((err) => {
       if (err) {
-        console.error('Session destroy error:', err);
+        // Session destroy error
       }
     });
     
     // JWT tokens are stateless - client will handle token removal
-    console.log('🔐 Logout successful - session cleared, JWT tokens to be cleared by client');
     return ApiResponse.success(res, null, 'Logged out successfully');
   } catch (error) {
     return ApiResponse.error(res, 'Failed to logout');

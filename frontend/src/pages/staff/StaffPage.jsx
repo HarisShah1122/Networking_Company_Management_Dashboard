@@ -18,8 +18,9 @@ const StaffPage = () => {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showAreaModal, setShowAreaModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [selectedArea, setSelectedArea] = useState('');
+  const [showAreaSection, setShowAreaSection] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -148,6 +149,7 @@ const StaffPage = () => {
         username: data.username?.trim(),
         role: data.role,
         status: data.status ?? 'active',
+        companyId: selectedArea || user?.companyId,
       };
 
       if (editingUser) {
@@ -179,6 +181,8 @@ const StaffPage = () => {
       reset();
       setShowModal(false);
       setEditingUser(null);
+      setSelectedArea('');
+      setShowAreaSection(false);
       
       // Refresh users list from backend to ensure consistency and get latest data
       await loadUsers(searchTerm, roleFilter, false);
@@ -200,6 +204,7 @@ const StaffPage = () => {
 
   const handleEdit = (user) => {
     setEditingUser(user);
+    setSelectedArea(user.companyId || '');
     reset({
       email: user.email,
       username: user.username,
@@ -277,7 +282,7 @@ const StaffPage = () => {
             )}
 
             <button
-              onClick={() => setShowAreaModal(true)}
+              onClick={() => { reset(); setEditingUser(null); setSelectedArea(''); setShowAreaSection(true); setShowModal(true); }}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 whitespace-nowrap"
             >
               Manage Areas
@@ -367,10 +372,109 @@ const StaffPage = () => {
       {showModal && canManage && (
         <Modal
           isOpen={showModal}
-          onClose={() => { setShowModal(false); reset(); setEditingUser(null); }}
-          title={editingUser ? 'Edit User' : 'Add User'}
+          onClose={() => { setShowModal(false); reset(); setEditingUser(null); setSelectedArea(''); setShowAreaSection(false); }}
+          title={showAreaSection ? 'Manage Areas' : (editingUser ? 'Edit User' : 'Add User')}
+          maxWidth={showAreaSection ? "max-w-4xl" : "max-w-2xl"}
         >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {showAreaSection ? (
+            // Area Management Section
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Area Management</h2>
+                <button
+                  onClick={() => { setShowAreaSection(false); reset(); }}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                >
+                  Switch to Add User
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {areas.map((area) => (
+                  <div key={area.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                       onClick={() => {
+                         setSelectedArea(area.id);
+                         toast.success(`Selected area: ${area.name}`);
+                       }}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-lg font-medium text-gray-900 mb-2">{area.name}</h4>
+                        <p className="text-sm text-gray-500 mb-3">Area ID: {area.id?.substring(0, 8)}...</p>
+                        {area.description && (
+                          <p className="text-sm text-gray-600 mb-3">{area.description}</p>
+                        )}
+                        <div className="flex items-center space-x-4">
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            selectedArea === area.id ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {selectedArea === area.id ? 'Selected' : 'Available'}
+                          </span>
+                          {area.code && (
+                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                              Code: {area.code}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {areas.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Areas Found</h3>
+                  <p className="text-gray-500 mb-6">Get started by creating your first service area.</p>
+                  <button
+                    onClick={() => toast.info('Area creation feature coming soon!')}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  >
+                    Create First Area
+                  </button>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+                <div className="text-sm text-gray-500">
+                  {selectedArea ? (
+                    <span className="text-green-600 font-medium">
+                      ✓ Area selected: {areas.find(a => a.id === selectedArea)?.name}
+                    </span>
+                  ) : (
+                    <span>Click on an area to select it for user assignment</span>
+                  )}
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => { setSelectedArea(''); toast.info('Area selection cleared'); }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Clear Selection
+                  </button>
+                  <button
+                    onClick={() => { setShowAreaSection(false); }}
+                    disabled={!selectedArea}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Continue to Add User
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // User Form Section
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email *</label>
@@ -413,6 +517,27 @@ const StaffPage = () => {
                   {user?.role === 'CEO' && <option value="CEO">CEO</option>}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Assigned Area</label>
+                <select
+                  value={selectedArea}
+                  onChange={(e) => setSelectedArea(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Select an area (optional)</option>
+                  {areas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedArea && (
+                  <p className="text-sm text-green-600 mt-1">
+                    ✓ Users will be assigned to: {areas.find(a => a.id === selectedArea)?.name}
+                  </p>
+                )}
+              </div>
             </div>
 
             {!editingUser && (
@@ -442,82 +567,27 @@ const StaffPage = () => {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => { setShowModal(false); reset(); setEditingUser(null); }}
+                onClick={() => { setShowModal(false); reset(); setEditingUser(null); setSelectedArea(''); setShowAreaSection(false); }}
                 className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
-              <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
+              <button 
+                type="submit" 
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg"
+              >
                 Save
               </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-      
-      {/* Area Management Modal */}
-      {showAreaModal && (
-        <Modal
-          isOpen={showAreaModal}
-          onClose={() => setShowAreaModal(false)}
-          title="Select Area"
-          maxWidth="max-w-2xl"
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Area *</label>
-              <select
-                value=""
-                onChange={(e) => {
-                  const selectedArea = areas.find(area => area.id === e.target.value);
-                  if (selectedArea) {
-                    toast.success(`Selected area: ${selectedArea.name}`);
-                    setShowAreaModal(false);
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Choose an area...</option>
-                {areas.map((area) => (
-                  <option key={area.id} value={area.id}>
-                    {area.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {areas.map((area) => (
-                <div key={area.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
-                     onClick={() => {
-                       toast.success(`Selected area: ${area.name}`);
-                       setShowAreaModal(false);
-                     }}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-gray-900">{area.name}</h4>
-                      <p className="text-xs text-gray-500 mt-1">ID: {area.id?.substring(0, 8)}...</p>
-                    </div>
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="flex justify-end pt-4 border-t">
               <button
-                onClick={() => setShowAreaModal(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                type="button"
+                onClick={() => { setShowAreaSection(true); }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
-                Close
+                Manage Areas
               </button>
             </div>
-          </div>
+            </form>
+          )}
         </Modal>
       )}
     </div>

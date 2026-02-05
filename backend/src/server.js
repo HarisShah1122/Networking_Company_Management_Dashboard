@@ -29,6 +29,7 @@ const packageRenewalRoutes = require('./routes/packageRenewal.routes');
 const areaRoutes = require('./routes/area.routes');
 const testWhatsAppRoutes = require('./routes/testWhatsApp');
 const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
+const assignmentRoutes = require('./routes/assignment');
 if (!SESSION_SECRET) {
   throw new Error('SESSION_SECRET missing in .env');
 }
@@ -77,6 +78,7 @@ app.use('/api/package-renewals', packageRenewalRoutes);
 app.use('/api/areas', areaRoutes);
 app.use('/api/test-whatsapp', testWhatsAppRoutes);
 app.use('/webhook', whatsappWebhookRoutes);
+app.use('/api/assignment', assignmentRoutes);
 /* ERROR HANDLING */
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
@@ -86,22 +88,16 @@ app.use(errorHandler);
 (async () => {
   try {
     await sequelize.authenticate();
-    console.log('✅ Database connected');
     
     // Start SLA Monitor
-    console.log('🕒 Starting SLA Monitor...');
     slaMonitor.start();
     
     if (process.env.NODE_ENV !== 'production') {
       app.listen(PORT, () => {
-        console.log(`🚀 Server running on http://localhost:${PORT}`);
-        console.log('📊 SLA monitoring is active');
-        console.log('⏰ Checking overdue complaints every 5 minutes');
-        console.log('💰 Applying penalties every 10 minutes');
+        // Server started successfully
       });
     }
   } catch (error) {
-    console.error('❌ Server failed:', error);
     process.exit(1);
   }
 })();

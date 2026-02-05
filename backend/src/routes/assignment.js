@@ -46,4 +46,25 @@ router.get('/mardan/offices',
   assignmentController.getMardanOffices
 );
 
+// Area-based assignment routes
+router.post('/complaints/:complaintId/assign-by-area', 
+  authenticate, 
+  assignmentController.assignComplaintByArea
+);
+
+router.get('/area/stats', 
+  authenticate, 
+  assignmentController.getAreaAssignmentStats
+);
+
+router.get('/area/technicians/available', 
+  authenticate, 
+  assignmentController.getAvailableTechniciansByArea
+);
+
+router.get('/complaints/:complaintId/nearest-area', 
+  authenticate, 
+  assignmentController.findNearestAreaWithTechnicians
+);
+
 module.exports = router;
