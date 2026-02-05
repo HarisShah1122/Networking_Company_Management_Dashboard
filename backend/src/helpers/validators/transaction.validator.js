@@ -35,10 +35,19 @@ const validateTransaction = [
     .trim()
     .isLength({ min: 1, max: 50 })
     .withMessage('TRX ID must be between 1 and 50 characters')
+    .matches(/^[a-zA-Z0-9\-_]+$/)
+    .withMessage('TRX ID can only contain letters, numbers, hyphens, and underscores')
     .custom(async (value, { req }) => {
       const { Transaction } = require('../../models');
-      const existing = await Transaction.findOne({ where: { trxId: value } });
-      if (existing && (!req.params.id || existing.id !== parseInt(req.params.id))) {
+      const whereClause = { trxId: value };
+      
+      // If updating, exclude current record
+      if (req.params.id) {
+        whereClause.id = { [require('sequelize').Op.ne]: req.params.id };
+      }
+      
+      const existing = await Transaction.findOne({ where: whereClause });
+      if (existing) {
         throw new Error('TRX ID already exists');
       }
       return true;

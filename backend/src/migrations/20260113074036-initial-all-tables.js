@@ -158,45 +158,57 @@ module.exports = {
 
     // === INDEXES ===
 
-    // customers
-    await queryInterface.addIndex('customers', ['phone']);
-    await queryInterface.addIndex('customers', ['email']);
-    await queryInterface.addIndex('customers', ['status']);
-    await queryInterface.addIndex('customers', ['name']);
-    await queryInterface.addIndex('customers', ['pace_user_id']);
-    await queryInterface.addIndex('customers', ['area_id']);
+    // Helper function to safely add indexes
+    const safeAddIndex = async (table, columns, indexName) => {
+      try {
+        const [existingIndex] = await queryInterface.sequelize.query(`SHOW INDEXES FROM ${table} WHERE Key_name = '${indexName}'`);
+        if (existingIndex.length === 0) {
+          await queryInterface.addIndex(table, columns);
+        }
+      } catch (error) {
+        console.warn(`Warning: Could not create index ${indexName} on table ${table}:`, error.message);
+      }
+    };
 
-    // connections
-    await queryInterface.addIndex('connections', ['customer_id']);
-    await queryInterface.addIndex('connections', ['status']);
-    await queryInterface.addIndex('connections', ['created_at']);
+    // customers indexes
+    await safeAddIndex('customers', ['phone'], 'customers_phone');
+    await safeAddIndex('customers', ['email'], 'customers_email');
+    await safeAddIndex('customers', ['status'], 'customers_status');
+    await safeAddIndex('customers', ['name'], 'customers_name');
+    await safeAddIndex('customers', ['pace_user_id'], 'customers_pace_user_id');
+    await safeAddIndex('customers', ['area_id'], 'customers_area_id');
 
-    // recharges
-    await queryInterface.addIndex('recharges', ['customer_id']);
-    await queryInterface.addIndex('recharges', ['status']);
-    await queryInterface.addIndex('recharges', ['due_date']);
-    await queryInterface.addIndex('recharges', ['created_at']);
+    // connections indexes
+    await safeAddIndex('connections', ['customer_id'], 'connections_customer_id');
+    await safeAddIndex('connections', ['status'], 'connections_status');
+    await safeAddIndex('connections', ['created_at'], 'connections_created_at');
 
-    // stock_items
-    await queryInterface.addIndex('stock_items', ['category']);
-    await queryInterface.addIndex('stock_items', ['name']);
-    await queryInterface.addIndex('stock_items', ['created_at']);
+    // recharges indexes
+    await safeAddIndex('recharges', ['customer_id'], 'recharges_customer_id');
+    await safeAddIndex('recharges', ['status'], 'recharges_status');
+    await safeAddIndex('recharges', ['due_date'], 'recharges_due_date');
+    await safeAddIndex('recharges', ['created_at'], 'recharges_created_at');
 
-    // transactions
-    await queryInterface.addIndex('transactions', ['created_by']);
-    await queryInterface.addIndex('transactions', ['type']);
-    await queryInterface.addIndex('transactions', ['date']);
-    await queryInterface.addIndex('transactions', ['created_at']);
+    // stock_items indexes
+    await safeAddIndex('stock_items', ['category'], 'stock_items_category');
+    await safeAddIndex('stock_items', ['name'], 'stock_items_name');
+    await safeAddIndex('stock_items', ['created_at'], 'stock_items_created_at');
 
-    // complaints
-    await queryInterface.addIndex('complaints', ['customer_id']);
-    await queryInterface.addIndex('complaints', ['connection_id']);
-    await queryInterface.addIndex('complaints', ['assigned_to']);
-    await queryInterface.addIndex('complaints', ['status']);
-    await queryInterface.addIndex('complaints', ['priority']);
+    // transactions indexes
+    await safeAddIndex('transactions', ['created_by'], 'transactions_created_by');
+    await safeAddIndex('transactions', ['type'], 'transactions_type');
+    await safeAddIndex('transactions', ['date'], 'transactions_date');
+    await safeAddIndex('transactions', ['created_at'], 'transactions_created_at');
 
-    // activity_logs
-    await queryInterface.addIndex('activity_logs', ['user_id']);
+    // complaints indexes
+    await safeAddIndex('complaints', ['customer_id'], 'complaints_customer_id');
+    await safeAddIndex('complaints', ['connection_id'], 'complaints_connection_id');
+    await safeAddIndex('complaints', ['assigned_to'], 'complaints_assigned_to');
+    await safeAddIndex('complaints', ['status'], 'complaints_status');
+    await safeAddIndex('complaints', ['priority'], 'complaints_priority');
+
+    // activity_logs indexes
+    await safeAddIndex('activity_logs', ['user_id'], 'activity_logs_user_id');
   },
 
   async down(queryInterface) {

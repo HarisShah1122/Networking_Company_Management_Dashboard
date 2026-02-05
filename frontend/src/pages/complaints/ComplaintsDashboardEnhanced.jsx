@@ -744,13 +744,8 @@ const ComplaintsDashboardEnhanced = () => {
                           setAvailableStaff(staff);
                         } catch (error) {
                           console.error('Error loading staff:', error);
-                          // Fallback to mock staff if API fails
-                          const mockStaff = staffMembers.map(staff => ({
-                            ...staff,
-                            workload: { activeComplaints: Math.floor(Math.random() * 5), capacity: 10 },
-                            availabilityScore: Math.floor(Math.random() * 100)
-                          }));
-                          setAvailableStaff(mockStaff);
+                          // Set empty array for new companies - no mock data
+                          setAvailableStaff([]);
                         }
                       } else {
                         setAvailableStaff([]);

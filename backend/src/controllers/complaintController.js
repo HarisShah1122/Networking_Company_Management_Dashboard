@@ -19,7 +19,7 @@ const createComplaint = async (req, res, next) => {
       whatsapp_number: req.body.whatsapp_number?.trim() || null,
     };
 
-    const complaint = await ComplaintService.create(cleanData, req.user?.id || null);
+    const complaint = await ComplaintService.create(cleanData, req.user?.id || null, req.companyId);
 
     if (complaint.whatsapp_number) {
       const recipientNumber = complaint.whatsapp_number;
@@ -121,7 +121,7 @@ const getAllComplaints = async (req, res, next) => {
 const updateComplaint = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const complaint = await ComplaintService.update(id, req.body, req.user?.id || null);
+    const complaint = await ComplaintService.update(id, req.body, req.user?.id || null, req.companyId);
     return ApiResponse.success(res, complaint, 'Complaint updated');
   } catch (err) {
     next(err);
@@ -130,7 +130,7 @@ const updateComplaint = async (req, res, next) => {
 
 const getStats = async ( req, res, next) => {
   try {
-    const stats = await ComplaintService.getStatusStats();
+    const stats = await ComplaintService.getStatusStats(req.companyId);
     return ApiResponse.success(res, { stats }, 'Complaint status statistics retrieved successfully');
   } catch (err) {
     next(err);

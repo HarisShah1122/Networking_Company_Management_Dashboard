@@ -11,7 +11,7 @@ const getAll = async (req, res, next) => {
       customer_id: req.query.customer_id
     };
 
-    const connections = await ConnectionService.getAll(filters);
+    const connections = await ConnectionService.getAll(filters, req.companyId);
     return ApiResponse.success(res, { connections }, 'Connections retrieved successfully');
   } catch (error) {
     // Log error for debugging but don't expose details to client
@@ -24,7 +24,7 @@ const getAll = async (req, res, next) => {
 
 const getById = async (req, res, next) => {
   try {
-    const connection = await ConnectionService.getById(req.params.id);
+    const connection = await ConnectionService.getById(req.params.id, req.companyId);
     
     if (!connection) {
       return ApiResponse.notFound(res, 'Connection');
@@ -43,7 +43,7 @@ const create = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const connection = await ConnectionService.create(req.body);
+    const connection = await ConnectionService.create(req.body, req.companyId);
     
     // Log activity (non-blocking)
     activityLogService.logActivity(
@@ -66,7 +66,7 @@ const update = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const connection = await ConnectionService.update(req.params.id, req.body);
+    const connection = await ConnectionService.update(req.params.id, req.body, req.companyId);
     
     if (!connection) {
       return ApiResponse.notFound(res, 'Connection');
@@ -88,14 +88,14 @@ const update = async (req, res, next) => {
 
 const deleteConnection = async (req, res, next) => {
   try {
-    const connection = await ConnectionService.getById(req.params.id);
+    const connection = await ConnectionService.getById(req.params.id, req.companyId);
     
     if (!connection) {
       return ApiResponse.notFound(res, 'Connection');
     }
 
     const connectionType = connection.connection_type;
-    const deleted = await ConnectionService.delete(req.params.id);
+    const deleted = await ConnectionService.delete(req.params.id, req.companyId);
 
     if (!deleted) {
       return ApiResponse.error(res, 'Failed to delete connection', 500);
@@ -117,7 +117,7 @@ const deleteConnection = async (req, res, next) => {
 
 const getStats = async (req, res, next) => {
   try {
-    const stats = await ConnectionService.getStats();
+    const stats = await ConnectionService.getStats(req.companyId);
     return ApiResponse.success(res, { stats }, 'Statistics retrieved successfully');
   } catch (error) {
     next(error);

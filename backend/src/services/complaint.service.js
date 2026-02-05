@@ -6,7 +6,7 @@ const { randomUUID } = require('crypto');
 
 if (!Complaint) throw new Error('Complaint model is not defined. Check models/index.js');
 
-const create = async (data, userId) => {
+const create = async (data, userId, companyId) => {
   try {
     let name = data.name ?? null;
     let whatsapp_number = data.whatsapp_number ?? null;
@@ -20,9 +20,9 @@ const create = async (data, userId) => {
     const complaintId = randomUUID();
     const now = new Date();
 
-    const sqlFields = ['id','title','description','status','priority','name','whatsapp_number','created_at','updated_at'];
-    const placeholders = ['?','?','?','?','?','?','?','?','?'];
-    const values = [complaintId, data.title ?? '', data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', name, whatsapp_number, now, now];
+    const sqlFields = ['id','title','description','status','priority','name','whatsapp_number','company_id','created_at','updated_at'];
+    const placeholders = ['?','?','?','?','?','?','?','?','?','?'];
+    const values = [complaintId, data.title ?? '', data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', name, whatsapp_number, companyId, now, now];
 
     if (data.customerId) { sqlFields.push('customer_id'); placeholders.push('?'); values.push(data.customerId); }
     if (data.connectionId) { sqlFields.push('connection_id'); placeholders.push('?'); values.push(data.connectionId); }
@@ -77,9 +77,10 @@ const getAll = async (companyId) => {
   }
 };
 
-const update = async (id, data, userId) => {
+const update = async (id, data, userId, companyId) => {
   try {
-    const complaint = await Complaint.findByPk(id);
+    const whereClause = companyId ? { id, company_id: companyId } : { id };
+    const complaint = await Complaint.findOne({ where: whereClause });
     if (!complaint) throw new Error('Complaint not found');
 
     const complaintData = complaint.toJSON();
@@ -116,9 +117,10 @@ const update = async (id, data, userId) => {
   }
 };
 
-const deleteComplaint = async (id, userId) => {
+const deleteComplaint = async (id, userId, companyId) => {
   try {
-    const complaint = await Complaint.findByPk(id);
+    const whereClause = companyId ? { id, company_id: companyId } : { id };
+    const complaint = await Complaint.findOne({ where: whereClause });
     if (!complaint) throw new Error('Complaint not found');
     await complaint.destroy();
     activityLogService.logActivity(userId, 'delete_complaint', 'complaint', `Deleted complaint #${id}`);
@@ -128,8 +130,11 @@ const deleteComplaint = async (id, userId) => {
   }
 };
 
-const getStatusStats = async () => {
+const getStatusStats = async (companyId) => {
+  const whereClause = companyId ? { company_id: companyId } : {};
+  
   const rows = await Complaint.findAll({
+    where: whereClause,
     attributes: ['status',[sequelize.fn('COUNT',sequelize.col('id')),'count']],
     group: ['status'],
     raw: true

@@ -11,7 +11,12 @@ const createPayment = async (req, res) => {
       return ApiResponse.error(res, 'trxId, customerId, amount, receivedBy required', 400);
     }
 
-    const customer = await Customer.findByPk(customerId);
+    const customer = await Customer.findOne({ 
+      where: { 
+        id: customerId, 
+        company_id: req.companyId 
+      } 
+    });
     if (!customer) {
       return ApiResponse.error(res, `Customer ${customerId} not found`, 404);
     }
@@ -28,7 +33,7 @@ const createPayment = async (req, res) => {
     const payment = await Payment.create({
       id: uuidv4(),
       customer_id: customerId,
-      company_id: customer.company_id,
+      company_id: req.companyId,
       amount: parseFloat(amount),
       payment_method: paymentMethod || 'cash',
       received_by: receivedBy,
@@ -58,13 +63,23 @@ const updatePayment = async (req, res) => {
     const { id } = req.params;
     const { trxId, customerId, amount, status, receivedBy, paymentMethod } = req.body;
 
-    const payment = await Payment.findByPk(id);
+    const payment = await Payment.findOne({ 
+      where: { 
+        id, 
+        company_id: req.companyId 
+      } 
+    });
     if (!payment) {
       return ApiResponse.error(res, 'Payment not found', 404);
     }
 
     if (customerId) {
-      const customer = await Customer.findByPk(customerId);
+      const customer = await Customer.findOne({ 
+        where: { 
+          id: customerId, 
+          company_id: req.companyId 
+        } 
+      });
       if (!customer) {
         return ApiResponse.error(res, `Customer ${customerId} not found`, 404);
       }
@@ -145,8 +160,23 @@ const getPaymentsByCustomer = async (req, res) => {
   try {
     const { customerId } = req.params;
 
+    // First verify the customer belongs to the current company
+    const customer = await Customer.findOne({ 
+      where: { 
+        id: customerId, 
+        company_id: req.companyId 
+      } 
+    });
+    
+    if (!customer) {
+      return ApiResponse.error(res, 'Customer not found', 404);
+    }
+
     const payments = await Payment.findAll({
-      where: { customer_id: customerId },
+      where: { 
+        customer_id: customerId,
+        company_id: req.companyId
+      },
       include: [{ model: Customer, as: 'customer', attributes: ['name'] }],
       order: [['created_at', 'DESC']]
     });
@@ -160,7 +190,12 @@ const getPaymentsByCustomer = async (req, res) => {
 const deletePayment = async (req, res) => {
   try {
     const { id } = req.params;
-    const payment = await Payment.findByPk(id);
+    const payment = await Payment.findOne({ 
+      where: { 
+        id, 
+        company_id: req.companyId 
+      } 
+    });
     if (!payment) {
       return ApiResponse.error(res, 'Payment not found', 404);
     }

@@ -23,9 +23,9 @@ const authenticate = async (req, res, next) => {
         }
 
         req.user = user;
-        req.companyId = decoded.companyId;
+        req.companyId = decoded.companyId || user.company_id;
         req.authMethod = 'jwt';
-        console.log(' JWT authentication successful for user:', user.username);
+        console.log(' JWT authentication successful for user:', user.username, 'companyId:', req.companyId);
         return next();
       } catch (jwtError) {
         console.warn(' JWT token invalid, trying session auth:', jwtError.message);
@@ -44,9 +44,9 @@ const authenticate = async (req, res, next) => {
       }
 
       req.user = user;
-      req.companyId = req.session.user.companyId;
+      req.companyId = req.session.user.companyId || user.company_id;
       req.authMethod = 'session';
-      console.log(' Session authentication successful for user:', user.username);
+      console.log(' Session authentication successful for user:', user.username, 'companyId:', req.companyId);
       return next();
     }
 

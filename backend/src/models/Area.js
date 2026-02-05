@@ -19,6 +19,10 @@ module.exports = (sequelize) => {
     code: {
       type: DataTypes.STRING(20),
       allowNull: true
+    },
+    company_id: {
+      type: DataTypes.UUID,
+      allowNull: false
     }
   }, {
     tableName: 'areas',

@@ -1,0 +1,32 @@
+{
+  "development": {
+    "username": "root",
+    "password": "medimpact_mysql_user",
+    "database": "networking_dashboard",
+    "host": "localhost",
+    "dialect": "mysql",
+    "logging": false,
+    "seederStorage": "json",
+    "migrationStorage": "json"
+  },
+  "test": {
+    "username": "root",
+    "password": "medimpact_mysql_user",
+    "database": "networking_dashboard",
+    "host": "localhost",
+    "dialect": "mysql",
+    "logging": false,
+    "seederStorage": "json",
+    "migrationStorage": "json"
+  },
+  "production": {
+    "username": "root",
+    "password": "medimpact_mysql_user",
+    "database": "networking_dashboard",
+    "host": "localhost",
+    "dialect": "mysql",
+    "logging": false,
+    "seederStorage": "json",
+    "migrationStorage": "json"
+  }
+}

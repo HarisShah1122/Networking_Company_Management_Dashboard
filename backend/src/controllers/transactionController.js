@@ -10,6 +10,7 @@ const getAll = async (req, res) => {
 
     const where = {};
     if (type) where.type = type;
+    if (req.companyId) where.company_id = req.companyId;
 
     const transactions = await Transaction.findAll({
       where,
@@ -29,7 +30,12 @@ const getAll = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    const transaction = await Transaction.findByPk(req.params.id);
+    const transaction = await Transaction.findOne({
+      where: {
+        id: req.params.id,
+        company_id: req.companyId
+      }
+    });
 
     if (!transaction)
       return ApiResponse.error(res, 'Transaction not found', 404);
@@ -43,7 +49,10 @@ const getById = async (req, res) => {
 
 const getSummary = async (req, res) => {
   try {
+    const whereClause = req.companyId ? { company_id: req.companyId } : {};
+    
     const summaryResult = await Transaction.findOne({
+      where: whereClause,
       attributes: [
         [
           Sequelize.fn(
@@ -78,6 +87,13 @@ const getSummary = async (req, res) => {
 
 const getRevenueGrowth = async (req, res) => {
   try {
+    const whereClause = {
+      date: {
+        [Op.gte]: Sequelize.literal('DATE_SUB(CURDATE(), INTERVAL 6 MONTH)')
+      }
+    };
+    if (req.companyId) whereClause.company_id = req.companyId;
+
     const revenue = await Transaction.findAll({
       attributes: [
         [Sequelize.fn('DATE_FORMAT', Sequelize.col('date'), '%Y-%m'), 'month'],
@@ -89,11 +105,7 @@ const getRevenueGrowth = async (req, res) => {
           'revenue'
         ]
       ],
-      where: {
-        date: {
-          [Op.gte]: Sequelize.literal('DATE_SUB(CURDATE(), INTERVAL 6 MONTH)')
-        }
-      },
+      where: whereClause,
       group: ['month'],
       order: [['month', 'ASC']],
       raw: true
@@ -117,11 +129,12 @@ const create = async (req, res) => {
       trxId
     } = req.body;
 
+    // Validation is handled by middleware, but double-check critical fields
     if (!type || !amount || !date || !trxId) {
-      return ApiResponse.error(res, 'Required fields missing', 422);
+      return ApiResponse.error(res, 'Required fields: type, amount, date, trxId', 422);
     }
 
-    const transaction = await Transaction.create({
+    const transactionData = {
       type,
       amount,
       date,
@@ -132,7 +145,14 @@ const create = async (req, res) => {
         ? `/uploads/receipts/${req.file.filename}`
         : null,
       created_by: req.user?.id || null,
-    });
+    };
+
+    // Add company_id if available
+    if (req.companyId) {
+      transactionData.company_id = req.companyId;
+    }
+
+    const transaction = await Transaction.create(transactionData);
 
     return ApiResponse.success(
       res,
@@ -141,25 +161,40 @@ const create = async (req, res) => {
       201
     );
   } catch (error) {
-    console.error(error);
-    return ApiResponse.error(res, error.message, 400);
+    console.error('Transaction creation error:', error);
+    
+    // Handle specific validation errors
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return ApiResponse.error(res, 'TRX ID already exists', 409);
+    }
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map(e => e.message);
+      return ApiResponse.error(res, messages.join(', '), 422);
+    }
+    
+    return ApiResponse.error(res, error.message || 'Failed to create transaction', 500);
   }
 };
 
 
 const update = async (req, res) => {
   try {
-    const transaction = await Transaction.findByPk(req.params.id);
+    const whereClause = { id: req.params.id };
+    if (req.companyId) {
+      whereClause.company_id = req.companyId;
+    }
+
+    const transaction = await Transaction.findOne({ where: whereClause });
 
     if (!transaction)
       return ApiResponse.error(res, 'Transaction not found', 404);
 
-    await transaction.update({
-      ...req.body,
-      receiptImage: req.file
-        ? `/uploads/receipts/${req.file.filename}`
-        : transaction.receiptImage
-    });
+    const updateData = { ...req.body };
+    if (req.file) {
+      updateData.receiptImage = `/uploads/receipts/${req.file.filename}`;
+    }
+
+    await transaction.update(updateData);
 
     return ApiResponse.success(
       res,
@@ -167,7 +202,18 @@ const update = async (req, res) => {
       'Transaction updated successfully'
     );
   } catch (error) {
-    return ApiResponse.error(res, error.message, 400);
+    console.error('Transaction update error:', error);
+    
+    // Handle specific validation errors
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return ApiResponse.error(res, 'TRX ID already exists', 409);
+    }
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map(e => e.message);
+      return ApiResponse.error(res, messages.join(', '), 422);
+    }
+    
+    return ApiResponse.error(res, error.message || 'Failed to update transaction', 500);
   }
 };
 
@@ -175,18 +221,23 @@ const update = async (req, res) => {
 const searchTrx = async (req, res) => {
   try {
     const { query } = req.query;
+    const whereClause = {
+      trxId: { [Op.like]: `%${query}%` }
+    };
+    if (req.companyId) whereClause.company_id = req.companyId;
 
     const suggestions = await Transaction.findAll({
-      where: {
-        trxId: { [Op.like]: `%${query}%` }
-      },
+      where: whereClause,
       attributes: ['trxId'],
       limit: 5,
       raw: true
     });
 
+    const existsWhere = { trxId: query };
+    if (req.companyId) existsWhere.company_id = req.companyId;
+    
     const exists = await Transaction.findOne({
-      where: { trxId: query }
+      where: existsWhere
     });
 
     return ApiResponse.success(res, {

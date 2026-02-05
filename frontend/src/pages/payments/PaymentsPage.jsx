@@ -26,6 +26,9 @@ const PaymentsPage = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
+  // Recharge functionality moved to Payments
+  const [packageFilter, setPackageFilter] = useState('');
+
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -51,10 +54,24 @@ const PaymentsPage = () => {
       if (isInitialLoad) setLoading(true);
       else setSearching(true);
 
+      // Load regular payments
       const response = await apiClient.get('/payments');
       let list = Array.isArray(response.data) ? response.data
-                : (response.data?.payments ?? response.data?.data?.payments ?? response.data?.data ?? []);
+                : (response.data?.payments ?? response.data?.data?.payments ?? []);
 
+      // Load due payments (recharge functionality)
+      try {
+        const dueResponse = await apiClient.get('/recharges/due');
+        const duePaymentsList = Array.isArray(dueResponse.data) ? dueResponse.data.duePayments : 
+          (dueResponse.data?.data?.duePayments ?? []);
+        
+        // Combine payments and due payments
+        list = [...list, ...duePaymentsList];
+      } catch (error) {
+        console.warn('Failed to load due payments:', error);
+      }
+
+      // Apply filters
       list = list.map(p => ({
         ...p,
         id: p.id ?? '',
@@ -64,18 +81,11 @@ const PaymentsPage = () => {
         paymentMethod: p.payment_method ?? p.paymentMethod ?? '-',
         receiptImage: p.receipt_image ?? p.receiptImage ?? null,
         createdAt: p.createdAt ?? p.created_at ?? null,
-        status: p.status ?? 'pending'
+        status: p.status ?? 'pending',
+        // Add recharge-specific fields
+        package: p.package || null,
+        dueDate: p.due_date || null,
       }));
-
-      list = list.map(payment => {
-        const customer = customers.find(c => String(c.id) === String(payment.customerId));
-        return {
-          ...payment,
-          customerName: customer?.name ?? '-',
-          paceUserId: customer?.pace_user_id ?? '-',
-          whatsappNumber: customer?.whatsapp_number ?? customer?.phone ?? '-'
-        };
-      });
 
       if (search?.trim()) {
         const searchLower = search.toLowerCase().trim();
@@ -83,8 +93,10 @@ const PaymentsPage = () => {
           (p.customerName ?? '').toLowerCase().includes(searchLower) ||
           (p.paceUserId ?? '').toLowerCase().includes(searchLower) ||
           (p.trxId ?? '').toLowerCase().includes(searchLower) ||
+          (p.trxId ?? '').toLowerCase().includes(searchLower) ||
           (p.whatsappNumber ?? '').includes(search) ||
-          String(p.amount ?? '').includes(search)
+          String(p.amount ?? '').includes(search) ||
+          (p.package ?? '').toLowerCase().includes(searchLower)
         );
       }
 
@@ -92,15 +104,18 @@ const PaymentsPage = () => {
         list = list.filter(p => (p.status ?? 'pending') === status);
       }
 
+      if (packageFilter) {
+        list = list.filter(p => (p.package ?? '').toLowerCase().includes(packageFilter.toLowerCase()));
+      }
+
       setPayments(list);
-    } catch (error) {
-      toast.error(error.response?.data?.message ?? 'Failed to load payments');
+    } catch (err) {
       setPayments([]);
     } finally {
       setLoading(false);
       setSearching(false);
     }
-  }, [customers]);
+  }, [customers, packageFilter]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -121,7 +136,7 @@ const PaymentsPage = () => {
     }, 500);
 
     return () => clearTimeout(debounceTimer.current);
-  }, [searchTerm, statusFilter, loadPayments]);
+  }, [searchTerm, statusFilter, packageFilter, loadPayments]);
 
   useEffect(() => {
     if (!watchedCustomerId) {
@@ -215,35 +230,38 @@ const PaymentsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Payments</h1>
-      </div>
-
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 mb-4 flex-wrap">
         <div className="flex-1 relative">
           <input
             type="text"
-            placeholder="Search by name, PACE ID, TRX ID, amount, phone..."
+            placeholder="Search by name, PACE ID, TRX ID, amount, phone, package..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          {searching && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-            </div>
-          )}
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All Status</option>
           <option value="pending">Pending</option>
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
+        </select>
+
+        <select
+          value={packageFilter}
+          onChange={(e) => setPackageFilter(e.target.value)}
+          className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">All Packages</option>
+          <option value="10 Mbps">10 Mbps</option>
+          <option value="20 Mbps">20 Mbps</option>
+          <option value="30 Mbps">30 Mbps</option>
+          <option value="50 Mbps">50 Mbps</option>
         </select>
 
         {canManage && (

@@ -108,6 +108,18 @@ async function addAreasAndStaff() {
     await sequelize.authenticate();
     console.log('Database connected successfully.');
 
+    // Get the first company ID (assuming there's at least one company)
+    const { User } = require('../models');
+    const adminUser = await User.findOne({ where: { role: 'CEO' } });
+    const companyId = adminUser?.company_id;
+    
+    if (!companyId) {
+      console.error('No company found. Please create a company first.');
+      process.exit(1);
+    }
+    
+    console.log(`Using company ID: ${companyId}`);
+
     // Add valid areas (only if they don't exist)
     console.log('Adding valid areas...');
     for (const areaName of VALID_AREAS) {
@@ -117,7 +129,8 @@ async function addAreasAndStaff() {
           id: uuidv4(),
           name: areaName,
           code: areaName.toUpperCase().replace(/\s+/g, '_') + '_001',
-          description: `${areaName} area - Networking Company Service Area`
+          description: `${areaName} area - Networking Company Service Area`,
+          company_id: companyId
         }
       });
       

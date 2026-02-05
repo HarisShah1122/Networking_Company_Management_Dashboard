@@ -6,7 +6,7 @@ const { validateUser } = require('../helpers/validators');
 
 const getAll = async (req, res, next) => {
   try {
-    const users = await UserService.getAll();
+    const users = await UserService.getAll(req.companyId);
     return ApiResponse.success(res, { users }, 'Users retrieved successfully');
   } catch (error) {
     next(error);
@@ -15,7 +15,7 @@ const getAll = async (req, res, next) => {
 
 const getById = async (req, res, next) => {
   try {
-    const user = await UserService.getById(req.params.id);
+    const user = await UserService.getById(req.params.id, req.companyId);
     
     if (!user) {
       return ApiResponse.notFound(res, 'User');
@@ -36,17 +36,17 @@ const create = async (req, res, next) => {
 
     const { email, username } = req.body;
 
-    const existingEmail = await UserService.getByEmail(email);
+    const existingEmail = await UserService.getByEmail(email, req.companyId);
     if (existingEmail) {
       return ApiResponse.conflict(res, 'Email already exists');
     }
 
-    const existingUsername = await UserService.getByUsername(username);
+    const existingUsername = await UserService.getByUsername(username, req.companyId);
     if (existingUsername) {
       return ApiResponse.conflict(res, 'Username already exists');
     }
 
-    const user = await UserService.create(req.body);
+    const user = await UserService.create(req.body, req.companyId);
     
     activityLogService.logActivity(
       req.user.id,

@@ -39,9 +39,10 @@ const AppRoutes = () => {
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/:id" element={<CustomerDetailPage />} />
           <Route path="/connections" element={<ConnectionsPage />} />
-          <Route path="/recharges" element={<RechargesPage />} />
-          <Route path="/stock" element={<StockPage />} />
-          <Route path="/accounts" element={<AccountsPage />} />
+          {/* <Route path="/recharges" element={<RechargesPage />} /> REMOVED - MOVED TO PAYMENTS */}
+          <Route path="/payments" element={<PaymentsPage />} />
+          {/* <Route path="/stock" element={<StockPage />} /> TEMPORARILY HIDDEN */}
+          {/* <Route path="/accounts" element={<AccountsPage />} /> TEMPORARILY HIDDEN */}
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/complaints" element={<ComplaintsPage />} />
           <Route path="/complaints-dashboard" element={<ComplaintsDashboardEnhanced />} />

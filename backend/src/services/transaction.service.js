@@ -78,13 +78,17 @@ const deleteTransaction = async (id) => {
   return true;
 };
 
-const getSummary = async (filters = {}) => {
+const getSummary = async (filters = {}, companyId) => {
   const { start_date, end_date } = filters;
   
-  const where = QueryBuilder.buildDateRange(start_date, end_date);
+  const whereClause = companyId ? { company_id: companyId } : {};
+  const where = QueryBuilder.combineWhere(
+    whereClause,
+    QueryBuilder.buildDateRange(start_date, end_date)
+  );
 
   const [summary] = await Transaction.findAll({
-    where,
+    where: where,
     attributes: [
       [Transaction.sequelize.fn('SUM', Transaction.sequelize.literal("CASE WHEN type = 'income' THEN amount ELSE 0 END")), 'total_income'],
       [Transaction.sequelize.fn('SUM', Transaction.sequelize.literal("CASE WHEN type = 'expense' THEN amount ELSE 0 END")), 'total_expense'],

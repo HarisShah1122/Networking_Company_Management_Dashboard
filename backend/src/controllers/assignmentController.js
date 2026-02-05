@@ -7,7 +7,12 @@ class AssignmentController {
     try {
       const { complaintId } = req.params;
       
-      const complaint = await Complaint.findByPk(complaintId);
+      const complaint = await Complaint.findOne({ 
+        where: { 
+          id: complaintId,
+          company_id: req.companyId 
+        } 
+      });
       if (!complaint) {
         return ApiResponse.notFound(res, 'Complaint');
       }
@@ -43,7 +48,12 @@ class AssignmentController {
       const results = [];
       
       for (const complaintId of complaintIds) {
-        const complaint = await Complaint.findByPk(complaintId);
+        const complaint = await Complaint.findOne({ 
+          where: { 
+            id: complaintId,
+            company_id: req.companyId 
+          } 
+        });
         if (!complaint) {
           results.push({
             complaintId,

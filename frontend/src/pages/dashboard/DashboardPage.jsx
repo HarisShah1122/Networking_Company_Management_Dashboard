@@ -110,22 +110,8 @@ const DashboardPage = () => {
       if (revenueGrowth?.data && Array.isArray(revenueGrowth.data) && revenueGrowth.data.length > 0) {
         setRevenueData(revenueGrowth.data);
       } else {
-        // Fallback to sample data if no real data available
-        const sampleData = [
-          { month: 'Jan', revenue: 45000 },
-          { month: 'Feb', revenue: 52000 },
-          { month: 'Mar', revenue: 48000 },
-          { month: 'Apr', revenue: 61000 },
-          { month: 'May', revenue: 58000 },
-          { month: 'Jun', revenue: 67000 },
-          { month: 'Jul', revenue: 72000 },
-          { month: 'Aug', revenue: 69000 },
-          { month: 'Sep', revenue: 75000 },
-          { month: 'Oct', revenue: 71000 },
-          { month: 'Nov', revenue: 78000 },
-          { month: 'Dec', revenue: 82000 },
-        ];
-        setRevenueData(sampleData);
+        // Set empty array for new companies - no sample data
+        setRevenueData([]);
       }
 
       // Update recent complaints

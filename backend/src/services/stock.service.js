@@ -2,12 +2,13 @@ const { Op } = require('sequelize');
 const { Stock } = require('../models');
 const QueryBuilder = require('../helpers/queryBuilder');
 
-const getAll = async (filters = {}) => {
+const getAll = async (filters = {}, companyId) => {
   const { category, search } = filters;
   
   const where = QueryBuilder.combineWhere(
     category ? { category } : {},
-    QueryBuilder.buildSearchQuery(['name'], search)
+    QueryBuilder.buildSearchQuery(['name'], search),
+    companyId ? { company_id: companyId } : {}
   );
 
   return await Stock.findAll({
@@ -16,36 +17,54 @@ const getAll = async (filters = {}) => {
   });
 };
 
-const getById = async (id) => {
-  return await Stock.findByPk(id);
+const getById = async (id, companyId) => {
+  return await Stock.findOne({ 
+    where: { 
+      id, 
+      company_id: companyId 
+    } 
+  });
 };
 
-const create = async (data) => {
-  return await Stock.create(data);
+const create = async (data, companyId) => {
+  return await Stock.create({ ...data, company_id: companyId });
 };
 
-const update = async (id, data) => {
-  const item = await Stock.findByPk(id);
+const update = async (id, data, companyId) => {
+  const item = await Stock.findOne({ 
+    where: { 
+      id, 
+      company_id: companyId 
+    } 
+  });
   if (!item) return null;
 
   await item.update(data);
   return item;
 };
 
-const deleteStock = async (id) => {
-  const item = await Stock.findByPk(id);
+const deleteStock = async (id, companyId) => {
+  const item = await Stock.findOne({ 
+    where: { 
+      id, 
+      company_id: companyId 
+    } 
+  });
   if (!item) return false;
 
   await item.destroy();
   return true;
 };
 
-const getCategories = async () => {
+const getCategories = async (companyId) => {
+  const whereClause = {
+    category: { [Op.ne]: null }
+  };
+  if (companyId) whereClause.company_id = companyId;
+
   const categories = await Stock.findAll({
     attributes: [[Stock.sequelize.fn('DISTINCT', Stock.sequelize.col('category')), 'category']],
-    where: {
-      category: { [Op.ne]: null }
-    },
+    where: whereClause,
     order: [['category', 'ASC']],
     raw: true
   });
@@ -53,8 +72,11 @@ const getCategories = async () => {
   return categories.map(cat => cat.category).filter(Boolean);
 };
 
-const getStats = async () => {
+const getStats = async (companyId) => {
+  const whereClause = companyId ? { company_id: companyId } : {};
+  
   const [stats] = await Stock.findAll({
+    where: whereClause,
     attributes: [
       [Stock.sequelize.fn('COUNT', Stock.sequelize.col('id')), 'total_items'],
       [Stock.sequelize.fn('SUM', Stock.sequelize.col('quantity_available')), 'total_available'],

@@ -11,7 +11,7 @@ const getAll = async (req, res, next) => {
       search: req.query.search
     };
 
-    const stock = await StockService.getAll(filters);
+    const stock = await StockService.getAll(filters, req.companyId);
     return ApiResponse.success(res, { stock }, 'Stock items retrieved successfully');
   } catch (error) {
     next(error);
@@ -20,7 +20,7 @@ const getAll = async (req, res, next) => {
 
 const getById = async (req, res, next) => {
   try {
-    const item = await StockService.getById(req.params.id);
+    const item = await StockService.getById(req.params.id, req.companyId);
     
     if (!item) {
       return ApiResponse.notFound(res, 'Stock item');
@@ -39,7 +39,7 @@ const create = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const item = await StockService.create(req.body);
+    const item = await StockService.create(req.body, req.companyId);
     
     activityLogService.logActivity(
       req.user.id,
@@ -61,7 +61,7 @@ const update = async (req, res, next) => {
       return ApiResponse.validationError(res, errors.array());
     }
 
-    const item = await StockService.update(req.params.id, req.body);
+    const item = await StockService.update(req.params.id, req.body, req.companyId);
     
     if (!item) {
       return ApiResponse.notFound(res, 'Stock item');
@@ -91,8 +91,8 @@ const getCategories = async (req, res, next) => {
 
 const getStats = async (req, res, next) => {
   try {
-    const stats = await StockService.getStats();
-    return ApiResponse.success(res, { stats }, 'Statistics retrieved successfully');
+    const stats = await StockService.getStats(req.companyId);
+    return ApiResponse.success(res, { stats }, 'Stock statistics retrieved successfully');
   } catch (error) {
     next(error);
   }

@@ -2,34 +2,43 @@ const { Op, Sequelize } = require('sequelize');
 const bcrypt = require('bcrypt');
 const { User } = require('../models');
 
-const getAll = async () => {
+const getAll = async (companyId) => {
+  const whereClause = companyId ? { company_id: companyId } : {};
   return await User.findAll({
+    where: whereClause,
     attributes: ['id', 'email', 'username', 'role', 'status', 'created_at'],
     order: [['created_at', 'DESC']]
   });
 };
 
-const getById = async (id) => {
+const getById = async (id, companyId) => {
   return await User.findByPk(id, {
+    where: { company_id: companyId },
     attributes: ['id', 'email', 'username', 'role', 'status', 'created_at']
   });
 };
 
-const getByEmail = async (email) => {
-  return await User.findOne({ where: { email } });
+const getByEmail = async (email, companyId) => {
+  return await User.findOne({ 
+    where: { 
+      email, 
+      company_id: companyId 
+    } 
+  });
 };
 
-const getByUsername = async (username) => {
+const getByUsername = async (username, companyId) => {
   // Case-insensitive username lookup
   return await User.findOne({ 
     where: Sequelize.where(
       Sequelize.fn('LOWER', Sequelize.col('username')), 
       username.toLowerCase()
-    )
+    ),
+    company_id: companyId
   });
 };
 
-const create = async (data) => {
+const create = async (data, companyId) => {
   // Accept either password (plain text) or password_hash
   let password_hash = data.password_hash;
   
@@ -48,12 +57,14 @@ const create = async (data) => {
     password_hash,
     role: data.role || 'Staff',
     status: data.status || 'active',
-    companyId: data.companyId || null
+    company_id: companyId
   });
 };
 
-const update = async (id, data) => {
-  const user = await User.findByPk(id);
+const update = async (id, data, companyId) => {
+  const user = await User.findByPk(id, {
+    where: { company_id: companyId }
+  });
   if (!user) return null;
 
   const fields = [];
