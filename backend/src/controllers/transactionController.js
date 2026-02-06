@@ -89,7 +89,7 @@ const getRevenueGrowth = async (req, res) => {
   try {
     const whereClause = {
       date: {
-        [Op.gte]: Sequelize.literal('DATE_SUB(CURDATE(), INTERVAL 6 MONTH)')
+        [Op.gte]: Sequelize.literal('DATE_SUB(CURDATE(), INTERVAL 12 MONTH)')
       }
     };
     if (req.companyId) whereClause.company_id = req.companyId;
