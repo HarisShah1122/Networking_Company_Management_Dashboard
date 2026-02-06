@@ -35,8 +35,8 @@ const validateComplaint = [
     .withMessage('Description must be between 10 and 5000 characters'),
   body('status')
     .optional()
-    .isIn(['open', 'in_progress', 'resolved', 'closed'])
-    .withMessage('Status must be open, in_progress, resolved, or closed'),
+    .isIn(['open', 'in_progress', 'on_hold', 'resolved', 'closed'])
+    .withMessage('Status must be open, in_progress, on_hold, resolved, or closed'),
   body('priority')
     .optional()
     .isIn(['low', 'medium', 'high', 'urgent'])

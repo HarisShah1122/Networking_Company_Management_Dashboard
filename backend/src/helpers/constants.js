@@ -29,6 +29,21 @@ module.exports = {
     OVERDUE: 'overdue'
   },
 
+  COMPLAINT_STATUS: {
+    OPEN: 'open',
+    IN_PROGRESS: 'in_progress',
+    ON_HOLD: 'on_hold',
+    RESOLVED: 'resolved',
+    CLOSED: 'closed'
+  },
+
+  COMPLAINT_PRIORITY: {
+    LOW: 'low',
+    MEDIUM: 'medium',
+    HIGH: 'high',
+    URGENT: 'urgent'
+  },
+
   PAYMENT_METHODS: {
     CASH: 'cash',
     CARD: 'card',
