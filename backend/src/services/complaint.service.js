@@ -9,6 +9,30 @@ if (!Complaint) throw new Error('Complaint model is not defined. Check models/in
 
 const create = async (data, userId, companyId) => {
   try {
+    // Check for duplicate complaint
+    if (data.customerId && data.title) {
+      const duplicateCheck = await sequelize.query(`
+        SELECT id, title, status, created_at 
+        FROM complaints 
+        WHERE customer_id = ? 
+        AND title = ? 
+        AND company_id = ? 
+        AND status NOT IN ('closed', 'resolved')
+        AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      `, {
+        replacements: [data.customerId, data.title, companyId],
+        type: sequelize.QueryTypes.SELECT
+      });
+
+      if (duplicateCheck.length > 0) {
+        const existingComplaint = duplicateCheck[0];
+        const timeDiff = new Date() - new Date(existingComplaint.created_at);
+        const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+        
+        throw new Error(`Duplicate complaint detected! A similar complaint "${existingComplaint.title}" was already registered ${hoursAgo} hours ago (ID: ${existingComplaint.id}). Please check the existing complaint before creating a new one.`);
+      }
+    }
+
     let name = data.name ?? null;
     let whatsapp_number = data.whatsapp_number ?? null;
 

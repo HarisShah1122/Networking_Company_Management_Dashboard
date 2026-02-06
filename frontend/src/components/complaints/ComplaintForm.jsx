@@ -1,4 +1,5 @@
 import { STATUS_LABELS, PRIORITY_LABELS } from '../../constants/complaintConstants';
+import UserSearchDropdown from '../common/UserSearchDropdown';
 
 const ComplaintForm = ({ 
   register, 
@@ -9,7 +10,9 @@ const ComplaintForm = ({
   setSelectedCustomer,
   editingComplaint,
   onSubmit,
-  onCancel
+  onCancel,
+  setValue,
+  watchedCustomerId
 }) => {
   const statusOptions = Object.entries(STATUS_LABELS).map(([value, label]) => ({
     value,
@@ -25,25 +28,21 @@ const ComplaintForm = ({
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700">User ID *</label>
-        <select
+        <UserSearchDropdown
+          value={watchedCustomerId || ''}
+          onChange={(value) => setValue('customerId', value)}
+          onCustomerSelect={(customer) => setSelectedCustomer(customer)}
+          error={errors.customerId && touchedFields.customerId ? errors.customerId.message : ''}
+          placeholder="Search user by name, PACE ID, phone..."
+        />
+        {/* Hidden field for validation */}
+        <input
+          type="hidden"
           {...register('customerId', {
             required: 'User ID is required',
             validate: (value) => !!value || 'Please select a valid user',
           })}
-          className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-            errors.customerId && touchedFields.customerId ? 'border-red-500' : 'border-gray-300'
-          }`}
-        >
-          <option value="">Select User</option>
-          {customers.map((customer) => (
-            <option key={customer.id} value={String(customer.id)}>
-              {customer.name} {customer.pace_user_id ? `(PACE: ${customer.pace_user_id})` : ''}
-            </option>
-          ))}
-        </select>
-        {errors.customerId && touchedFields.customerId && (
-          <p className="text-red-500 text-sm mt-1">{errors.customerId.message}</p>
-        )}
+        />
       </div>
 
       {selectedCustomer && (

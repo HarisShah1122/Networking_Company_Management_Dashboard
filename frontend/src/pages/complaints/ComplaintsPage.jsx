@@ -43,8 +43,12 @@ const ComplaintsPage = () => {
     touchedFields,
     initializeForm,
     resetForm,
-    validateAndPrepareData
+    validateAndPrepareData,
+    setValue,
+    watch
   } = useComplaintForm(customers, editingComplaint, selectedCustomer, setSelectedCustomer);
+
+  const watchedCustomerId = watch('customerId');
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -106,6 +110,22 @@ const ComplaintsPage = () => {
 
   const onSubmit = async (data) => {
     try {
+      // Check for duplicate complaints on frontend
+      if (data.customerId && data.title && !editingComplaint) {
+        const duplicateComplaint = complaints.find(complaint => 
+          complaint.customer_id === data.customerId && 
+          complaint.title.toLowerCase().trim() === data.title.toLowerCase().trim() &&
+          !['closed', 'resolved'].includes(complaint.status) &&
+          new Date() - new Date(complaint.created_at) < 24 * 60 * 60 * 1000 // Within 24 hours
+        );
+
+        if (duplicateComplaint) {
+          const hoursAgo = Math.floor((new Date() - new Date(duplicateComplaint.created_at)) / (1000 * 60 * 60));
+          toast.error(`Duplicate complaint detected! A similar complaint was already registered ${hoursAgo} hours ago (ID: ${duplicateComplaint.id}). Please check the existing complaint.`);
+          return;
+        }
+      }
+
       const submitData = validateAndPrepareData(data);
       if (!submitData) return;
 
@@ -120,7 +140,14 @@ const ComplaintsPage = () => {
       handleCloseModal();
       await loadComplaints(searchTerm, statusFilter);
     } catch (error) {
-      toast.error(error.response?.data?.message ?? 'Failed to save complaint');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save complaint';
+      
+      // Check if it's a duplicate complaint error from backend
+      if (errorMessage.includes('Duplicate complaint detected')) {
+        toast.error(errorMessage);
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -234,6 +261,8 @@ const ComplaintsPage = () => {
             editingComplaint={editingComplaint}
             onSubmit={handleSubmit(onSubmit)}
             onCancel={handleCloseModal}
+            setValue={setValue}
+            watchedCustomerId={watchedCustomerId}
           />
         </Modal>
       )}
