@@ -40,7 +40,7 @@ export const complaintService = {
 
   // Assign complaint to technician
   assignToTechnician: async (complaintId, technicianId) => {
-    const response = await apiClient.post(`/complaints/${complaintId}/assign`, { technicianId });
+    const response = await apiClient.post(`/assignment/complaints/${complaintId}/assign`, { technicianId });
     return extractData(response);
   },
 
