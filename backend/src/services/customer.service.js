@@ -59,7 +59,7 @@ const create = async (data, companyId) => {
     }
   }
 
-  return await Customer.create({
+  const customer = await Customer.create({
     name: data.name.trim(),
     email: data.email?.trim(),
     phone: data.phone.trim(),
@@ -72,6 +72,28 @@ const create = async (data, companyId) => {
     company_id: companyId,
     status: data.status || 'active'
   });
+
+  // Send welcome email notification
+  if (customer.email && companyId) {
+    try {
+      const emailService = require('./email.service');
+      const { Company } = require('../models');
+      const company = await Company.findByPk(companyId);
+      
+      if (company) {
+        await emailService.sendCustomerWelcomeNotification(
+          customer.email,
+          customer.toJSON(),
+          company.toJSON()
+        );
+        console.log(`📧 Welcome email sent to ${customer.email}`);
+      }
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send welcome email:', emailError.message);
+    }
+  }
+
+  return customer;
 };
 
 const update = async (id, data, companyId) => {

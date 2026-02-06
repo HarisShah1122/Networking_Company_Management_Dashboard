@@ -203,6 +203,35 @@ const assignToTechnician = async (complaintId, technicianId, userId, companyId) 
     // Start SLA timer and update complaint in one step
     const slaData = await SLAService.startSLATimer(complaintId, technicianId);
     
+    // Get technician details for email notification
+    const { User } = require('../models');
+    const technician = await User.findByPk(technicianId, {
+      attributes: ['id', 'email', 'username', 'name']
+    });
+
+    // Get user who assigned the complaint
+    const assigningUser = await User.findByPk(userId, {
+      attributes: ['id', 'username', 'name']
+    });
+
+    // Send email notification to technician
+    if (technician && technician.email && assigningUser) {
+      const emailService = require('./email.service');
+      const complaintData = complaint.toJSON();
+      
+      try {
+        await emailService.sendComplaintAssignmentNotification(
+          technician.email,
+          technician.username || technician.name,
+          complaintData,
+          assigningUser.username || assigningUser.name
+        );
+        console.log(`📧 Assignment notification sent to ${technician.email}`);
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send assignment email notification:', emailError.message);
+      }
+    }
+    
     // The SLA service already updates the complaint, so we just need to log the activity
     activityLogService.logActivity(
       userId, 

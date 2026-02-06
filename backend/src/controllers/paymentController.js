@@ -43,12 +43,26 @@ const createPayment = async (req, res) => {
     });
 
     const fullPayment = await Payment.findByPk(payment.id, {
-      include: [{ model: Customer, as: 'customer', attributes: ['id', 'name'] }]
+      include: [{ model: Customer, as: 'customer', attributes: ['id', 'name', 'email'] }]
     });
 
     // Send WhatsApp notification for payment confirmation
     if (status === 'confirmed' || status === 'approved') {
       await sendPaymentConfirmation(customer.name, parseFloat(amount), payment.id);
+    }
+
+    // Send email notification for payment confirmation
+    if ((status === 'confirmed' || status === 'approved') && customer.email) {
+      try {
+        const emailService = require('../services/email.service');
+        await emailService.sendPaymentConfirmationNotification(
+          customer.email,
+          fullPayment.toJSON()
+        );
+        console.log(`📧 Payment confirmation email sent to ${customer.email}`);
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send payment confirmation email:', emailError.message);
+      }
     }
 
     return ApiResponse.success(res, fullPayment, 'Payment recorded', 201);
