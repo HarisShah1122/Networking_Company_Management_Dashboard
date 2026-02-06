@@ -249,7 +249,7 @@ const ComplaintsDashboard = () => {
 
   const updateComplaintStatus = async (complaintId, newStatus) => {
     try {
-      await complaintService.update(complaintId, { status: newStatus });
+      await complaintService.update(complaintId, { status: newStatus }, user?.id);
       
       // Refresh complaints list
       await loadComplaints();
