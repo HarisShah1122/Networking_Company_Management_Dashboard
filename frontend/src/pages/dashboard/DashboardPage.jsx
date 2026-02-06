@@ -93,11 +93,19 @@ const DashboardPage = () => {
 
       // Calculate total income from both transactions and payments
       const transactionIncome = parseFloat(transactions?.summary?.total_income ?? 0);
-      const paymentIncome = payments?.payments?.reduce((sum, payment) => {
-        return sum + (payment.status === 'confirmed' || payment.status === 'approved' ? parseFloat(payment.amount || 0) : 0);
+      
+      // Calculate confirmed revenue (paid, completed, confirmed, approved)
+      const confirmedPaymentIncome = payments?.payments?.reduce((sum, payment) => {
+        const isConfirmed = ['paid', 'completed', 'confirmed', 'approved'].includes(payment.status);
+        return sum + (isConfirmed ? parseFloat(payment.amount || 0) : 0);
       }, 0) || 0;
       
-      const totalIncome = transactionIncome + paymentIncome;
+      // Calculate pending revenue (pending status)
+      const pendingPaymentIncome = payments?.payments?.reduce((sum, payment) => {
+        return sum + (payment.status === 'pending' ? parseFloat(payment.amount || 0) : 0);
+      }, 0) || 0;
+      
+      const totalIncome = transactionIncome + confirmedPaymentIncome;
       const totalExpenses = parseFloat(transactions?.summary?.total_expense ?? 0);
       const profitLoss = totalIncome - totalExpenses;
 
@@ -109,7 +117,9 @@ const DashboardPage = () => {
         transactions: { 
           total_income: totalIncome, 
           total_expense: totalExpenses,
-          profit_loss: profitLoss
+          profit_loss: profitLoss,
+          confirmed_payments: confirmedPaymentIncome,
+          pending_payments: pendingPaymentIncome
         },
       };
       
@@ -209,8 +219,8 @@ const DashboardPage = () => {
         />
         <StatCard
           title="Revenue"
-          value={`RS ${parseFloat(stats.recharges?.total_paid ?? 0).toFixed(2)}`}
-          subtitle={`RS ${parseFloat(stats.recharges?.total_pending ?? 0).toFixed(2)} pending`}
+          value={`RS ${parseFloat(stats.transactions?.confirmed_payments ?? 0).toFixed(2)}`}
+          subtitle={`RS ${parseFloat(stats.transactions?.pending_payments ?? 0).toFixed(2)} pending`}
           icon="💰"
           color="yellow"
         />

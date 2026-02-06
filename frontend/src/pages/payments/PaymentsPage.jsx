@@ -258,6 +258,7 @@ const PaymentsPage = () => {
           className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All Packages</option>
+          <option value="5 Mbps">5 Mbps</option>
           <option value="10 Mbps">10 Mbps</option>
           <option value="20 Mbps">20 Mbps</option>
           <option value="30 Mbps">30 Mbps</option>

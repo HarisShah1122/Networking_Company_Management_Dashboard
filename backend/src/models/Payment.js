@@ -26,8 +26,11 @@ module.exports = (sequelize, DataTypes) => {
     received_by:      { type: DataTypes.UUID, allowNull: false },
     trx_id:           { type: DataTypes.STRING(100), allowNull: false, unique: true },
     receipt_image:    { type: DataTypes.STRING, allowNull: true },
-    notes:            { type: DataTypes.TEXT, allowNull: true }
-    // REMOVED: status field — add later with migration if needed
+    notes:            { type: DataTypes.TEXT, allowNull: true },
+    status: {
+      type: DataTypes.ENUM('pending', 'paid', 'completed', 'confirmed', 'approved', 'unpaid'),
+      defaultValue: 'pending'
+    }
   }, {
     tableName: 'payments',
     timestamps: true,
