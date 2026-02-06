@@ -38,14 +38,14 @@ const app = express();
 /* MIDDLEWARE */
 app.use(helmet());
 app.use(cors({ 
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], 
+  origin: CORS_ORIGIN, 
   credentials: true 
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   '/uploads',
-  express.static(path.join(__dirname, '../uploads'))
+  express.static(path.join(__dirname, 'uploads'))
 );
 /* SESSION SETUP */
 app.use(
