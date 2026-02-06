@@ -14,15 +14,20 @@ const StaffPage = () => {
   // Staff management component with area modal
   const { user } = useAuthStore();
   const [users, setUsers] = useState([]);
+  const [staffWorkloads, setStaffWorkloads] = useState({});
+  const [staffAssignments, setStaffAssignments] = useState({});
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showStaffDetailsModal, setShowStaffDetailsModal] = useState(false);
+  const [selectedStaffDetails, setSelectedStaffDetails] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [selectedArea, setSelectedArea] = useState('');
   const [showAreaSection, setShowAreaSection] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const debounceTimer = useRef(null);
@@ -43,8 +48,68 @@ const StaffPage = () => {
     }
   }, []);
 
-  const loadUsers = useCallback(async (search = '', role = '', isInitialLoad = false) => {
-    console.log('🚀 loadUsers called with:', { search, role, isInitialLoad, userRole: user?.role, userCompanyId: user?.companyId });
+  const loadStaffWorkloads = useCallback(async (userList) => {
+    try {
+      const workloads = {};
+      const assignments = {};
+      
+      for (const user of userList) {
+        if (user.role === 'Staff' || user.role === 'Technician') {
+          try {
+            // Fetch complaints assigned to this staff member
+            const complaintsResponse = await complaintService.getAll();
+            const allComplaints = complaintsResponse?.data || [];
+            const staffComplaints = allComplaints.filter(complaint => 
+              complaint.assignedTo === user.id || complaint.assigned_to === user.id
+            );
+            
+            // Calculate workload metrics
+            const activeComplaints = staffComplaints.filter(c => 
+              ['pending', 'in_progress'].includes(c.status)
+            ).length;
+            
+            const todayComplaints = staffComplaints.filter(c => {
+              const complaintDate = new Date(c.createdAt || c.created_at);
+              const today = new Date();
+              return complaintDate.toDateString() === today.toDateString();
+            }).length;
+            
+            const completedComplaints = staffComplaints.filter(c => 
+              c.status === 'resolved' || c.status === 'closed'
+            ).length;
+            
+            workloads[user.id] = {
+              activeComplaints,
+              todayComplaints,
+              totalComplaints: staffComplaints.length,
+              completedComplaints,
+              utilizationRate: activeComplaints / 10 // Assuming max 10 active complaints
+            };
+            
+            assignments[user.id] = staffComplaints.slice(0, 5); // Show recent 5 assignments
+          } catch (error) {
+            console.warn(`Failed to load workload for staff ${user.id}:`, error);
+            workloads[user.id] = {
+              activeComplaints: 0,
+              todayComplaints: 0,
+              totalComplaints: 0,
+              completedComplaints: 0,
+              utilizationRate: 0
+            };
+            assignments[user.id] = [];
+          }
+        }
+      }
+      
+      setStaffWorkloads(workloads);
+      setStaffAssignments(assignments);
+    } catch (error) {
+      console.error('Failed to load staff workloads:', error);
+    }
+  }, []);
+
+  const loadUsers = useCallback(async (search = '', role = '', status = '', isInitialLoad = false) => {
+    console.log('🚀 loadUsers called with:', { search, role, status, isInitialLoad, userRole: user?.role, userCompanyId: user?.companyId });
     try {
       if (isInitialLoad) {
         setLoading(true);
@@ -52,15 +117,8 @@ const StaffPage = () => {
         setSearching(true);
       }
       
-      // Use different endpoints based on user role
-      let response;
-      if (user?.role === 'CEO') {
-        console.log('👑 CEO user, calling userService.getAll()');
-        response = await userService.getAll();
-      } else {
-        console.log('👨 Manager/Staff user, calling userService.getStaffList()');
-        response = await userService.getStaffList();
-      }
+      // Always use getAll to get ALL users from database
+      let response = await userService.getAll();
       
       console.log('🔍 API Response:', response);
       console.log('👤 User Role:', user?.role);
@@ -69,8 +127,12 @@ const StaffPage = () => {
       let usersList = [];
       if (Array.isArray(response)) {
         usersList = response;
-        console.log('✅ Response is array, length:', usersList.length);
-        console.log('👥 Sample user:', usersList[0]);
+      } else if (response?.users && Array.isArray(response.users)) {
+        usersList = response.users;
+      } else if (response?.data?.users && Array.isArray(response.data.users)) {
+        usersList = response.data.users;
+      } else if (response?.data && Array.isArray(response.data)) {
+        usersList = response.data;
       } else {
         console.log('❌ Response is not an array:', response);
         console.log('📊 Response type:', typeof response);
@@ -79,26 +141,39 @@ const StaffPage = () => {
 
       console.log('👥 Users list before filtering:', usersList);
 
-      if (search && search.trim()) {
+      if (search && typeof search === 'string' && search.trim()) {
         const searchLower = search.toLowerCase();
         usersList = usersList.filter(user => 
-          (user.username && user.username.toLowerCase().includes(searchLower)) ||
-          (user.email && user.email.toLowerCase().includes(searchLower))
+          (user.username && typeof user.username === 'string' && user.username.toLowerCase().includes(searchLower)) ||
+          (user.email && typeof user.email === 'string' && user.email.toLowerCase().includes(searchLower))
         );
         console.log('🔍 After search filter:', usersList);
       }
 
-      if (role && role.trim()) {
+      if (role && typeof role === 'string' && role.trim()) {
         console.log('🔍 Filtering by role:', role);
         console.log('👥 Available user roles:', usersList.map(u => ({ username: u.username, role: u.role })));
         usersList = usersList.filter(user => user.role === role);
         console.log('🔍 After role filter:', usersList);
       } else {
-        console.log('🔍 No role filter applied (role is empty)');
+        console.log('🔍 No role filter applied (role is empty or invalid)');
+      }
+
+      if (status && typeof status === 'string' && status.trim()) {
+        console.log('🔍 Filtering by status:', status);
+        usersList = usersList.filter(user => user.status === status);
+        console.log('🔍 After status filter:', usersList);
+      } else {
+        console.log('🔍 No status filter applied (status is empty or invalid)');
       }
 
       console.log('📊 Final users list to set:', usersList);
       setUsers(usersList);
+      
+      // Load staff workloads and assignments
+      if (usersList.length > 0) {
+        await loadStaffWorkloads(usersList);
+      }
     } catch (error) {
       console.error('❌ Error in loadUsers:', error);
       console.error('📊 Error details:', error.response?.data);
@@ -109,7 +184,7 @@ const StaffPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [user?.role]);
+  }, [user?.role, loadStaffWorkloads]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -126,12 +201,12 @@ const StaffPage = () => {
       clearTimeout(debounceTimer.current);
     }
 
-    if (searchTerm || roleFilter) {
+    if (searchTerm || roleFilter || statusFilter) {
       setSearching(true);
     }
 
     debounceTimer.current = setTimeout(() => {
-      loadUsers(searchTerm, roleFilter, false);
+      loadUsers(searchTerm, roleFilter, statusFilter, false);
       setCurrentPage(1);
     }, 500);
 
@@ -140,7 +215,7 @@ const StaffPage = () => {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [searchTerm, roleFilter, loadUsers]);
+  }, [searchTerm, roleFilter, statusFilter, loadUsers]);
 
   const onSubmit = async (data) => {
     try {
@@ -214,6 +289,29 @@ const StaffPage = () => {
     setShowModal(true);
   };
 
+  const handleViewStaffDetails = (user) => {
+    const workload = staffWorkloads[user.id] || {
+      activeComplaints: 0,
+      todayComplaints: 0,
+      totalComplaints: 0,
+      completedComplaints: 0,
+      utilizationRate: 0
+    };
+    const assignments = staffAssignments[user.id] || [];
+    
+    setSelectedStaffDetails({
+      ...user,
+      workload,
+      assignments,
+      performanceMetrics: {
+        completionRate: workload.totalComplaints > 0 ? (workload.completedComplaints / workload.totalComplaints) * 100 : 0,
+        avgDailyTasks: workload.todayComplaints,
+        efficiency: workload.utilizationRate * 100
+      }
+    });
+    setShowStaffDetailsModal(true);
+  };
+
   const getTechnicians = () => {
     return users.filter(user => user.role === 'Technician' || user.role === 'Staff');
   };
@@ -234,7 +332,38 @@ const StaffPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Staff Management</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">All Users</h1>
+        <p className="text-gray-600">Complete overview of all users in the system ({users.length} total)</p>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-sm font-medium text-gray-600">Total Users</h3>
+          <p className="text-2xl font-bold text-blue-600 mt-2">{users.length}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-sm font-medium text-gray-600">Active Users</h3>
+          <p className="text-2xl font-bold text-green-600 mt-2">
+            {users.filter(u => u.status === 'active').length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-sm font-medium text-gray-600">Staff Members</h3>
+          <p className="text-2xl font-bold text-purple-600 mt-2">
+            {users.filter(u => u.role === 'Staff' || u.role === 'Technician').length}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Staff: {users.filter(u => u.role === 'Staff').length} | 
+            Technicians: {users.filter(u => u.role === 'Technician').length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-sm font-medium text-gray-600">Management</h3>
+          <p className="text-2xl font-bold text-orange-600 mt-2">
+            {users.filter(u => u.role === 'CEO' || u.role === 'Manager').length}
+          </p>
+        </div>
       </div>
 
       <div className="flex items-center space-x-4 mb-6">
@@ -265,8 +394,19 @@ const StaffPage = () => {
               <option value="Technician">Technician</option>
             </select>
 
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[160px]"
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="pending">Pending</option>
+            </select>
+
             <button
-              onClick={() => loadUsers(searchTerm, roleFilter, false)}
+              onClick={() => loadUsers(searchTerm, roleFilter, statusFilter, false)}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
             >
               🔄 Refresh
@@ -297,19 +437,35 @@ const StaffPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  {(users.some(u => u.role === 'Staff' || u.role === 'Technician')) && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Workload</th>
+                  )}
+                  {(users.some(u => u.role === 'Staff' || u.role === 'Technician')) && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performance</th>
+                  )}
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={users.some(u => u.role === 'Staff' || u.role === 'Technician') ? 8 : 6} className="px-6 py-8 text-center text-gray-500">
                       No users found.
                     </td>
                   </tr>
                 ) : (
-                  users.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((user) => (
+                  users.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((user) => {
+                    const workload = staffWorkloads[user.id] || {
+                      activeComplaints: 0,
+                      todayComplaints: 0,
+                      totalComplaints: 0,
+                      completedComplaints: 0,
+                      utilizationRate: 0
+                    };
+                    
+                    return (
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap font-medium">{user.username}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
@@ -326,11 +482,70 @@ const StaffPage = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        {user.company?.name || 'No Company'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
                       </td>
+                      {(user.role === 'Staff' || user.role === 'Technician') && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-600">Active:</span>
+                              <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                workload.activeComplaints > 5 ? 'bg-red-100 text-red-800' : 
+                                workload.activeComplaints > 2 ? 'bg-yellow-100 text-yellow-800' : 
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {workload.activeComplaints}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-600">Today:</span>
+                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                {workload.todayComplaints}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                      )}
+                      {(user.role === 'Staff' || user.role === 'Technician') && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-600">Total:</span>
+                              <span className="text-xs font-medium">{workload.totalComplaints}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-600">Completed:</span>
+                              <span className="text-xs font-medium text-green-600">{workload.completedComplaints}</span>
+                            </div>
+                            {workload.totalComplaints > 0 && (
+                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div 
+                                  className="bg-green-600 h-1.5 rounded-full" 
+                                  style={{ width: `${(workload.completedComplaints / workload.totalComplaints) * 100}%` }}
+                                ></div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         {canManage && (
                           <div className="flex items-center justify-end gap-2">
+                            {(user.role === 'Staff' || user.role === 'Technician') && (
+                              <button
+                                onClick={() => handleViewStaffDetails(user)}
+                                className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
+                                title="View Details"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleEdit(user)}
                               className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
@@ -344,7 +559,8 @@ const StaffPage = () => {
                         )}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -588,6 +804,168 @@ const StaffPage = () => {
             </div>
             </form>
           )}
+        </Modal>
+      )}
+
+      {/* Staff Details Modal */}
+      {showStaffDetailsModal && selectedStaffDetails && (
+        <Modal
+          isOpen={showStaffDetailsModal}
+          onClose={() => { setShowStaffDetailsModal(false); setSelectedStaffDetails(null); }}
+          title="Staff Details"
+          maxWidth="max-w-4xl"
+        >
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Username:</span>
+                    <span className="font-medium">{selectedStaffDetails.username}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Email:</span>
+                    <span className="font-medium">{selectedStaffDetails.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Role:</span>
+                    <span className="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-600 text-white">
+                      {selectedStaffDetails.role}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Status:</span>
+                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                      selectedStaffDetails.status === 'active' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                    }`}>
+                      {selectedStaffDetails.status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Member Since:</span>
+                    <span className="font-medium">
+                      {selectedStaffDetails.created_at ? new Date(selectedStaffDetails.created_at).toLocaleDateString() : '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Workload Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Workload</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Active Tasks:</span>
+                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${
+                      selectedStaffDetails.workload.activeComplaints > 5 ? 'bg-red-100 text-red-800' : 
+                      selectedStaffDetails.workload.activeComplaints > 2 ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {selectedStaffDetails.workload.activeComplaints}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Today's Tasks:</span>
+                    <span className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                      {selectedStaffDetails.workload.todayComplaints}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Total Assigned:</span>
+                    <span className="font-medium">{selectedStaffDetails.workload.totalComplaints}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Completed:</span>
+                    <span className="font-medium text-green-600">{selectedStaffDetails.workload.completedComplaints}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Utilization:</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full" 
+                          style={{ width: `${selectedStaffDetails.performanceMetrics.efficiency}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs font-medium">
+                        {selectedStaffDetails.performanceMetrics.efficiency.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Metrics */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {selectedStaffDetails.performanceMetrics.completionRate.toFixed(1)}%
+                  </div>
+                  <div className="text-sm text-gray-600">Completion Rate</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {selectedStaffDetails.performanceMetrics.avgDailyTasks}
+                  </div>
+                  <div className="text-sm text-gray-600">Daily Tasks</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {selectedStaffDetails.workload.activeComplaints}
+                  </div>
+                  <div className="text-sm text-gray-600">Active Tasks</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Assignments */}
+            {selectedStaffDetails.assignments.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Assignments</h3>
+                <div className="space-y-2">
+                  {selectedStaffDetails.assignments.map((assignment) => (
+                    <div key={assignment.id} className="flex items-center justify-between p-3 bg-white rounded border">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">
+                          COMP-{assignment.id?.slice(-6).toUpperCase() || 'UNKNOWN'}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {assignment.customer_name || 'Unknown Customer'}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          assignment.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                          assignment.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                          assignment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {assignment.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {assignment.createdAt ? new Date(assignment.createdAt).toLocaleDateString() : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => { setShowStaffDetailsModal(false); setSelectedStaffDetails(null); }}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

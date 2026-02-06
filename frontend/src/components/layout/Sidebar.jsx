@@ -13,7 +13,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/payments', label: 'Payments', icon: '💳', roles: ['CEO', 'Manager'] },
     { path: '/complaints', label: 'Complaints', icon: '📝', roles: ['CEO', 'Manager', 'Staff'] },
     // { path: '/stock', label: 'Stock', icon: '📦', roles: ['CEO', 'Manager'] }, // TEMPORARILY HIDDEN
-    // { path: '/accounts', label: 'Accounts', icon: '💼', roles: ['CEO', 'Manager'] }, // TEMPORARILY HIDDEN
+    { path: '/accounts', label: 'Accounts', icon: '💼', roles: ['CEO', 'Manager'] },
     { path: '/staff', label: 'Staff', icon: '👤', roles: ['CEO'] },
     { path: '/areas', label: 'Areas', icon: '🌐', roles: ['CEO', 'Manager'] },
   ];

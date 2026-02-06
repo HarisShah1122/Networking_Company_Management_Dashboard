@@ -11,6 +11,7 @@ import RechargesPage from './pages/recharges/RechargesPage';
 import StockPage from './pages/stock/StockPage';
 import AccountsPage from './pages/accounts/AccountsPage';
 import StaffPage from './pages/staff/StaffPage';
+import AllUsersPage from './pages/admin/AllUsersPage';
 import ComplaintsPage from './pages/complaints/ComplaintsPage';
 import ComplaintsDashboardEnhanced from './pages/complaints/ComplaintsDashboardEnhanced';
 import AreasPage from './pages/areas/AreasPage';
@@ -42,7 +43,7 @@ const AppRoutes = () => {
           {/* <Route path="/recharges" element={<RechargesPage />} /> REMOVED - MOVED TO PAYMENTS */}
           <Route path="/payments" element={<PaymentsPage />} />
           {/* <Route path="/stock" element={<StockPage />} /> TEMPORARILY HIDDEN */}
-          {/* <Route path="/accounts" element={<AccountsPage />} /> TEMPORARILY HIDDEN */}
+          <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/complaints" element={<ComplaintsPage />} />
           <Route path="/complaints-dashboard" element={<ComplaintsDashboardEnhanced />} />

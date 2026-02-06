@@ -6,7 +6,9 @@ const { validateUser } = require('../helpers/validators');
 
 const getAll = async (req, res, next) => {
   try {
-    const users = await UserService.getAll(req.companyId);
+    // If user is CEO or no companyId provided, get all users
+    // Otherwise, get users for specific company
+    const users = await UserService.getAll(req.user?.role === 'CEO' ? null : req.companyId);
     return ApiResponse.success(res, { users }, 'Users retrieved successfully');
   } catch (error) {
     next(error);
@@ -98,7 +100,9 @@ const update = async (req, res, next) => {
 
 const getStaffList = async (req, res, next) => {
   try {
-    const users = await UserService.getAll(req.companyId);
+    // If user is CEO, get all users (will be filtered to exclude CEO)
+    // Otherwise, get users for specific company
+    const users = await UserService.getAll(req.user?.role === 'CEO' ? null : req.companyId);
     // Filter out CEO users from staff list - only show Manager, Staff, and Technician
     const staffUsers = users.filter(user => user.role !== 'CEO');
     return ApiResponse.success(res, { data: staffUsers }, 'Staff list retrieved successfully');

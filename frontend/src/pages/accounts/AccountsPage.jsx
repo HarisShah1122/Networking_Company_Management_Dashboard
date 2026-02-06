@@ -189,7 +189,7 @@ const AccountsPage = () => {
       trxId: transaction.trxId || '',
     });
     if (transaction.receiptImage) {
-      setImagePreview(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`);
+      setImagePreview(`${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`);
     } else {
       setImagePreview(null);
     }
@@ -327,7 +327,7 @@ const AccountsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {transaction.receiptImage ? (
                         <a
-                          href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
+                          href={`${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-indigo-600 hover:text-indigo-900"

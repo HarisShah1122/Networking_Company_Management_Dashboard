@@ -1,12 +1,20 @@
 const { Op, Sequelize } = require('sequelize');
 const bcrypt = require('bcrypt');
-const { User } = require('../models');
+const { User, Company } = require('../models');
 
 const getAll = async (companyId) => {
   const whereClause = companyId ? { company_id: companyId } : {};
   return await User.findAll({
     where: whereClause,
-    attributes: ['id', 'email', 'username', 'role', 'status', 'created_at'],
+    attributes: ['id', 'email', 'username', 'role', 'status', 'created_at', 'phone', 'company_id'],
+    include: [
+      {
+        model: Company,
+        as: 'company',
+        attributes: ['id', 'name'],
+        required: false
+      }
+    ],
     order: [['created_at', 'DESC']]
   });
 };
@@ -14,7 +22,15 @@ const getAll = async (companyId) => {
 const getById = async (id, companyId) => {
   return await User.findByPk(id, {
     where: { company_id: companyId },
-    attributes: ['id', 'email', 'username', 'role', 'status', 'created_at']
+    attributes: ['id', 'email', 'username', 'role', 'status', 'created_at', 'phone', 'company_id'],
+    include: [
+      {
+        model: Company,
+        as: 'company',
+        attributes: ['id', 'name'],
+        required: false
+      }
+    ]
   });
 };
 

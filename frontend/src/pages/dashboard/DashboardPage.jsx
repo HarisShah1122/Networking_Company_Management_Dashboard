@@ -6,6 +6,7 @@ import { connectionService } from '../../services/connectionService';
 import { rechargeService } from '../../services/rechargeService';
 import { stockService } from '../../services/stockService';
 import { transactionService } from '../../services/transactionService';
+import { paymentService } from '../../services/paymentService';
 import { complaintService } from '../../services/complaintService';
 import Loader from '../../components/common/Loader';
 
@@ -57,6 +58,10 @@ const DashboardPage = () => {
           console.warn('❌ Transaction summary failed:', err);
           return { summary: { total_income: 0, total_expense: 0 } };
         }),
+        paymentService.getAll().catch(err => {
+          console.warn('❌ Payment data failed:', err);
+          return { payments: [] };
+        }),
         complaintService.getStats().catch(err => {
           console.warn('❌ Complaint stats failed:', err);
           return { stats: { open: 0, in_progress: 0, on_hold: 0, closed: 0 } };
@@ -71,7 +76,7 @@ const DashboardPage = () => {
         }),
       ]);
 
-      const [customers, connections, recharges, stock, transactions, complaintStats, revenueGrowth, recentComplaintsRes] = results.map(r => 
+      const [customers, connections, recharges, stock, transactions, payments, complaintStats, revenueGrowth, recentComplaintsRes] = results.map(r => 
         r.status === 'fulfilled' ? r.value : {}
       );
 
@@ -81,16 +86,31 @@ const DashboardPage = () => {
         recharges,
         stock,
         transactions,
+        payments,
         complaintStats,
         revenueGrowth
       });
+
+      // Calculate total income from both transactions and payments
+      const transactionIncome = parseFloat(transactions?.summary?.total_income ?? 0);
+      const paymentIncome = payments?.payments?.reduce((sum, payment) => {
+        return sum + (payment.status === 'confirmed' || payment.status === 'approved' ? parseFloat(payment.amount || 0) : 0);
+      }, 0) || 0;
+      
+      const totalIncome = transactionIncome + paymentIncome;
+      const totalExpenses = parseFloat(transactions?.summary?.total_expense ?? 0);
+      const profitLoss = totalIncome - totalExpenses;
 
       const updatedStats = {
         customers: customers?.stats ?? { total: 0, active: 0 },
         connections: connections?.stats ?? { total: 0, pending: 0 },
         recharges: recharges ?? { total_paid: 0, total_pending: 0 },
         stock: stock?.stats ?? { total_items: 0, total_value: 0 },
-        transactions: transactions?.summary ?? { total_income: 0, total_expense: 0 },
+        transactions: { 
+          total_income: totalIncome, 
+          total_expense: totalExpenses,
+          profit_loss: profitLoss
+        },
       };
       
       console.log('📈 Final Stats:', updatedStats);
@@ -166,7 +186,7 @@ const DashboardPage = () => {
     return <Loader />;
   }
 
-  const profitLoss = parseFloat(stats.transactions?.total_income ?? 0) - parseFloat(stats.transactions?.total_expense ?? 0);
+  const profitLoss = parseFloat(stats.transactions?.profit_loss ?? 0);
 
   return (
     <div className="space-y-6">

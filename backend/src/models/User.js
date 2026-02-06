@@ -12,8 +12,8 @@ module.exports = (sequelize) => {
       set(value) { this.setDataValue('password', value); }
     },
     password_hash: { type: DataTypes.STRING(255), allowNull: false },
-    role: { type: DataTypes.ENUM('SuperAdmin', 'CEO', 'Manager', 'Staff', 'Technician'), defaultValue: 'Staff' },
-    status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
+    role: { type: DataTypes.ENUM('CEO', 'Manager', 'Staff', 'Technician'), defaultValue: 'Staff' },
+    status: { type: DataTypes.ENUM('active', 'inactive', 'pending'), defaultValue: 'active' },
     companyId: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -46,6 +46,7 @@ module.exports = (sequelize) => {
   };
 
   User.associate = (models) => {
+    User.belongsTo(models.Company, { foreignKey: 'company_id', as: 'company' });
     User.belongsTo(models.Area, { foreignKey: 'companyId', as: 'area' });
     User.hasMany(models.Complaint, { foreignKey: 'assignedTo', as: 'assignedComplaints' });
   };
