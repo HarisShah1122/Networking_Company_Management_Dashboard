@@ -32230,15 +32230,11 @@ const katlangUsers = [
 
 async function seedKatlangUsers() {
   try {
-    console.log('Connecting to database...');
     await sequelize.authenticate();
-    console.log('Database connected successfully');
 
     await sequelize.sync({ alter: false });
-    console.log('Models synced');
 
     // Create or find PACE Telecom company
-    console.log('Creating PACE Telecom company...');
     let paceCompany = await Company.findOne({ where: { name: 'PACE Telecom' } });
     
     if (!paceCompany) {
@@ -32249,13 +32245,11 @@ async function seedKatlangUsers() {
         company_id: `ISP-${Date.now()}`,
         status: 'active'
       });
-      console.log('PACE Telecom company created');
     } else {
-      console.log('PACE Telecom company found');
+      // PACE Telecom company found
     }
 
     // Create or find Katlang area
-    console.log('Finding Katlang area...');
     let katlangArea = await Area.findOne({ where: { name: 'Katlang' } });
     
     if (!katlangArea) {
@@ -32266,12 +32260,10 @@ async function seedKatlangUsers() {
         description: 'Katlang area - Mardan District',
         company_id: paceCompany.id
       });
-      console.log('Katlang area created');
     } else {
-      console.log('Katlang area found');
+      // Katlang area found
     }
 
-    console.log(`Starting to seed ${katlangUsers.length} Katlang users...`);
     
     let successCount = 0;
     let skipCount = 0;
@@ -32285,7 +32277,6 @@ async function seedKatlangUsers() {
         });
 
         if (existingCustomer) {
-          console.log(`⚠️  Customer with username ${userData.username} already exists, skipping...`);
           skipCount++;
           continue;
         }
@@ -32313,25 +32304,16 @@ async function seedKatlangUsers() {
           notes: `Package: ${userData.package}, Expiration: ${userData.expiration}, PayID: ${userData.payid || 'N/A'}`
         });
 
-        console.log(`✅ Created customer: ${userData.firstname} ${userData.lastname} (${userData.username})`);
         successCount++;
 
       } catch (error) {
-        console.log(`❌ Error creating user ${userData.username}:`, error.message);
         errorCount++;
       }
     }
 
-    console.log('\n=== SEEDING SUMMARY ===');
-    console.log(`Total users processed: ${katlangUsers.length}`);
-    console.log(`✅ Successfully created: ${successCount}`);
-    console.log(`⚠️  Skipped (already exist): ${skipCount}`);
-    console.log(`❌ Errors: ${errorCount}`);
-    console.log('\nAll Katlang users have been processed!');
 
     process.exit(0);
   } catch (error) {
-    console.error('Fatal Error:', error);
     process.exit(1);
   }
 }
