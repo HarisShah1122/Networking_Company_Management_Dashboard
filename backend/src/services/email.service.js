@@ -127,7 +127,7 @@ class EmailService {
   }
 
   // Complaint Status Update Notification
-  async sendComplaintStatusUpdateNotification(customerEmail, complaintDetails, oldStatus, newStatus) {
+  async sendComplaintStatusUpdateNotification(customerEmail, customerName, complaintDetails, oldStatus, newStatus) {
     const subject = `📢 Complaint Status Update - ID: ${complaintDetails.id}`;
     const statusColors = {
       'open': '#f59e0b',
@@ -150,15 +150,15 @@ class EmailService {
             <h3 style="color: #92400e; margin: 0;">📋 Complaint Details:</h3>
             <p style="margin: 10px 0;"><strong>ID:</strong> ${complaintDetails.id}</p>
             <p style="margin: 10px 0;"><strong>Title:</strong> ${complaintDetails.title}</p>
-            <p style="margin: 10px 0;"><strong>Customer:</strong> ${complaintDetails.name || 'N/A'}</p>
+            <p style="margin: 10px 0;"><strong>Customer:</strong> ${customerName || 'N/A'}</p>
           </div>
           
           <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
             <h3 style="color: #374151; margin: 0;">🔄 Status Change:</h3>
             <div style="display: flex; align-items: center; margin: 10px 0;">
-              <span style="background-color: ${statusColors[oldStatus] || '#6b7280'}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; margin-right: 10px;">${oldStatus?.replace('_', ' ').toUpperCase()}</span>
+              <span style="background-color: ${statusColors[oldStatus] || '#6b7280'}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; margin-right: 10px;">${(oldStatus || '').replace('_', ' ').toUpperCase()}</span>
               <span style="font-size: 18px; color: #6b7280;">→</span>
-              <span style="background-color: ${statusColors[newStatus] || '#6b7280'}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; margin-left: 10px;">${newStatus?.replace('_', ' ').toUpperCase()}</span>
+              <span style="background-color: ${statusColors[newStatus] || '#6b7280'}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; margin-left: 10px;">${(newStatus || '').replace('_', ' ').toUpperCase()}</span>
             </div>
             <p style="margin: 10px 0; color: #4b5563;"><strong>Updated at:</strong> ${new Date().toLocaleString()}</p>
           </div>

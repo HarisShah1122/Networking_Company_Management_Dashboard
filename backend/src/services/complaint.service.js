@@ -148,6 +148,35 @@ const update = async (id, data, userId, companyId) => {
     await complaint.update(updateData);
     activityLogService.logActivity(userId, 'update_complaint', 'complaint', `Updated complaint #${id}`);
 
+    // Send email notification for status change
+    if (data.status && data.status !== complaintData.status) {
+      try {
+        const emailService = require('./email.service');
+        const updatedComplaint = await Complaint.findByPk(id);
+        
+        // Get customer email if customerId exists
+        let customerEmail = 'customer@example.com';
+        if (updatedComplaint.customerId) {
+          const { Customer } = require('../models');
+          const customer = await Customer.findByPk(updatedComplaint.customerId, {
+            attributes: ['email']
+          });
+          customerEmail = customer?.email || 'customer@example.com';
+        }
+        
+        await emailService.sendComplaintStatusUpdateNotification(
+          customerEmail,
+          updatedComplaint.name || 'Customer',
+          updatedComplaint.toJSON(),
+          complaintData.status,
+          data.status
+        );
+        console.log(`📧 Status update email sent for complaint ${id} to ${customerEmail}`);
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send status update email:', emailError.message);
+      }
+    }
+
     return { ...complaint.toJSON(), name, whatsapp_number };
   } catch (err) {
     throw err;
