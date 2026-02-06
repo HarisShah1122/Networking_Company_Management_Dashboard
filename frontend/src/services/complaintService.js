@@ -50,4 +50,17 @@ export const complaintService = {
     const response = await apiClient.get('/complaints/sla-stats', { params });
     return extractData(response);
   },
+
+  // Send assignment notification email
+  sendAssignmentNotification: async (email, notificationData) => {
+    const response = await apiClient.post('/notifications/assignment', {
+      to: email,
+      subject: `New Complaint Assignment - ID: ${notificationData.complaintId}`,
+      message: notificationData.message,
+      assignedBy: notificationData.assignedBy,
+      technicianName: notificationData.technicianName,
+      complaintId: notificationData.complaintId
+    });
+    return extractData(response);
+  },
 };

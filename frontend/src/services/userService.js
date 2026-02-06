@@ -6,6 +6,13 @@ export const userService = {
     // The API returns { success: true, message: "...", data: { users: [users] } }
     return response.data?.data?.users ?? response.data?.users ?? response.data;
   },
+  getTechnicians: async () => {
+    const response = await apiClient.get('/users');
+    // The API returns { success: true, message: "...", data: { users: [users] } }
+    const allUsers = response.data?.data?.users ?? response.data?.users ?? response.data;
+    // Filter only technicians
+    return allUsers.filter(user => user.role === 'Technician');
+  },
   getStaffList: async () => {
     const response = await apiClient.get('/users/staff-list');
     // The API returns { success: true, message: "...", data: { data: [users] } }

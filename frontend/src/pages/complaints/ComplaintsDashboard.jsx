@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { complaintService } from '../../services/complaintService';
+import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
 import { 
   STAFF_MEMBERS, 
-  BRANCHES, 
+  AREAS,
   SOURCES, 
   getStatusColor, 
   getPriorityColor, 
@@ -20,13 +21,14 @@ const ComplaintsDashboard = () => {
   const { user } = useAuthStore();
   const [complaints, setComplaints] = useState([]);
   const [filteredComplaints, setFilteredComplaints] = useState([]);
-  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [technicians, setTechnicians] = useState([]);
+  const [selectedArea, setSelectedArea] = useState('all');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [selectedSource, setSelectedSource] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [techniciansLoading, setTechniciansLoading] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [pagination, setPagination] = useState(null);
   const [paginationState, setPaginationState] = useState({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
@@ -44,18 +46,6 @@ const ComplaintsDashboard = () => {
     sla_breached: 0,
     compliance_rate: 0,
     total_penalties: 0
-  });
-  const [newComplaint, setNewComplaint] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    name: '',
-    address: '',
-    whatsapp_number: '',
-    area: '',
-    district: '',
-    city: '',
-    province: ''
   });
 
   const calculateStats = (complaintsList) => {
@@ -172,12 +162,46 @@ const ComplaintsDashboard = () => {
     }
   }, [paginationState.page, paginationState.pageSize, user?.company_id]);
 
+  const loadTechnicians = useCallback(async () => {
+    try {
+      setTechniciansLoading(true);
+      console.log('🔧 Loading technicians...');
+      const techniciansData = await userService.getTechnicians();
+      console.log('👨‍🔧 Technicians loaded:', techniciansData);
+      setTechnicians(techniciansData);
+    } catch (error) {
+      console.error('Error loading technicians:', error);
+      toast.error('Failed to load technicians', { autoClose: 3000 });
+      setTechnicians([]);
+    } finally {
+      setTechniciansLoading(false);
+    }
+  }, []);
+
   const filterComplaints = useCallback(() => {
     let filtered = complaints;
     
-    // For now, since we don't have branch/district/source in DB, just show all
+    // Filter by area
+    if (selectedArea !== 'all') {
+      filtered = filtered.filter(complaint => 
+        complaint.address && complaint.address.toLowerCase().includes(selectedArea.toLowerCase())
+      );
+    }
+    
+    // Filter by district
+    if (selectedDistrict !== 'all') {
+      filtered = filtered.filter(complaint => 
+        complaint.address && complaint.address.toLowerCase().includes(selectedDistrict.toLowerCase())
+      );
+    }
+    
+    // Filter by source
+    if (selectedSource !== 'all') {
+      filtered = filtered.filter(complaint => complaint.source === selectedSource);
+    }
+    
     setFilteredComplaints(filtered);
-  }, [complaints]);
+  }, [complaints, selectedArea, selectedDistrict, selectedSource]);
 
   const handlePageChange = useCallback((newPage) => {
     setPaginationState(prev => ({ ...prev, page: newPage }));
@@ -194,11 +218,29 @@ const ComplaintsDashboard = () => {
       // Refresh complaints list
       await loadComplaints();
       
-      const staffMember = STAFF_MEMBERS.find(s => s.id === technicianId);
-      toast.success(`Complaint assigned to ${staffMember?.name || 'Staff Member'}! SLA timer started.`, {
+      const technician = technicians.find(t => t.id === technicianId);
+      const technicianName = technician?.username || technician?.name || 'Staff Member';
+      
+      toast.success(`Complaint assigned to ${technicianName}! SLA timer started.`, {
         autoClose: 3000,
         position: 'top-right'
       });
+      
+      // Send email notification to technician
+      if (technician?.email) {
+        try {
+          await complaintService.sendAssignmentNotification(technician.email, {
+            complaintId,
+            technicianName,
+            assignedBy: user?.username,
+            message: `You have been assigned a new complaint (ID: ${complaintId}). Please check your dashboard for details.`
+          });
+          console.log('📧 Assignment notification sent to:', technician.email);
+        } catch (emailError) {
+          console.error('Failed to send email notification:', emailError);
+          toast.warning('Complaint assigned but email notification failed', { autoClose: 3000 });
+        }
+      }
     } catch (error) {
       console.error('Error assigning complaint:', error);
       toast.error('Failed to assign complaint', { autoClose: 3000 });
@@ -239,64 +281,10 @@ const ComplaintsDashboard = () => {
     setSelectedComplaint(null);
   };
 
-  const openAddModal = () => {
-    // Pre-fill with user data if available
-    if (user) {
-      setNewComplaint(prev => ({
-        ...prev,
-        name: user.name || '',
-        whatsapp_number: user.phone || user.whatsapp_number || ''
-      }));
-    }
-    setShowAddModal(true);
-  };
-
-  const closeAddModal = () => {
-    setShowAddModal(false);
-    setNewComplaint({
-      title: '',
-      description: '',
-      priority: 'medium',
-      name: '',
-      address: '',
-      whatsapp_number: '',
-      area: '',
-      district: '',
-      city: '',
-      province: ''
-    });
-  };
-
-  const handleNewComplaintChange = (e) => {
-    const { name, value } = e.target;
-    setNewComplaint(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleAddComplaint = async (e) => {
-    e.preventDefault();
-    
-    if (!newComplaint.title.trim() || !newComplaint.description.trim()) {
-      toast.error('Title and description are required');
-      return;
-    }
-
-    try {
-      await complaintService.create(newComplaint);
-      toast.success('Complaint created successfully!');
-      closeAddModal();
-      await loadComplaints(); // Refresh the list
-    } catch (error) {
-      console.error('Error creating complaint:', error);
-      toast.error(error.response?.data?.message || 'Failed to create complaint');
-    }
-  };
-
   useEffect(() => {
     loadComplaints();
-  }, [loadComplaints]);
+    loadTechnicians();
+  }, [loadComplaints, loadTechnicians]);
 
   useEffect(() => {
     filterComplaints();
@@ -318,54 +306,61 @@ const ComplaintsDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+  <>
+  <div className="min-h-screen bg-gray-50">
+    {/* Header */}
+    <div className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <div className="flex justify-between items-center">
-            <div>
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-wider" style={{ fontFamily: "'Poppins', 'Montserrat', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+              <span 
+                className="text-blue-600 inline-block animate-pulse cursor-default"
+                style={{
+                  animation: 'glow 2s linear infinite alternate, slideInLeft 0.8s linear'
+                }}
+              >
+                📊 Complaints Dashboard
+              </span>
+            </h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <nav className="flex space-x-4">
               <Link 
                 to="/dashboard" 
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 mb-4"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 ← Back to Dashboard
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900">🎯 Complaints Dashboard</h1>
-              <p className="text-gray-600 mt-2">Branch-wise complaint management</p>
-            </div>
-            <button
-              onClick={openAddModal}
-              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
-            >
-              + Add Complaint
-            </button>
+            </nav>
           </div>
         </div>
+      </div>
+    </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    {/* Main Content */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        {/* Statistics Cards */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
           <div className="text-sm text-gray-600">Total Complaints</div>
         </div>
+        <div className="bg-green-50 rounded-lg shadow p-6 border border-green-200">
+          <div className="text-2xl font-bold text-green-600">{stats.open}</div>
+          <div className="text-sm text-green-600">Open</div>
+        </div>
+        <div className="bg-yellow-50 rounded-lg shadow p-6 border border-yellow-200">
+          <div className="text-2xl font-bold text-yellow-600">{stats.inProgress}</div>
+          <div className="text-sm text-yellow-600">In Progress</div>
+        </div>
         <div className="bg-red-50 rounded-lg shadow p-6 border border-red-200">
-          <div className="text-2xl font-bold text-red-600">{stats.open}</div>
-          <div className="text-sm text-red-600">Open</div>
+          <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
+          <div className="text-sm text-red-600">Overdue</div>
         </div>
         <div className="bg-blue-50 rounded-lg shadow p-6 border border-blue-200">
-          <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-          <div className="text-sm text-blue-600">In Progress</div>
-        </div>
-        <div className="bg-green-50 rounded-lg shadow p-6 border border-green-200">
-          <div className="text-2xl font-bold text-green-600">{stats.closed}</div>
-          <div className="text-sm text-green-600">Closed</div>
-        </div>
-      </div>
-
-      {/* SLA Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-2xl font-bold text-gray-900">{slaStats.total_assigned}</div>
-          <div className="text-sm text-gray-600">Assigned</div>
+          <div className="text-2xl font-bold text-blue-600">{slaStats.total_assigned}</div>
+          <div className="text-sm text-blue-600">Assigned</div>
         </div>
         <div className="bg-green-50 rounded-lg shadow p-6 border border-green-200">
           <div className="text-2xl font-bold text-green-600">{slaStats.sla_met}</div>
@@ -380,55 +375,58 @@ const ComplaintsDashboard = () => {
           <div className="text-sm text-yellow-600">Compliance Rate</div>
         </div>
         <div className="bg-orange-50 rounded-lg shadow p-6 border border-orange-200">
-          <div className="text-2xl font-bold text-orange-600">PKR {slaStats.total_penalties}</div>
+          <span className="text-sm text-gray-600">PKR {slaStats.total_penalties}</span>
           <div className="text-sm text-orange-600">Total Penalties</div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">🔍 Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {BRANCHES.map(branch => (
-                <option key={branch.id} value={branch.id}>{branch.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {BRANCHES.find(b => b.id === selectedBranch)?.district === 'all' ? (
+        <div className="px-6 py-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">🔍 Filters</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Area</label>
+              <select
+                value={selectedArea}
+                onChange={(e) => setSelectedArea(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Areas</option>
+                {AREAS.map((area, index) => (
+                  <option key={index} value={area}>{area}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
+              <select
+                value={selectedDistrict}
+                onChange={(e) => setSelectedDistrict(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
                 <option value="all">All Districts</option>
-              ) : (
-                BRANCHES.filter(b => b.id === 'all' || b.district === BRANCHES.find(br => br.id === selectedBranch)?.district)
-                  .map(branch => (
-                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                  ))
-              )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Source</label>
-            <select
-              value={selectedSource}
-              onChange={(e) => setSelectedSource(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {SOURCES.map(source => (
-                <option key={source.id} value={source.id}>{source.name}</option>
-              ))}
-            </select>
+                <option value="mardan">Mardan</option>
+                <option value="peshawar">Peshawar</option>
+                <option value="islamabad">Islamabad</option>
+                <option value="rawalpindi">Rawalpindi</option>
+                <option value="nowshera">Nowshera</option>
+                <option value="charsadda">Charsadda</option>
+                <option value="swabi">Swabi</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Source</label>
+              <select
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {SOURCES.map(source => (
+                  <option key={source.id} value={source.id}>{source.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -464,25 +462,19 @@ const ComplaintsDashboard = () => {
                         <div>
                           <div className="text-sm font-medium text-gray-900">{complaint.name || 'Unknown'}</div>
                           <div className="text-xs text-gray-500">ID: {complaint.customerId || 'N/A'}</div>
+                          <div className="text-xs text-gray-600 flex items-center">
+                            <span className="mr-2">📞</span>
+                            <span>{complaint.whatsapp_number || 'No phone'}</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-xs text-gray-600 flex items-center">
-                        <span className="mr-2">�</span>
-                        <span>{complaint.whatsapp_number || 'No phone'}</span>
-                      </div>
-                      <div className="text-xs text-gray-600 flex items-center">
-                        <span className="mr-2">📍</span>
-                        <span>{complaint.address || 'No address'}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{complaint.title}</div>
-                      <div className="text-xs text-gray-500 mt-1">{complaint.description?.substring(0, 50)}...</div>
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{complaint.title}</div>
+                    <div className="text-xs text-gray-500 mt-1">{complaint.description?.substring(0, 50)}...</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">
                       {complaint.address || 'No address'}
                     </div>
@@ -515,9 +507,6 @@ const ComplaintsDashboard = () => {
                         }`}>
                           {formatTimeRemaining(calculateTimeRemaining(complaint.sla_deadline))}
                         </div>
-                        {complaint.penalty_applied && (
-                          <div className="text-xs text-red-500">Penalty Applied</div>
-                        )}
                       </div>
                     ) : (
                       <span className="text-sm text-gray-500">Not Assigned</span>
@@ -540,157 +529,82 @@ const ComplaintsDashboard = () => {
               ))}
             </tbody>
           </table>
-          
-          {/* Pagination */}
-          {pagination && (
-            <div className="mt-4">
-              <TablePagination
-                pagination={pagination}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-                pageSize={paginationState.pageSize}
-                isFetching={loading}
-              />
-            </div>
-          )}
-          
-          {filteredComplaints.length === 0 && (
-            <div className="text-center py-8">
-              <div className="text-gray-500">No complaints found matching the selected filters.</div>
-            </div>
-          )}
         </div>
+        
+        {/* Pagination */}
+        {pagination && (
+          <div className="mt-4">
+            <TablePagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              pageSize={paginationState.pageSize}
+              isFetching={loading}
+            />
+          </div>
+        )}
       </div>
+    </div>
 
-      {/* Complaint View Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={closeModal}
-        title="Complaint Details"
-        maxWidth="max-w-4xl"
-      >
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column - Customer Info */}
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
-                  <span className="mr-2">👤</span>
-                  Customer Information
-                </h3>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-sm font-medium text-blue-600">
-                        {selectedComplaint?.name?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{selectedComplaint?.name || 'Unknown Customer'}</p>
-                      <p className="text-xs text-gray-500">ID: {selectedComplaint?.customerId || 'N/A'}</p>
-                    </div>
-                  </div>
+    {/* No complaints message */}
+    {filteredComplaints.length === 0 && (
+      <div className="text-center py-8">
+        <div className="text-gray-500">No complaints found matching the selected filters.</div>
+      </div>
+    )}
+  </div>
 
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="flex items-center text-sm">
-                      <span className="mr-2 text-gray-500">📱</span>
-                      <span className="text-gray-900">{selectedComplaint?.whatsapp_number || 'No phone number'}</span>
-                    </div>
-                    
-                    <div className="flex items-start text-sm">
-                      <span className="mr-2 text-gray-500 mt-0.5">📍</span>
-                      <span className="text-gray-900">{selectedComplaint?.address || 'No address provided'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Complaint ID</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded font-mono">{selectedComplaint?.id?.substring(0, 8) || 'N/A'}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-500 text-white">
-                  Internal App
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time Created</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                  {new Date(selectedComplaint?.createdAt || selectedComplaint?.created_at).toLocaleString()}
-                </p>
-              </div>
+    {/* Complaint View Modal */}
+    <Modal
+      isOpen={showModal}
+      onClose={closeModal}
+      title="Complaint Details"
+      maxWidth="max-w-4xl"
+    >
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Column - Complaint Details */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Complaint ID</label>
+              <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                {selectedComplaint?.id}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time Created</label>
+              <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                {new Date(selectedComplaint?.createdAt || selectedComplaint?.created_at).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
+              <span className={`inline-flex px-3 py-2 text-sm font-semibold rounded-full ${getStatusColor(selectedComplaint?.status)}`}>
+                {selectedComplaint?.status?.replace('_', ' ').toUpperCase() || 'OPEN'}
+              </span>
             </div>
 
-            {/* Right Column - Status & Assignment */}
-            <div className="space-y-4">
+            {/* Assignment Section */}
+            {!selectedComplaint?.assignedTo ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
-                <span className={`inline-flex px-3 py-2 text-sm font-semibold rounded-full ${getStatusColor(selectedComplaint?.status)}`}>
-                  {selectedComplaint?.status?.replace('_', ' ').toUpperCase() || 'OPEN'}
-                </span>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assign Staff Member</label>
+                <select
+                  onChange={(e) => assignComplaint(selectedComplaint.id, parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  defaultValue=""
+                  disabled={techniciansLoading}
+                >
+                  <option value="" disabled>
+                    {techniciansLoading ? 'Loading technicians...' : 'Select technician'}
+                  </option>
+                  {technicians.map(technician => (
+                    <option key={technician.id} value={technician.id}>
+                      {technician.username} - {technician.role}
+                    </option>
+                  ))}
+                </select>
               </div>
-
-              {!selectedComplaint?.assignedTo ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assign Staff Member</label>
-                  <select
-                    onChange={(e) => assignComplaint(selectedComplaint.id, parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Select staff member</option>
-                    {STAFF_MEMBERS.map(staff => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name} - {staff.role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Staff Member</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {STAFF_MEMBERS.find(s => s.id === selectedComplaint.assignedTo)?.name || 'Unknown Staff'}
-                  </p>
-                </div>
-              )}
-
-              {/* Timer Section */}
-              {selectedComplaint?.assignedAt && selectedComplaint?.status !== 'closed' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Time Remaining</label>
-                  <div className="space-y-2">
-                    <div className="w-full bg-gray-200 rounded-full h-4">
-                      <div 
-                        className={`h-4 rounded-full transition-all duration-1000 ${
-                          calculateTimeRemaining(selectedComplaint.assignedAt) === 0 ? 'bg-red-500' : 'bg-blue-500'
-                        }`}
-                        style={{
-                          width: `${Math.max(0, (calculateTimeRemaining(selectedComplaint.assignedAt) / (24 * 60 * 60 * 1000)) * 100)}%`
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {formatTimeRemaining(calculateTimeRemaining(selectedComplaint.assignedAt))}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Fine Section */}
-              {selectedComplaint?.fine > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fine Applied</label>
-                  <p className="text-sm font-bold text-red-600 bg-red-50 p-2 rounded">
-                    ₹{selectedComplaint.fine}
-                  </p>
-                </div>
-              )}
+            ) : null}
 
               {/* Status Update */}
               <div>
@@ -755,173 +669,7 @@ const ComplaintsDashboard = () => {
           </div>
         </div>
       </Modal>
-
-      {/* Add Complaint Modal */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={closeAddModal}
-        title="Add New Complaint"
-        maxWidth="max-w-2xl"
-      >
-        <form onSubmit={handleAddComplaint} className="space-y-6">
-          {/* Customer Information */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">👤 Customer Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={newComplaint.name}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Enter customer name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Number *</label>
-                <input
-                  type="tel"
-                  name="whatsapp_number"
-                  value={newComplaint.whatsapp_number}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="03XX-XXXXXXX"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Complaint Details */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">🎯 Complaint Details</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Complaint Title *</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={newComplaint.title}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Brief description of the issue"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Description *</label>
-                <textarea
-                  name="description"
-                  value={newComplaint.description}
-                  onChange={handleNewComplaintChange}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Provide detailed information about the complaint"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                <select
-                  name="priority"
-                  value={newComplaint.priority}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Location Information */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">📍 Location Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Area</label>
-                <input
-                  type="text"
-                  name="area"
-                  value={newComplaint.area}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Enter area name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
-                <input
-                  type="text"
-                  name="district"
-                  value={newComplaint.district}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Enter district"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
-                <input
-                  type="text"
-                  name="city"
-                  value={newComplaint.city}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Enter city"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Province</label>
-                <input
-                  type="text"
-                  name="province"
-                  value={newComplaint.province}
-                  onChange={handleNewComplaintChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Enter province"
-                />
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Full Address</label>
-              <textarea
-                name="address"
-                value={newComplaint.address}
-                onChange={handleNewComplaintChange}
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Complete address"
-              />
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-4 pt-6">
-            <button
-              type="button"
-              onClick={closeAddModal}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-            >
-              Create Complaint
-            </button>
-          </div>
-        </form>
-      </Modal>
-    </div>
-    </div>
+  </>
   );
 };
 

@@ -13,7 +13,7 @@ import AccountsPage from './pages/accounts/AccountsPage';
 import StaffPage from './pages/staff/StaffPage';
 import AllUsersPage from './pages/admin/AllUsersPage';
 import ComplaintsPage from './pages/complaints/ComplaintsPage';
-import ComplaintsDashboardEnhanced from './pages/complaints/ComplaintsDashboardEnhanced';
+import ComplaintsDashboard from './pages/complaints/ComplaintsDashboard';
 import AreasPage from './pages/areas/AreasPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
 import MainLayout from './components/layout/MainLayout';
@@ -46,7 +46,7 @@ const AppRoutes = () => {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/complaints" element={<ComplaintsPage />} />
-          <Route path="/complaints-dashboard" element={<ComplaintsDashboardEnhanced />} />
+          <Route path="/complaints-dashboard" element={<ComplaintsDashboard />} />
           <Route path="/areas" element={<AreasPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
         </Route>
