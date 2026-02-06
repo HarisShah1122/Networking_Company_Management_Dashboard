@@ -1,6 +1,6 @@
 require('dotenv').config();
 const sequelize = require('../config/database');
-const { User, Company, Customer, Area, Connection, Payment, Recharge } = require('../models');
+const { User, Company, Customer, Area, Connection } = require('../models');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 
@@ -419,38 +419,6 @@ async function seedJamalGarhiUsers() {
           status: 'completed',
           company_id: paceCompany.id,
           notes: `Package: ${userData.package}, Expiration: ${userData.expiration}, PayID: ${userData.payid}`
-        });
-
-        // Create payment
-        await Payment.create({
-          id: uuidv4(),
-          customer_id: customer.id,
-          company_id: paceCompany.id,
-          connection_id: connection.id,
-          amount: 2500,
-          payment_method: 'cash',
-          reference_number: userData.payid,
-          received_by: systemUser.id,
-          trx_id: `JAM${userData.payid}${Date.now()}`,
-          status: 'paid',
-          notes: `Payment for ${userData.package} - ${userData.firstname} ${userData.lastname}`
-        });
-
-        // Create recharge
-        await Recharge.create({
-          id: uuidv4(),
-          customer_id: customer.id,
-          company_id: paceCompany.id,
-          amount: 2500,
-          payment_method: 'cash',
-          due_date: new Date(userData.expiration),
-          status: 'paid',
-          payment_date: new Date(),
-          notes: `Recharge for ${userData.package}`,
-          package: userData.package,
-          name: `${userData.firstname} ${userData.lastname}`,
-          address: userData.address,
-          whatsapp_number: userData.mobile
         });
 
         console.log(`✅ Created: ${userData.firstname} ${userData.lastname} (${userData.username})`);
