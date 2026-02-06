@@ -90,6 +90,8 @@ const getAll = async (companyId, areaId = null) => {
 
 const update = async (id, data, userId, companyId) => {
   try {
+    console.log('🔧 Update called with:', { id, data, userId, companyId });
+    
     const whereClause = companyId ? { id, company_id: companyId } : { id };
     const complaint = await Complaint.findOne({ where: whereClause });
     if (!complaint) throw new Error('Complaint not found');
@@ -198,15 +200,10 @@ const assignToTechnician = async (complaintId, technicianId, userId, companyId) 
       throw new Error('Complaint not found');
     }
 
-    // Start SLA timer
+    // Start SLA timer and update complaint in one step
     const slaData = await SLAService.startSLATimer(complaintId, technicianId);
     
-    // Update complaint
-    await complaint.update({
-      assignedTo: technicianId,
-      status: 'in_progress' // Auto-update status when assigned
-    });
-
+    // The SLA service already updates the complaint, so we just need to log the activity
     activityLogService.logActivity(
       userId, 
       'assign_complaint', 
@@ -214,8 +211,10 @@ const assignToTechnician = async (complaintId, technicianId, userId, companyId) 
       `Complaint #${complaintId} assigned to technician ${technicianId}`
     );
 
+    // Return the updated complaint data
+    const updatedComplaint = await Complaint.findByPk(complaintId);
     return {
-      ...complaint.toJSON(),
+      ...updatedComplaint.toJSON(),
       ...slaData
     };
   } catch (error) {
