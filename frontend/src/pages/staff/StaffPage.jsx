@@ -56,9 +56,9 @@ const StaffPage = () => {
       for (const user of userList) {
         if (user.role === 'Staff' || user.role === 'Technician') {
           try {
-            // Fetch complaints assigned to this staff member
+            // Fetch complaints assigned to this staff member (already filtered by company)
             const complaintsResponse = await complaintService.getAll();
-            const allComplaints = complaintsResponse?.data || [];
+            const allComplaints = Array.isArray(complaintsResponse) ? complaintsResponse : [];
             const staffComplaints = allComplaints.filter(complaint => 
               complaint.assignedTo === user.id || complaint.assigned_to === user.id
             );
@@ -117,27 +117,15 @@ const StaffPage = () => {
         setSearching(true);
       }
       
-      // Always use getAll to get ALL users from database
-      let response = await userService.getAll();
+      // Use staff-list endpoint for proper company isolation
+      let response = await userService.getStaffList();
       
       console.log('🔍 API Response:', response);
       console.log('👤 User Role:', user?.role);
       console.log('🏢 User Company ID:', user?.companyId);
       
-      let usersList = [];
-      if (Array.isArray(response)) {
-        usersList = response;
-      } else if (response?.users && Array.isArray(response.users)) {
-        usersList = response.users;
-      } else if (response?.data?.users && Array.isArray(response.data.users)) {
-        usersList = response.data.users;
-      } else if (response?.data && Array.isArray(response.data)) {
-        usersList = response.data;
-      } else {
-        console.log('❌ Response is not an array:', response);
-        console.log('📊 Response type:', typeof response);
-        console.log('📊 Response keys:', Object.keys(response || {}));
-      }
+      // Backend already filters by company, so we just need to extract the array
+      let usersList = Array.isArray(response) ? response : [];
 
       console.log('👥 Users list before filtering:', usersList);
 
@@ -224,7 +212,7 @@ const StaffPage = () => {
         username: data.username?.trim(),
         role: data.role,
         status: data.status ?? 'active',
-        companyId: selectedArea || user?.companyId,
+        // Backend will automatically use the authenticated user's company ID
       };
 
       if (editingUser) {

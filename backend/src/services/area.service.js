@@ -2,7 +2,6 @@ const { Area } = require('../models');
 
 const getAll = async (companyId) => {
   const whereClause = companyId ? { company_id: companyId } : {};
-  console.log('AreaService.getAll - companyId:', companyId, 'whereClause:', whereClause);
   return await Area.findAll({ 
     where: whereClause,
     order: [['name', 'ASC']] 
@@ -22,8 +21,6 @@ const create = async (data, companyId) => {
   if (!companyId) {
     throw new Error('Company ID is required to create an area');
   }
-  
-  console.log('AreaService.create - companyId:', companyId, 'data:', data);
   
   return await Area.create({
     name: data.name.trim(),

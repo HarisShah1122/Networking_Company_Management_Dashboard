@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const SLAService = require('../services/sla.service');
+const { SLAPenalty, Complaint, Company } = require('../models');
 
 class SLAMonitor {
   constructor() {
@@ -85,7 +86,6 @@ class SLAMonitor {
    */
   async applyPendingPenalties() {
     try {
-      const { SLAPenalty } = require('../models');
       const { Op } = require('sequelize');
 
       // Find penalties that are pending and older than 5 minutes (grace period)
@@ -120,7 +120,6 @@ class SLAMonitor {
    */
   async generateDailyReport() {
     try {
-      const { Company } = require('../models');
       
       const companies = await Company.findAll();
       
