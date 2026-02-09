@@ -1,14 +1,24 @@
 const nodemailer = require('nodemailer');
-const { EMAIL_HOST, EMAIL_PORT, EMAIL_SECURE, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, FRONTEND_URL } = require('../config/env');
+// const { EMAIL_HOST, EMAIL_PORT, EMAIL_SECURE, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, FRONTEND_URL } = require('../config/env');
 
 class EmailService {
   constructor() {
     this.transporter = null;
     this.isConfigured = false;
-    this.initializeTransporter();
+    // Email service temporarily disabled
+    console.warn('⚠️ Email credentials not configured. Email notifications will be disabled.');
+    this.isConfigured = false;
+    return;
   }
 
   initializeTransporter() {
+    // Email service temporarily disabled
+    console.warn('⚠️ Email credentials not configured. Email notifications will be disabled.');
+    this.isConfigured = false;
+    return;
+
+    // Original code commented out
+    /*
     if (!EMAIL_USER || !EMAIL_PASS) {
       console.warn('⚠️ Email credentials not configured. Email notifications will be disabled.');
       this.isConfigured = false;
@@ -34,6 +44,7 @@ class EmailService {
       console.error('❌ Failed to initialize email service:', error.message);
       this.isConfigured = false;
     }
+    */
   }
 
   async verifyConnection() {
@@ -52,10 +63,8 @@ class EmailService {
   }
 
   async sendEmail(to, subject, html, text = null) {
-    if (!this.isConfigured) {
-      console.warn('⚠️ Email service not configured. Skipping email send to:', to);
-      return { success: false, message: 'Email service not configured' };
-    }
+    console.warn('⚠️ Email credentials not configured. Skipping email send to:', to);
+    return { success: false, message: 'Email credentials not configured' };
 
     try {
       const mailOptions = {
