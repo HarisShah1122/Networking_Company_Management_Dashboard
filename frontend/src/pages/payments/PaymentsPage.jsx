@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { customerService } from '../../services/customerService';
 import { paymentService } from '../../services/paymentService';
+import { customerService } from '../../services/customerService';
+import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
@@ -39,15 +40,79 @@ const PaymentsPage = () => {
 
   const loadCustomers = useCallback(async () => {
     try {
-      const response = await customerService.getAll();
-      let list = Array.isArray(response) ? response : (response?.customers ?? response?.data?.customers ?? response?.data ?? []);
-      list = list.filter(c => c?.id);
-      setCustomers(list);
+      // Load customers with search parameter to get complete data
+      const customersResponse = await customerService.getAll({ search: '' });
+      let customersList = [];
+      
+      if (customersResponse?.data && Array.isArray(customersResponse.data)) {
+        customersList = customersResponse.data;
+      } else if (customersResponse?.customers && Array.isArray(customersResponse.customers)) {
+        customersList = customersResponse.customers;
+      } else if (Array.isArray(customersResponse)) {
+        customersList = customersResponse;
+      }
+      
+      console.log('Customers API response:', customersResponse);
+      console.log('Customers list:', customersList);
+      console.log('Customer with pace082:', customersList.find(c => (c.pace_user_id || '').toLowerCase() === 'pace082'));
+      
+      setCustomers(customersList);
+      console.log('Using customers API data');
     } catch (error) {
+      console.error('Failed to load customers:', error);
       toast.error('Failed to load customers');
       setCustomers([]);
     }
   }, []);
+
+  // Function to search customer by PACE ID using customer service
+  const searchCustomerByPaceId = async (paceId) => {
+    try {
+      console.log('Searching for PACE ID:', paceId);
+      
+      // Use customer service search parameter
+      const searchResponse = await customerService.getAll({ search: paceId });
+      let searchResults = [];
+      
+      if (searchResponse?.data && Array.isArray(searchResponse.data)) {
+        searchResults = searchResponse.data;
+      } else if (searchResponse?.customers && Array.isArray(searchResponse.customers)) {
+        searchResults = searchResponse.customers;
+      } else if (Array.isArray(searchResponse)) {
+        searchResults = searchResponse;
+      }
+      
+      console.log('Search results for PACE ID:', searchResults);
+      
+      const matchedCustomer = searchResults.find(c => 
+        (c.pace_user_id || '').toLowerCase() === paceId.toLowerCase()
+      );
+      
+      if (matchedCustomer) {
+        console.log('Found customer:', matchedCustomer);
+        // Update customers list if not already present
+        setCustomers(prev => {
+          const exists = prev.find(c => c.id === matchedCustomer.id);
+          if (!exists) {
+            return [...prev, matchedCustomer];
+          }
+          return prev;
+        });
+        
+        // Auto-select this customer
+        reset({ ...watch(), customerId: matchedCustomer.id });
+        setSelectedCustomer(matchedCustomer);
+        setSearchTerm(matchedCustomer.name);
+        
+        return matchedCustomer;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Failed to search customer by PACE ID:', error);
+      return null;
+    }
+  };
 
   const loadPayments = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
@@ -85,19 +150,21 @@ const PaymentsPage = () => {
         // Add recharge-specific fields
         package: p.package || null,
         dueDate: p.due_date || null,
+        pace_user_id: p.pace_user_id || null, // Consistent field name
       }));
 
+      // Search functionality
       if (search?.trim()) {
         const searchLower = search.toLowerCase().trim();
-        list = list.filter(p =>
-          (p.customerName ?? '').toLowerCase().includes(searchLower) ||
-          (p.paceUserId ?? '').toLowerCase().includes(searchLower) ||
-          (p.trxId ?? '').toLowerCase().includes(searchLower) ||
-          (p.trxId ?? '').toLowerCase().includes(searchLower) ||
-          (p.whatsappNumber ?? '').includes(search) ||
-          String(p.amount ?? '').includes(search) ||
-          (p.package ?? '').toLowerCase().includes(searchLower)
-        );
+        list = list.filter(p => {
+          // Search by customer name, PACE ID, TRX ID, amount, phone, package
+          return (p.customerName ?? '').toLowerCase().includes(searchLower) ||
+            (p.pace_user_id || '').toLowerCase().includes(searchLower) ||
+            (p.trxId ?? '').toLowerCase().includes(searchLower) ||
+            (p.whatsappNumber ?? '').includes(search) ||
+            String(p.amount ?? '').includes(search) ||
+            (p.package ?? '').toLowerCase().includes(searchLower);
+        });
       }
 
       if (status) {
@@ -146,6 +213,13 @@ const PaymentsPage = () => {
     const customer = customers.find(c => String(c.id) === String(watchedCustomerId));
     setSelectedCustomer(customer ?? null);
   }, [watchedCustomerId, customers]);
+
+  // Ensure customers are loaded when modal opens
+  useEffect(() => {
+    if (showModal && customers.length === 0) {
+      loadCustomers();
+    }
+  }, [showModal, customers.length]);
 
   const onSubmit = async (data) => {
     try {
@@ -231,10 +305,10 @@ const PaymentsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex gap-4 mb-4 flex-wrap">
-        <div className="flex-1 relative">
+        <div className="flex-1">
           <input
             type="text"
-            placeholder="Search by name, PACE ID, TRX ID, amount, phone, package..."
+            placeholder="Search payments..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -303,7 +377,7 @@ const PaymentsPage = () => {
                   <tr key={payment.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.trxId}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{payment.customerName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.paceUserId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.pace_user_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(payment.amount).toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap capitalize">{payment.paymentMethod}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -382,17 +456,164 @@ const PaymentsPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Customer *</label>
-              <select
-                {...register('customerId', { required: 'Customer is required' })}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.customerId && touchedFields.customerId ? 'border-red-500' : 'border-gray-300'}`}
-              >
-                <option value="">Select Customer</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.pace_user_id ? `(PACE: ${c.pace_user_id})` : ''}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <input
+                  {...register('customerId', { required: 'Customer is required' })}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.customerId && touchedFields.customerId ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="Type customer name or PACE ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                
+                {/* Customer Dropdown */}
+                {searchTerm && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                    {(() => {
+                      const searchLower = searchTerm.toLowerCase().trim();
+                      console.log('Searching for:', searchLower); // Debug search term
+                      
+                      const matchedCustomers = customers.filter(c => {
+                        const customerName = (c.name || c.username || '').toLowerCase();
+                        const pace_user_id = (c.pace_user_id || c.paceUserId || '').toLowerCase();
+                        const customerId = String(c.id || '').toLowerCase();
+                        const searchLower = searchTerm.toLowerCase().trim();
+                        
+                        console.log('Checking customer:', {
+                          name: customerName,
+                          paceId: pace_user_id,
+                          id: customerId,
+                          search: searchLower,
+                          allFields: Object.keys(c)
+                        });
+                        
+                        // More flexible search - includes partial matches
+                        const nameMatch = customerName.includes(searchLower);
+                        const paceMatch = pace_user_id.includes(searchLower);
+                        const idMatch = customerId.includes(searchLower);
+                        const easypaiseMatch = customerName.includes('easypaise');
+                        const jazzMatch = customerName.includes('jazz acshe');
+                        
+                        return nameMatch || paceMatch || idMatch || easypaiseMatch || jazzMatch;
+                      });
+
+                      // If no matches found, try a more comprehensive search
+                      if (matchedCustomers.length === 0) {
+                        const comprehensiveSearch = async () => {
+                          try {
+                            console.log('No matches found, trying comprehensive search...');
+                            
+                            // Try multiple search approaches
+                            const [allCustomers, searchByName, searchByPace] = await Promise.allSettled([
+                              customerService.getAll(),
+                              customerService.getAll({ search: searchTerm }),
+                              customerService.getAll({ search: `pace${searchTerm.replace('pace', '')}` })
+                            ]);
+                            
+                            console.log('Search results:', {
+                              allCustomers: allCustomers.status,
+                              searchByName: searchByName.status,
+                              searchByPace: searchByPace.status
+                            });
+                            
+                            // Check each result for matches
+                            const allSearchResults = [];
+                            
+                            if (allCustomers.status === 'fulfilled') {
+                              const data = Array.isArray(allCustomers.value) ? allCustomers.value :
+                                (allCustomers.value?.data ?? allCustomers.value?.customers ?? []);
+                              allSearchResults.push(...data);
+                            }
+                            
+                            if (searchByName.status === 'fulfilled') {
+                              const data = Array.isArray(searchByName.value) ? searchByName.value :
+                                (searchByName.value?.data ?? searchByName.value?.customers ?? []);
+                              allSearchResults.push(...data);
+                            }
+                            
+                            if (searchByPace.status === 'fulfilled') {
+                              const data = Array.isArray(searchByPace.value) ? searchByPace.value :
+                                (searchByPace.value?.data ?? searchByPace.value?.customers ?? []);
+                              allSearchResults.push(...data);
+                            }
+                            
+                            // Remove duplicates and find unique matches
+                            const uniqueCustomers = allSearchResults.filter((customer, index, self) => 
+                              self.findIndex(c => c.id === customer.id) === index
+                            );
+                            
+                            console.log('Unique customers found:', uniqueCustomers);
+                            
+                            const finalMatches = uniqueCustomers.filter(c => {
+                              const name = (c.name || c.username || '').toLowerCase();
+                              const paceId = (c.pace_user_id || '').toLowerCase();
+                              const id = String(c.id || '').toLowerCase();
+                              
+                              return name.includes(searchLower) || 
+                                     paceId.includes(searchLower) || 
+                                     id.includes(searchLower);
+                            });
+                            
+                            console.log('Final matches:', finalMatches);
+                            
+                            if (finalMatches.length > 0) {
+                              // Update customers list
+                              setCustomers(prev => {
+                                const existing = prev.filter(p => !finalMatches.find(f => f.id === p.id));
+                                return [...existing, ...finalMatches];
+                              });
+                              
+                              // Auto-select first match
+                              const firstMatch = finalMatches[0];
+                              reset({ ...watch(), customerId: firstMatch.id });
+                              setSelectedCustomer(firstMatch);
+                              setSearchTerm(firstMatch.name || firstMatch.username);
+                            }
+                          } catch (error) {
+                            console.error('Comprehensive search failed:', error);
+                          }
+                        };
+                        
+                        comprehensiveSearch();
+                      }
+                      
+                      console.log('Matched customers:', matchedCustomers); // Debug matches
+                      console.log('Available customers:', customers); // Debug all customers
+
+                      return matchedCustomers.length > 0 ? (
+                        <div className="p-2">
+                          <div className="text-xs text-gray-500 mb-2">Found {matchedCustomers.length} customer(s)</div>
+                          {matchedCustomers.slice(0, 10).map((customer, index) => (
+                            <button
+                              key={`${customer.id}-${index}`}
+                              type="button"
+                              onClick={() => {
+                                console.log('Selected customer:', customer); // Debug selection
+                                reset({ ...watch(), customerId: customer.id });
+                                setSelectedCustomer(customer);
+                                setSearchTerm(customer.name);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center justify-between"
+                            >
+                              <div>
+                                <div className="font-medium">{customer.name}</div>
+                                <div className="text-sm text-gray-500">ID: {customer.id}</div>
+                                <div className="text-sm text-gray-500">PACE: {customer.pace_user_id || '-'}</div>
+                              </div>
+                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-2 text-gray-500 text-sm">
+                          No customers found
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
               {errors.customerId && touchedFields.customerId && <p className="text-red-500 text-sm mt-1">{errors.customerId.message}</p>}
             </div>
 
@@ -440,6 +661,8 @@ const PaymentsPage = () => {
                   <option value="bank_transfer">Bank Transfer</option>
                   <option value="mobile_wallet">Mobile Wallet</option>
                   <option value="card">Card</option>
+                  <option value="jazz_cash">Jazz Cash</option>
+                  <option value="easypaisa">Easypaisa</option>
                 </select>
               </div>
             </div>
@@ -459,19 +682,71 @@ const PaymentsPage = () => {
               )}
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
-                onClick={() => { setShowModal(false); reset(); setSelectedImage(null); setImagePreview(null); setEditingPayment(null); }}
-                className="flex-1 px-4 py-2 border rounded-lg"
+                onClick={() => { reset(); setSelectedImage(null); setImagePreview(null); setEditingPayment(null); setShowModal(false); }}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Cancel
               </button>
-              <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
-                Save Payment
+              <button
+                type="submit"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Add Payment
               </button>
             </div>
           </form>
+
+          {/* Customer Details Section */}
+          {selectedCustomer && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Customer Details</h3>
+                <button
+                  onClick={() => setSelectedCustomer(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6 6 6 6 6 6 6 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Name</dt>
+                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Phone</dt>
+                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.phone || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Email</dt>
+                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.email || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Address</dt>
+                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.address || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Status</dt>
+                  <dd className="mt-1">
+                    <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full ${
+                      selectedCustomer.status === 'active'
+                        ? 'bg-green-600 text-white'
+                        : selectedCustomer.status === 'inactive'
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-red-600 text-white'
+                    }`}>
+                      {selectedCustomer.status || 'unknown'}
+                    </span>
+                  </dd>
+                </div>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
     </div>
