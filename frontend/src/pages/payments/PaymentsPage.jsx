@@ -150,7 +150,12 @@ const PaymentsPage = () => {
         // Add recharge-specific fields
         package: p.package || null,
         dueDate: p.due_date || null,
-        pace_user_id: p.pace_user_id || null, // Consistent field name
+        // Get PACE ID from customer relationship or direct field
+        pace_user_id: p.customer?.pace_user_id || p.pace_user_id || p.customer?.paceUserId || null,
+        // Get customer name from relationship
+        customerName: p.customer?.name || p.customerName || p.customer?.username || '',
+        // Get whatsapp number from relationship
+        whatsappNumber: p.customer?.whatsapp_number || p.customer?.phone || p.whatsappNumber || '',
       }));
 
       // Search functionality
@@ -282,7 +287,7 @@ const PaymentsPage = () => {
       paymentMethod: payment.paymentMethod,
     });
     if (payment.receiptImage) {
-      setImagePreview(`${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${payment.receiptImage.startsWith('/') ? '' : '/'}${payment.receiptImage}`);
+      setImagePreview(`${process.env.REACT_APP_BASE_URL || 'http://127.0.0.1:5000'}${payment.receiptImage}`);
     } else {
       setImagePreview(null);
     }
@@ -383,7 +388,7 @@ const PaymentsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {payment.receiptImage ? (
                         <a
-                          href={`${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${payment.receiptImage.startsWith('/') ? '' : '/'}${payment.receiptImage}`}
+                          href={`${process.env.REACT_APP_BASE_URL || 'http://127.0.0.1:5000'}${payment.receiptImage}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-indigo-600 hover:text-indigo-900"
