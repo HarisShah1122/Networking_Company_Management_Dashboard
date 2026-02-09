@@ -465,8 +465,8 @@ const PaymentsPage = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 
-                {/* Customer Dropdown */}
-                {searchTerm && (
+                {/* Customer Dropdown - Only show when no customer is selected */}
+                {searchTerm && !selectedCustomer && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
                     {(() => {
                       const searchLower = searchTerm.toLowerCase().trim();
@@ -618,24 +618,37 @@ const PaymentsPage = () => {
             </div>
 
             {selectedCustomer && (
-              <div className="bg-gray-50 p-4 rounded-md">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Customer Details</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-md shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-blue-900 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Customer Details
+                  </h3>
+                  <button
+                    onClick={() => { setSelectedCustomer(null); reset({ ...watch(), customerId: '' }); setSearchTerm(''); }}
+                    className="text-blue-400 hover:text-blue-600 text-sm"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">Customer ID</label>
-                    <p className="font-mono">{selectedCustomer.id}</p>
+                    <label className="block text-xs font-medium text-blue-700">Customer ID</label>
+                    <p className="font-mono text-gray-900">{selectedCustomer.id}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">PACE ID</label>
-                    <p className="font-mono">{selectedCustomer.pace_user_id ?? '-'}</p>
+                    <label className="block text-xs font-medium text-blue-700">PACE ID</label>
+                    <p className="font-mono text-gray-900">{selectedCustomer.pace_user_id ?? '-'}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">WhatsApp</label>
-                    <p>{selectedCustomer.whatsapp_number ?? selectedCustomer.phone ?? '-'}</p>
+                    <label className="block text-xs font-medium text-blue-700">WhatsApp</label>
+                    <p className="text-gray-900">{selectedCustomer.whatsapp_number ?? selectedCustomer.phone ?? '-'}</p>
                   </div>
-                  <div className="col-span-3">
-                    <label className="block text-xs font-medium text-gray-600">Address</label>
-                    <p>{selectedCustomer.address ?? '-'}</p>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-medium text-blue-700">Address</label>
+                    <p className="text-gray-900">{selectedCustomer.address ?? '-'}</p>
                   </div>
                 </div>
               </div>
@@ -699,55 +712,7 @@ const PaymentsPage = () => {
             </div>
           </form>
 
-          {/* Customer Details Section */}
-          {selectedCustomer && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Customer Details</h3>
-                <button
-                  onClick={() => setSelectedCustomer(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6 6 6 6 6 6 6 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Name</dt>
-                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Phone</dt>
-                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.phone || '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Email</dt>
-                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.email || '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Address</dt>
-                  <dd className="mt-1 text-base text-gray-900">{selectedCustomer.address || '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Status</dt>
-                  <dd className="mt-1">
-                    <span className={`inline-flex px-3 py-1.5 text-xs font-medium rounded-full ${
-                      selectedCustomer.status === 'active'
-                        ? 'bg-green-600 text-white'
-                        : selectedCustomer.status === 'inactive'
-                        ? 'bg-gray-600 text-white'
-                        : 'bg-red-600 text-white'
-                    }`}>
-                      {selectedCustomer.status || 'unknown'}
-                    </span>
-                  </dd>
-                </div>
-              </div>
-            </div>
-          )}
-        </Modal>
+          </Modal>
       )}
     </div>
   );
