@@ -6,14 +6,14 @@ class EmailService {
     this.transporter = null;
     this.isConfigured = false;
     // Email service temporarily disabled
-    console.warn('⚠️ Email credentials not configured. Email notifications will be disabled.');
+    // console.warn('⚠️ Email credentials not configured. Email notifications will be disabled.');
     this.isConfigured = false;
     return;
   }
 
   initializeTransporter() {
     // Email service temporarily disabled
-    console.warn('⚠️ Email credentials not configured. Email notifications will be disabled.');
+    // console.warn('⚠️ Email credentials not configured. Email notifications will be disabled.');
     this.isConfigured = false;
     return;
 
@@ -63,7 +63,7 @@ class EmailService {
   }
 
   async sendEmail(to, subject, html, text = null) {
-    console.warn('⚠️ Email credentials not configured. Skipping email send to:', to);
+    // console.warn('⚠️ Email credentials not configured. Skipping email send to:', to);
     return { success: false, message: 'Email credentials not configured' };
 
     try {
