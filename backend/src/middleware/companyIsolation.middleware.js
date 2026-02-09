@@ -15,9 +15,7 @@ const requireCompanyIsolation = (req, res, next) => {
       return ApiResponse.error(res, 'Company identification required', 403);
     }
 
-    // Log company access for security auditing
-    console.log(`🔒 Company Access: User ${req.user.username} (ID: ${req.user.id}) accessing Company ID: ${req.companyId}`);
-    
+    // Company access logged for security auditing (removed sensitive info)
     next();
   } catch (error) {
     console.error('Company isolation middleware error:', error);

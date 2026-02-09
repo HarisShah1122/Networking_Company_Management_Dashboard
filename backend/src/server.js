@@ -94,11 +94,9 @@ app.use(errorHandler);
     // Start SLA Monitor
     slaMonitor.start();
     
-    if (process.env.NODE_ENV !== 'production') {
-      app.listen(PORT, () => {
-        // Server started successfully
-      });
-    }
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   } catch (error) {
     process.exit(1);
   }

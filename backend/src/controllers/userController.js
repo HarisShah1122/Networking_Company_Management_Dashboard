@@ -100,11 +100,15 @@ const update = async (req, res, next) => {
 
 const getStaffList = async (req, res, next) => {
   try {
-    // If user is CEO, get all users (will be filtered to exclude CEO)
+    // If user is CEO, get all users (will be filtered to exclude other CEOs)
     // Otherwise, get users for specific company
     const users = await UserService.getAll(req.user?.role === 'CEO' ? null : req.companyId);
-    // Filter out CEO users from staff list - only show Manager, Staff, and Technician
-    const staffUsers = users.filter(user => user.role !== 'CEO');
+    
+    // Filter out CEO users from staff list, but include the current user if they are CEO
+    const staffUsers = users.filter(user => 
+      user.role !== 'CEO' || user.id === req.user.id
+    );
+    
     return ApiResponse.success(res, { data: staffUsers }, 'Staff list retrieved successfully');
   } catch (error) {
     next(error);

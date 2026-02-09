@@ -14,6 +14,7 @@ const ActivityLog   = require('./ActivityLog')(sequelize, Sequelize.DataTypes);
 const Complaint     = require('./Complaint')(sequelize, Sequelize.DataTypes);
 const Area          = require('./Area')(sequelize, Sequelize.DataTypes);
 const PackageRenewal = require('./PackageRenewal')(sequelize, Sequelize.DataTypes);
+const SLAPenalty    = require('./SLAPenalty')(sequelize, Sequelize.DataTypes);
 
 // Collect all models in one object
 const models = {
@@ -29,6 +30,7 @@ const models = {
   Complaint,
   Area,
   PackageRenewal,
+  SLAPenalty,
   sequelize,
   Sequelize
 };

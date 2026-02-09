@@ -114,8 +114,6 @@ const getAll = async (companyId, areaId = null) => {
 
 const update = async (id, data, userId, companyId) => {
   try {
-    console.log('🔧 Update called with:', { id, data, userId, companyId });
-    
     const whereClause = companyId ? { id, company_id: companyId } : { id };
     const complaint = await Complaint.findOne({ where: whereClause });
     if (!complaint) throw new Error('Complaint not found');
@@ -159,8 +157,6 @@ const update = async (id, data, userId, companyId) => {
         updateData.assigned_at = now;
         updateData.sla_deadline = slaDeadline;
         updateData.sla_status = 'pending';
-        
-        console.log(` SLA timer started for complaint ${id} assigned to technician ${newAssignedTo}`);
       }
     }
 
@@ -195,7 +191,6 @@ const update = async (id, data, userId, companyId) => {
           complaintData.status,
           data.status
         );
-        console.log(`📧 Status update email sent for complaint ${id} to ${customerEmail}`);
       } catch (emailError) {
         console.warn('⚠️ Failed to send status update email:', emailError.message);
       }
@@ -279,7 +274,6 @@ const assignToTechnician = async (complaintId, technicianId, userId, companyId) 
           complaintData,
           assigningUser.username || assigningUser.name
         );
-        console.log(`📧 Assignment notification sent to ${technician.email}`);
       } catch (emailError) {
         console.warn('⚠️ Failed to send assignment email notification:', emailError.message);
       }
