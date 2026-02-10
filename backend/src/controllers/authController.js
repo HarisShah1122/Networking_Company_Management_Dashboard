@@ -7,6 +7,12 @@ const { validateLogin, validateRegister } = require('../helpers/validators');
 /* LOGIN */
 const login = async (req, res, next) => {
   try {
+    console.log('\n🔐 === LOGIN REQUEST BODY ===');
+    console.log('📧 Username/Email:', req.body.username);
+    console.log('🔑 Password Provided:', req.body.password ? 'Yes' : 'No');
+    console.log('📋 Full Request Body:', JSON.stringify(req.body, null, 2));
+    console.log('==========================\n');
+    
     const errors = validationResult(req);
     if (!errors.isEmpty())
       return ApiResponse.validationError(res, errors.array());
@@ -21,6 +27,14 @@ const login = async (req, res, next) => {
       companyId: result.user.companyId,
     };
 
+    console.log('\n✅ === LOGIN SUCCESSFUL ===');
+    console.log('👤 User ID:', result.user.id);
+    console.log('📧 Username:', result.user.username);
+    console.log('👔 Role:', result.user.role);
+    console.log('🏢 Company ID:', result.user.companyId);
+    console.log('🎫 JWT Token Generated:', result.token ? 'Yes' : 'No');
+    console.log('========================\n');
+
     return ApiResponse.success(
       res,
       {
@@ -32,6 +46,12 @@ const login = async (req, res, next) => {
       'Login successful'
     );
   } catch (error) {
+    console.log('\n❌ === LOGIN FAILED ===');
+    console.log('📧 Attempted Username:', req.body.username);
+    console.log('💬 Error Message:', error.message);
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('=====================\n');
+    
     if (['Invalid credentials', 'Account is inactive'].includes(error.message)) {
       return ApiResponse.unauthorized(res, error.message);
     }

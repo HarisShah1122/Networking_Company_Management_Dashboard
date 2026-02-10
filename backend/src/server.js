@@ -36,6 +36,34 @@ if (!SESSION_SECRET) {
 const app = express();
 /* MIDDLEWARE */
 app.use(helmet());
+
+// Add request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log('\n🔧 === BACKEND API REQUEST ===');
+  console.log('⏰ Timestamp:', timestamp);
+  console.log('📡 Method:', req.method);
+  console.log('🔗 URL:', req.url);
+  console.log('🌐 Origin:', req.get('Origin') || 'No Origin');
+  console.log('🖥️ User-Agent:', req.get('User-Agent'));
+  console.log('🍪 Cookies:', req.headers.cookie ? 'Present' : 'None');
+  console.log('📤 Request Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('============================\n');
+  
+  // Add response time header
+  const startTime = Date.now();
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    console.log('\n✅ === BACKEND API RESPONSE ===');
+    console.log('🔗 URL:', req.url);
+    console.log('📊 Status Code:', res.statusCode);
+    console.log('⏱️ Response Time:', responseTime + 'ms');
+    console.log('=============================\n');
+  });
+  
+  next();
+});
+
 app.use(cors({ 
   origin: CORS_ORIGIN, 
   credentials: true 
@@ -88,6 +116,14 @@ app.use(errorHandler);
 /* START SERVER */
 (async () => {
   try {
+    console.log('\n🚀 === BACKEND SERVER STARTING ===');
+    console.log('🌍 Environment:', NODE_ENV);
+    console.log('🔧 Port:', PORT);
+    console.log('🌐 CORS Origins:', JSON.stringify(CORS_ORIGIN));
+    console.log('🗄️ Database Host:', process.env.DB_HOST);
+    console.log('🗄️ Database Name:', process.env.DB_NAME);
+    console.log('===============================\n');
+    
     await sequelize.authenticate();
     console.log('✅ Database connected successfully!');
     
@@ -95,9 +131,15 @@ app.use(errorHandler);
     slaMonitor.start();
     
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log('\n🎉 === SERVER STARTED SUCCESSFULLY ===');
+      console.log('🌐 Server URL:', `http://localhost:${PORT}`);
+      console.log('📍 API Base URL:', `http://localhost:${PORT}/api`);
+      console.log('🌍 Environment:', NODE_ENV);
+      console.log('⏰ Started at:', new Date().toISOString());
+      console.log('===================================\n');
     });
   } catch (error) {
+    console.error('\n❌ === SERVER STARTUP FAILED ===');
     console.error('❌ Database connection failed!');
     console.error('🔍 Error Details:', error.message);
     console.error('🔧 Troubleshooting Steps:');
@@ -111,6 +153,7 @@ app.use(errorHandler);
       database: process.env.DB_NAME,
       port: process.env.DB_PORT || 3306
     });
+    console.error('================================\n');
     process.exit(1);
   }
 })();
