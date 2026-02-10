@@ -3,41 +3,28 @@ const dotenv = require('dotenv');
 // Load environment variables from .env file
 dotenv.config();
 
-const {
-  NODE_ENV = 'development',
-  PORT = 5000,
-  DB_HOST = 'localhost',
-  DB_PORT = 3306,
-  DB_NAME = 'networking_dashboard',
-  DB_USER = 'root',
-  DB_PASSWORD = '',
-  JWT_SECRET = 'your-super-secret-jwt-key-change-in-production',
-  JWT_EXPIRES_IN = '24h',
-  SESSION_SECRET = 'your-super-secret-session-key-change-in-production',
-  CORS_ORIGIN = 'http://localhost:3000',
-  EMAIL_HOST = 'smtp.gmail.com',
-  EMAIL_PORT = 587,
-  EMAIL_SECURE = false,
-  EMAIL_USER = '',
-  EMAIL_PASS = '',
-  EMAIL_FROM = 'PACE Telecom <noreply@pacetelecom.com>',
-  FRONTEND_URL = 'http://localhost:3000',
-  TWILIO_ACCOUNT_SID = '',
-  TWILIO_AUTH_TOKEN = '',
-  TWILIO_PHONE_NUMBER = '',
-  WHATSAPP_API_URL = 'https://graph.facebook.com/v18.0',
-  WHATSAPP_ACCESS_TOKEN = '',
-  WHATSAPP_PHONE_ID = '',
-  WHATSAPP_VERIFY_TOKEN = ''
-} = process.env;
+// Production-ready environment configuration
+// These values can be set via environment variables in Ubuntu/production
+
+const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingVars.join(', '));
+  console.error('Please set these environment variables in your production environment:');
+  missingVars.forEach(varName => {
+    console.error(`export ${varName}=your_value`);
+  });
+  process.exit(1);
+}
 
 module.exports = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: process.env.PORT || 5000,
-  DB_HOST: process.env.DB_HOST || 'localhost',
-  DB_USER: process.env.DB_USER || 'root',
-  DB_PASSWORD: process.env.DB_PASSWORD || '',
-  DB_NAME: process.env.DB_NAME || 'PACE_TELECOM_DB',
+  DB_HOST: process.env.DB_HOST,
+  DB_USER: process.env.DB_USER,
+  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_NAME: process.env.DB_NAME,
   DB_PORT: process.env.DB_PORT || 3306,
   JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
