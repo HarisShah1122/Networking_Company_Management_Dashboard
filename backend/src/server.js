@@ -32,8 +32,7 @@ const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
 const assignmentRoutes = require('./routes/assignment');
 const notificationRoutes = require('./routes/notification.routes');
 if (!SESSION_SECRET) {
-  throw new Error('SESSION_SECRET missing in .env');
-}
+  }
 const app = express();
 /* MIDDLEWARE */
 app.use(helmet());
