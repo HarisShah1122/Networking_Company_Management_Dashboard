@@ -98,7 +98,19 @@ app.use(errorHandler);
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('❌ Database connection failed!');
+    console.error('🔍 Error Details:', error.message);
+    console.error('🔧 Troubleshooting Steps:');
+    console.error('   1. Check if database server is running');
+    console.error('   2. Verify database credentials and connection parameters');
+    console.error('   3. Ensure database exists and is accessible');
+    console.error('   4. Check network connectivity to database server');
+    console.error('📊 Connection Info:', {
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT || 3306
+    });
     process.exit(1);
   }
 })();
