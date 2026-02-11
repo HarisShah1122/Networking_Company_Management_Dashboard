@@ -8,5 +8,6 @@
   "20260205000000-add-company-id-to-areas.js",
   "add-location-fields-to-complaints.js",
   "20260205-fix-area-company-id-constraint.js",
-  "20260211-create-transactions-table.js"
+  "20260211-create-transactions-table.js",
+  "004-update-payment-methods-enum.js"
 ]

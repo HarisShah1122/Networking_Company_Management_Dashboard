@@ -95,6 +95,20 @@ const PaymentsPage = () => {
         customerId: p.customer_id ?? p.customerId ?? null,
         amount: p.amount ?? 0,
         paymentMethod: p.payment_method ?? p.paymentMethod ?? '-',
+        // Map payment methods for display
+        displayPaymentMethod: (() => {
+          // Use original payment method if stored, otherwise use the backend method
+          const method = p.original_payment_method ?? p.originalPaymentMethod ?? p.payment_method ?? p.paymentMethod ?? '-';
+          switch(method) {
+            case 'jazz_cash': return 'Jazz Cash';
+            case 'easypaisa': return 'Easypaisa';
+            case 'mobile_wallet': return 'Mobile Wallet';
+            case 'bank_transfer': return 'Bank Transfer';
+            case 'cash': return 'Cash';
+            case 'card': return 'Card';
+            default: return method?.charAt(0)?.toUpperCase() + method?.slice(1) || '-';
+          }
+        })(),
         receiptImage: p.receipt_image ?? p.receiptImage ?? null,
         createdAt: p.createdAt ?? p.created_at ?? null,
         status: p.status ?? 'pending',
@@ -187,16 +201,28 @@ const PaymentsPage = () => {
         formData.append('trxId', data.trxId?.trim());
         formData.append('customerId', data.customerId);
         formData.append('amount', data.amount);
-        formData.append('paymentMethod', data.paymentMethod || 'cash');
+        // Store original payment method for display
+        const originalPaymentMethod = data.paymentMethod || 'cash';
+        // Map to backend-compatible value
+        const mappedPaymentMethod = originalPaymentMethod === 'jazz_cash' || originalPaymentMethod === 'easypaisa' 
+          ? 'mobile_wallet' 
+          : originalPaymentMethod;
+        formData.append('paymentMethod', mappedPaymentMethod);
+        formData.append('originalPaymentMethod', originalPaymentMethod);
         formData.append('receivedBy', user.id);
         formData.append('receiptImage', selectedImage);
         submitData = formData;
       } else {
+        const originalPaymentMethod = data.paymentMethod || 'cash';
         submitData = {
           trxId: data.trxId?.trim(),
           customerId: data.customerId,
           amount: data.amount,
-          paymentMethod: data.paymentMethod || 'cash',
+          // Map to backend-compatible value
+          paymentMethod: originalPaymentMethod === 'jazz_cash' || originalPaymentMethod === 'easypaisa' 
+            ? 'mobile_wallet' 
+            : originalPaymentMethod,
+          originalPaymentMethod: originalPaymentMethod,
           receivedBy: user.id,
         };
         if (editingPayment?.receiptImage) {
@@ -235,7 +261,7 @@ const PaymentsPage = () => {
       trxId: payment.trxId,
       customerId: payment.customerId,
       amount: payment.amount,
-      paymentMethod: payment.paymentMethod,
+      paymentMethod: payment.originalPaymentMethod || payment.paymentMethod,
     });
     if (payment.receiptImage) {
       setImagePreview(`${process.env.REACT_APP_BASE_URL || 'http://127.0.0.1:5000'}${payment.receiptImage}`);
@@ -335,7 +361,7 @@ const PaymentsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">{payment.customerName}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-mono">{payment.pace_user_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-medium">RS {parseFloat(payment.amount).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap capitalize">{payment.paymentMethod}</td>
+                    <td className="px-6 py-4 whitespace-nowrap capitalize">{payment.displayPaymentMethod || payment.paymentMethod}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {payment.receiptImage ? (
                         <a
@@ -411,10 +437,14 @@ const PaymentsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Customer *</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Customer {editingPayment ? '(Optional)' : '*'}
+              </label>
               <div className="relative">
                 <input
-                  {...register('customerId', { required: 'Customer is required' })}
+                  {...register('customerId', { 
+                    required: !editingPayment ? 'Customer is required' : false 
+                  })}
                   className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.customerId && touchedFields.customerId ? 'border-red-500' : 'border-gray-300'}`}
                   placeholder="Type customer name or PACE ID..."
                   value={searchTerm}
@@ -547,6 +577,10 @@ const PaymentsPage = () => {
                                 reset({ ...watch(), customerId: customer.id });
                                 setSelectedCustomer(customer);
                                 setSearchTerm(customer.name);
+                                // Don't clear customer if we're editing an existing payment
+                                if (!editingPayment) {
+                                  // Additional logic for new payments can go here
+                                }
                               }}
                               className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center justify-between"
                             >
@@ -583,7 +617,13 @@ const PaymentsPage = () => {
                     Customer Details
                   </h3>
                   <button
-                    onClick={() => { setSelectedCustomer(null); reset({ ...watch(), customerId: '' }); setSearchTerm(''); }}
+                    onClick={() => { 
+                      setSelectedCustomer(null); 
+                      if (!editingPayment) {
+                        reset({ ...watch(), customerId: '' }); 
+                        setSearchTerm(''); 
+                      }
+                    }}
                     className="text-blue-400 hover:text-blue-600 text-sm"
                   >
                     Clear

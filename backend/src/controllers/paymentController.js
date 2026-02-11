@@ -5,7 +5,7 @@ const { sendPaymentConfirmation } = require('../helpers/whatsappHelper');
 
 const createPayment = async (req, res) => {
   try {
-    const { trxId, customerId, amount, status, receivedBy, paymentMethod } = req.body;
+    const { trxId, customerId, amount, status, receivedBy, paymentMethod, originalPaymentMethod } = req.body;
 
     if (!trxId || !customerId || !amount || !receivedBy) {
       return ApiResponse.error(res, 'trxId, customerId, amount, receivedBy required', 400);
@@ -36,6 +36,7 @@ const createPayment = async (req, res) => {
       company_id: req.companyId,
       amount: parseFloat(amount),
       payment_method: paymentMethod || 'cash',
+      original_payment_method: originalPaymentMethod || paymentMethod || 'cash',
       received_by: receivedBy,
       trx_id: trxId,
       receipt_image: receiptImage,
@@ -75,7 +76,7 @@ const createPayment = async (req, res) => {
 const updatePayment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { trxId, customerId, amount, status, receivedBy, paymentMethod } = req.body;
+    const { trxId, customerId, amount, status, receivedBy, paymentMethod, originalPaymentMethod } = req.body;
 
     const payment = await Payment.findOne({ 
       where: { 
@@ -114,6 +115,10 @@ const updatePayment = async (req, res) => {
 
     if (paymentMethod) {
       payment.payment_method = paymentMethod;
+    }
+
+    if (originalPaymentMethod) {
+      payment.original_payment_method = originalPaymentMethod;
     }
 
     if (receivedBy) {

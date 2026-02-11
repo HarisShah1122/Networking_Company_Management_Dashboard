@@ -19,8 +19,12 @@ module.exports = (sequelize, DataTypes) => {
     recharge_id:   { type: DataTypes.UUID, allowNull: true },
     amount:        { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     payment_method: {
-      type: DataTypes.ENUM('cash', 'bank_transfer', 'mobile_wallet', 'card'),
+      type: DataTypes.ENUM('cash', 'bank_transfer', 'mobile_wallet', 'card', 'jazz_cash', 'easypaisa'),
       defaultValue: 'cash'
+    },
+    original_payment_method: {
+      type: DataTypes.ENUM('cash', 'bank_transfer', 'mobile_wallet', 'card', 'jazz_cash', 'easypaisa'),
+      allowNull: true
     },
     reference_number: { type: DataTypes.STRING(100), allowNull: true },
     received_by:      { type: DataTypes.UUID, allowNull: false },
