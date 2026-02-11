@@ -31,9 +31,66 @@ const testWhatsAppRoutes = require('./routes/testWhatsApp');
 const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
 const assignmentRoutes = require('./routes/assignment');
 const notificationRoutes = require('./routes/notification.routes');
-if (!SESSION_SECRET) {
-  }
+
 const app = express();
+
+// Static file serving for uploads - must be first
+app.use('/uploads', (req, res, next) => {
+  const filePath = path.join(__dirname, '..', 'uploads', req.path.replace('/uploads/', ''));
+  
+  // Check if file exists
+  if (!require('fs').existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  // Get file extension
+  const ext = path.extname(filePath).toLowerCase();
+  const baseName = path.basename(filePath, ext);
+  
+  // Detect MIME type
+  let mimeType = 'application/octet-stream'; // default
+  
+  // Check for image files by extension or common patterns
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext)) {
+    const mimeTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg', 
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp'
+    };
+    mimeType = mimeTypes[ext];
+  }
+  // Handle files without extensions but with image-like names
+  else if (baseName.includes('receipt') || baseName.includes('recipt')) {
+    // Try to detect image type by reading file header
+    try {
+      const buffer = require('fs').readFileSync(filePath);
+      const header = buffer.toString('hex', 0, 8);
+      
+      // Detect image type by magic numbers
+      if (header.startsWith('ffd8ffe0')) mimeType = 'image/jpeg';
+      else if (header.startsWith('89504e47')) mimeType = 'image/png';
+      else if (header.startsWith('47494638')) mimeType = 'image/gif';
+      else if (header.startsWith('52494649')) mimeType = 'image/webp';
+      else mimeType = 'image/jpeg'; // default for receipts
+    } catch (err) {
+      console.log('Error reading file for MIME detection:', err);
+      mimeType = 'image/jpeg'; // fallback
+    }
+  }
+  
+  // Set headers
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Content-Disposition', `inline; filename="${baseName}${ext || '.jpg'}"`);
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
+  // Send file
+  res.sendFile(filePath);
+});
+
 /* MIDDLEWARE */
 app.use(helmet());
 
@@ -65,17 +122,14 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({ 
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'], 
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://localhost:3002', 'http://localhost:3003'], 
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(
-  '/uploads',
-  express.static(path.join(__dirname, 'uploads'))
-);
+
 /* SESSION SETUP */
 app.use(
   session({
@@ -86,13 +140,26 @@ app.use(
     store: new SequelizeStore({ db: sequelize }),
     cookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
-      httpOnly: true,
-      secure: false, // Set to false for local development
+      httpOnly: false,
+      secure: false, 
       sameSite: 'lax',
     },
   })
 );
 /* ROUTES */
+// Serve uploaded files
+app.get('/uploads/*', (req, res) => {
+  const filePath = path.join(__dirname, '..', 'uploads', req.params[0]);
+  console.log('📁 Upload request:', req.params[0]);
+  console.log('📂 Full path:', filePath);
+  
+  if (require('fs').existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'File not found', path: req.params[0] });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/customers', customerRoutes);
