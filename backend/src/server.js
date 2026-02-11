@@ -127,6 +127,15 @@ app.use(errorHandler);
     await sequelize.authenticate();
     console.log('✅ Database connected successfully!');
     
+    // Sync database to create Sessions table
+    await sequelize.sync({ alter: false });
+    console.log('✅ Database synchronized successfully!');
+    
+    // Ensure Sessions table exists for connect-session-sequelize
+    const Session = require('./models/Session')(sequelize, require('sequelize').DataTypes);
+    await Session.sync({ force: false });
+    console.log('✅ Sessions table ensured!');
+    
     // Start SLA Monitor
     slaMonitor.start();
     
