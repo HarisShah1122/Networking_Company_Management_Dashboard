@@ -42,17 +42,13 @@ export const DISTRICTS = [
 ];
 
 export const AREAS = [
-  "Katlang",
-  "Katti Garhi",
-  "Jamal Garhi",
+  "katlang",
+  "katti garhi",
+  "jamal garhi",
   "Ghondo",
   "Babozo",
   "Shadand",
-  'Main Market', 'City Center', 'University Road', 'Kotla Mohsin Khan',
-  'Katlang Bazaar', 'Shahbaz Garhi', 'Takht Bhai',
-  'University Town', 'Hayatabad', 'Cantt', 'Karkhano Market',
-  'Blue Area', 'F-10 Markaz', 'G-11 Markaz', 'I-8 Markaz',
-  'Saddar', 'Raja Bazaar', 'Commercial Market', 'Lalkurti'
+  "katlang bazar"
 ];
 
 export const STAFF_MEMBERS = [

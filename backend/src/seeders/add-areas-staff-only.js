@@ -8,10 +8,11 @@ const { User, Area } = require('../models');
 const VALID_AREAS = [
   "Katlang",
   "Katti Garhi",
-  "Jamal Garhi",
+  "Jamal Garhi", 
   "Ghondo",
   "Babozo",
-  "Shadand"
+  "Shadand",
+  "Katlang Bazar"
 ];
 
 // Your valid staff
