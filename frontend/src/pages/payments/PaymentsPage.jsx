@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { paymentService } from '../../services/paymentService';
 import { customerService } from '../../services/customerService';
-import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
 import { isManager } from '../../utils/permission.utils';
 import Modal from '../../components/common/Modal';
@@ -65,55 +64,7 @@ const PaymentsPage = () => {
     }
   }, []);
 
-  // Function to search customer by PACE ID using customer service
-  const searchCustomerByPaceId = async (paceId) => {
-    try {
-      console.log('Searching for PACE ID:', paceId);
-      
-      // Use customer service search parameter
-      const searchResponse = await customerService.getAll({ search: paceId });
-      let searchResults = [];
-      
-      if (searchResponse?.data && Array.isArray(searchResponse.data)) {
-        searchResults = searchResponse.data;
-      } else if (searchResponse?.customers && Array.isArray(searchResponse.customers)) {
-        searchResults = searchResponse.customers;
-      } else if (Array.isArray(searchResponse)) {
-        searchResults = searchResponse;
-      }
-      
-      console.log('Search results for PACE ID:', searchResults);
-      
-      const matchedCustomer = searchResults.find(c => 
-        (c.pace_user_id || '').toLowerCase() === paceId.toLowerCase()
-      );
-      
-      if (matchedCustomer) {
-        console.log('Found customer:', matchedCustomer);
-        // Update customers list if not already present
-        setCustomers(prev => {
-          const exists = prev.find(c => c.id === matchedCustomer.id);
-          if (!exists) {
-            return [...prev, matchedCustomer];
-          }
-          return prev;
-        });
-        
-        // Auto-select this customer
-        reset({ ...watch(), customerId: matchedCustomer.id });
-        setSelectedCustomer(matchedCustomer);
-        setSearchTerm(matchedCustomer.name);
-        
-        return matchedCustomer;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Failed to search customer by PACE ID:', error);
-      return null;
-    }
-  };
-
+  
   const loadPayments = useCallback(async (search = '', status = '', isInitialLoad = false) => {
     try {
       if (isInitialLoad) setLoading(true);
@@ -187,7 +138,7 @@ const PaymentsPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [customers, packageFilter]);
+  }, [packageFilter]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -224,7 +175,7 @@ const PaymentsPage = () => {
     if (showModal && customers.length === 0) {
       loadCustomers();
     }
-  }, [showModal, customers.length]);
+  }, [showModal, customers.length, loadCustomers]);
 
   const onSubmit = async (data) => {
     try {

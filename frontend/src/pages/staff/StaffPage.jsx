@@ -172,7 +172,7 @@ const StaffPage = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [user?.role, loadStaffWorkloads]);
+  }, [user?.role, user?.companyId, loadStaffWorkloads]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -300,10 +300,12 @@ const StaffPage = () => {
     setShowStaffDetailsModal(true);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getTechnicians = () => {
     return users.filter(user => user.role === 'Technician' || user.role === 'Staff');
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getTimeRemaining = (assignedAt) => {
     if (!assignedAt) return null;
     const assignedTime = new Date(assignedAt);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { customerService } from '../../services/customerService';
 
 // Custom debounce function
@@ -27,30 +27,6 @@ const UserSearchDropdown = ({
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce(async (term) => {
-      if (!term.trim()) {
-        setSearchResults([]);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const response = await customerService.getAll({ search: term.trim(), limit: 20 });
-        const customers = response.data || [];
-        setSearchResults(customers);
-      } catch (error) {
-        console.error('Error searching customers:', error);
-        setSearchResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300),
-    []
-  );
-
   // Handle search input change
   const handleInputChange = (e) => {
     const term = e.target.value;
@@ -64,6 +40,27 @@ const UserSearchDropdown = ({
       onChange('');
       onCustomerSelect(null);
     }
+    
+    // Use inline debounced function
+    const debouncedSearch = debounce(async (searchTerm) => {
+      if (!searchTerm.trim()) {
+        setSearchResults([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await customerService.getAll({ search: searchTerm.trim(), limit: 20 });
+        const customers = response.data || [];
+        setSearchResults(customers);
+      } catch (error) {
+        console.error('Error searching customers:', error);
+        setSearchResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
     
     debouncedSearch(term);
   };

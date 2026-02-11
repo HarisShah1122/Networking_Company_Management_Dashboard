@@ -5,12 +5,10 @@ import { complaintService } from '../../services/complaintService';
 import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
 import { 
-  STAFF_MEMBERS, 
   AREAS,
   SOURCES, 
   getStatusColor, 
   getPriorityColor, 
-  getSourceColor,
   DEFAULT_PAGE_SIZE
 } from '../../constants/complaintConstants';
 import Modal from '../../components/common/Modal';
@@ -29,7 +27,6 @@ const ComplaintsDashboard = () => {
   const [techniciansLoading, setTechniciansLoading] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [pagination, setPagination] = useState(null);
   const [paginationState, setPaginationState] = useState({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
   const [stats, setStats] = useState({
@@ -290,13 +287,7 @@ const ComplaintsDashboard = () => {
     filterComplaints();
   }, [complaints, filterComplaints]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date()); // Update current time every second for real-time SLA updates
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

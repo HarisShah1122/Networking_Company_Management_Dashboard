@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { userService } from '../../services/userService';
 import useAuthStore from '../../stores/authStore';
-import { isCEO } from '../../utils/permission.utils';
 import Loader from '../../components/common/Loader';
 import TablePagination from '../../components/common/TablePagination';
 
@@ -19,7 +18,6 @@ const AllUsersPage = () => {
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
-  const canManage = isCEO(user?.role);
 
   const loadUsers = useCallback(async (search = '', role = '', status = '', isInitialLoad = false) => {
     try {
