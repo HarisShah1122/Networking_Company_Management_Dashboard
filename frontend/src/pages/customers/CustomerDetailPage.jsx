@@ -1,18 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { toast } from 'react-toastify';
 import { customerService } from '../../services/customerService';
 import { connectionService } from '../../services/connectionService';
 import { rechargeService } from '../../services/rechargeService';
+import { paymentService } from '../../services/paymentService';
+import useAuthStore from '../../stores/authStore';
 import Loader from '../../components/common/Loader';
+import Modal from '../../components/common/Modal';
 
 const CustomerDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   const [customer, setCustomer] = useState(null);
   const [connections, setConnections] = useState([]);
-  const [recharges, setRecharges] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   useEffect(() => {
     const loadData = async () => {
@@ -38,23 +49,23 @@ const CustomerDetailPage = () => {
           connectionsData = connRes.data;
         }
         
-        // Handle different response formats for recharges
-        let rechargesData = [];
+        // Handle different response formats for payments
+        let paymentsData = [];
         if (rechRes?.data?.recharges) {
-          rechargesData = rechRes.data.recharges;
+          paymentsData = rechRes.data.recharges;
         } else if (rechRes?.recharges) {
-          rechargesData = rechRes.recharges;
+          paymentsData = rechRes.recharges;
         } else if (Array.isArray(rechRes)) {
-          rechargesData = rechRes;
+          paymentsData = rechRes;
         } else if (Array.isArray(rechRes?.data)) {
-          rechargesData = rechRes.data;
+          paymentsData = rechRes.data;
         }
         
         console.log('Connections data:', connectionsData);
-        console.log('Recharges data:', rechargesData);
+        console.log('Payments data:', paymentsData);
         
         setConnections(connectionsData);
-        setRecharges(rechargesData);
+        setPayments(paymentsData);
       } catch (error) {
         console.error('Error loading customer details:', error);
       } finally {
@@ -64,6 +75,85 @@ const CustomerDetailPage = () => {
 
     loadData();
   }, [id]);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onPaymentSubmit = async (data) => {
+    try {
+      let submitData;
+      const hasFile = selectedImage instanceof File;
+
+      if (hasFile) {
+        const formData = new FormData();
+        formData.append('trxId', data.trxId?.trim());
+        formData.append('customerId', id);
+        formData.append('amount', data.amount);
+        formData.append('paymentMethod', data.paymentMethod || 'cash');
+        formData.append('receivedBy', user.id);
+        formData.append('receiptImage', selectedImage);
+        submitData = formData;
+      } else {
+        submitData = {
+          trxId: data.trxId?.trim(),
+          customerId: id,
+          amount: data.amount,
+          paymentMethod: data.paymentMethod || 'cash',
+          receivedBy: user.id,
+        };
+      }
+
+      const response = await paymentService.create(submitData);
+      
+      if (response?.success || response?.data?.success) {
+        toast.success('Payment added successfully!');
+        reset();
+        setShowPaymentModal(false);
+        setSelectedImage(null);
+        setImagePreview(null);
+        
+        // Reload payments to show the new payment
+        const rechRes = await rechargeService.getAll({ customer_id: id });
+        let paymentsData = [];
+        if (rechRes?.data?.recharges) {
+          paymentsData = rechRes.data.recharges;
+        } else if (rechRes?.recharges) {
+          paymentsData = rechRes.recharges;
+        } else if (Array.isArray(rechRes)) {
+          paymentsData = rechRes;
+        } else if (Array.isArray(rechRes?.data)) {
+          paymentsData = rechRes.data;
+        }
+        setPayments(paymentsData);
+      } else {
+        throw new Error(response?.message || 'Failed to add payment');
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to add payment');
+    }
+  };
+
+  const openPaymentModal = () => {
+    reset();
+    setSelectedImage(null);
+    setImagePreview(null);
+    setShowPaymentModal(true);
+  };
+
+  const closePaymentModal = () => {
+    reset();
+    setSelectedImage(null);
+    setImagePreview(null);
+    setShowPaymentModal(false);
+  };
 
   if (loading) return <Loader />;
   if (!customer) return <div className="text-center py-12 text-gray-500">Customer not found</div>;
@@ -136,7 +226,7 @@ const CustomerDetailPage = () => {
         </div>
       </div>
 
-      {/* Customer Activity Section - Combined Connections & Recharges */}
+      {/* Customer Activity Section - Combined Connections & Payments */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">Customer Activity</h2>
@@ -209,51 +299,51 @@ const CustomerDetailPage = () => {
               )}
             </div>
 
-            {/* Recharges Column */}
+            {/* Payments Column */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Recharges ({recharges.length})
+                Payments ({payments.length})
               </h3>
-              {recharges.length === 0 ? (
+              {payments.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
                   <div className="text-gray-400 mb-2">
                     <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 font-medium">No recharges yet</p>
-                  <p className="text-sm text-gray-400 mt-1">Add a recharge to track payments</p>
+                  <p className="text-gray-500 font-medium">No payments yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Add a payment to track transactions</p>
                   <button 
-                    onClick={() => navigate('/recharges')}
+                    onClick={openPaymentModal}
                     className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
                   >
-                    Add Recharge
+                    Add Payment
                   </button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {recharges.map((recharge) => (
-                    <div key={recharge.id} className="border border-gray-200 rounded-lg p-4">
+                  {payments.map((payment) => (
+                    <div key={payment.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-lg">
-                          RS {parseFloat(recharge.amount || 0).toFixed(2)}
+                          RS {parseFloat(payment.amount || 0).toFixed(2)}
                         </span>
                         <span
                           className={`px-3 py-1 text-xs font-medium rounded-full ${
-                            recharge.status === 'paid'
+                            payment.status === 'paid'
                               ? 'bg-green-600 text-white'
-                              : recharge.status === 'pending'
+                              : payment.status === 'pending'
                               ? 'bg-yellow-600 text-white'
                               : 'bg-red-600 text-white'
                           }`}
                         >
-                          {recharge.status}
+                          {payment.status}
                         </span>
                       </div>
                       <div className="mt-2 text-sm text-gray-600">
-                        <p>Payment: {recharge.payment_method || '-'}</p>
-                        {recharge.due_date && (
-                          <p>Due: {new Date(recharge.due_date).toLocaleDateString()}</p>
+                        <p>Payment: {payment.payment_method || '-'}</p>
+                        {payment.due_date && (
+                          <p>Due: {new Date(payment.due_date).toLocaleDateString()}</p>
                         )}
                       </div>
                     </div>
@@ -264,6 +354,87 @@ const CustomerDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <Modal
+          isOpen={showPaymentModal}
+          onClose={closePaymentModal}
+          title="Add Payment"
+        >
+          <form onSubmit={handleSubmit(onPaymentSubmit)} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Transaction ID *</label>
+              <input
+                {...register('trxId', { required: 'Transaction ID is required' })}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.trxId ? 'border-red-500' : 'border-gray-300'}`}
+                placeholder="Enter transaction ID"
+              />
+              {errors.trxId && <p className="text-red-500 text-sm mt-1">{errors.trxId.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Amount (PKR) *</label>
+                <input
+                  {...register('amount', { required: 'Amount is required', min: 0.01 })}
+                  type="number"
+                  step="0.01"
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${errors.amount ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="0.00"
+                />
+                {errors.amount && <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                <select 
+                  {...register('paymentMethod')} 
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="mobile_wallet">Mobile Wallet</option>
+                  <option value="card">Card</option>
+                  <option value="jazz_cash">Jazz Cash</option>
+                  <option value="easypaisa">Easypaisa</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Receipt Image (optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+              {imagePreview && (
+                <div className="mt-3">
+                  <img src={imagePreview} alt="preview" className="max-w-xs h-auto rounded shadow-sm" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={closePaymentModal}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                Add Payment
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 };
