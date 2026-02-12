@@ -113,10 +113,27 @@ const CustomersPage = () => {
 
   const loadConnections = useCallback(async () => {
     try {
-      const res = await connectionService.getAll({});
-      let list = res?.connections || res?.data?.connections || res?.data || res || [];
-      setConnections(list);
-    } catch {}
+      // Use optimized pagination for customers page - only load what we need
+      const res = await connectionService.getAll({ 
+        skip_enrichment: true, 
+        limit: 100, // Reasonable limit for customers page
+        sort_by: 'created_at',
+        sort_order: 'DESC'
+      });
+      
+      let connections = res?.connections || [];
+      console.log('🔗 Connections loaded:', {
+        count: connections.length,
+        pagination: res?.pagination,
+        performance: res?.performance
+      });
+      
+      setConnections(connections);
+    } catch (error) {
+      console.error('❌ Failed to load connections:', error);
+      toast.error(error.message || 'Failed to load connections', { autoClose: 3000 });
+      setConnections([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -150,7 +167,8 @@ const CustomersPage = () => {
   }, [searchTerm, statusFilter, paginationState.page, paginationState.pageSize, loadCustomers]);
 
   const getConnectionForCustomer = (customerId) => {
-    return connections.find(c => String(c.customer_id) === String(customerId)) || {};
+    const connection = connections.find(c => String(c.customer_id) === String(customerId));
+    return connection || null;
   };
 
   const onSubmit = async (data) => {
@@ -210,7 +228,7 @@ const CustomersPage = () => {
         };
 
         const existing = getConnectionForCustomer(customerId);
-        if (existing.id) {
+        if (existing && existing.id) {
           await connectionService.update(existing.id, connPayload);
         } else {
           await connectionService.create(connPayload);
@@ -250,11 +268,11 @@ const CustomersPage = () => {
     reset({
       ...customer,
       area_id: customer.area_id || '',
-      connection_type: conn.connection_type || '',
-      installation_date: conn.installation_date ? dayjs(conn.installation_date).toDate() : null,
-      activation_date: conn.activation_date ? dayjs(conn.activation_date).toDate() : null,
-      connection_status: conn.status || 'pending',
-      connection_notes: conn.notes || '',
+      connection_type: conn?.connection_type || '',
+      installation_date: conn?.installation_date ? dayjs(conn.installation_date).toDate() : null,
+      activation_date: conn?.activation_date ? dayjs(conn.activation_date).toDate() : null,
+      connection_status: conn?.status || 'pending',
+      connection_notes: conn?.notes || '',
       phone: formatPhone(customer.phone || ''),
       whatsapp_number: formatPhone(customer.whatsapp_number || ''),
     });
@@ -349,10 +367,10 @@ const CustomersPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap">{customer.phone || ''}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{customer.email || ''}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {conn.connection_type || ''}
+                        {conn?.connection_type || <span className="text-gray-500 font-medium">No connection</span>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {conn.status ? (
+                        {conn?.status ? (
                           <span
                             className={`px-3 py-1.5 text-xs font-medium rounded-full ${
                               conn.status === 'completed' ? 'bg-green-600 text-white' :
@@ -363,7 +381,7 @@ const CustomersPage = () => {
                             {conn.status}
                           </span>
                         ) : (
-                          ''
+                          <span className="text-gray-500 font-medium">No connection</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

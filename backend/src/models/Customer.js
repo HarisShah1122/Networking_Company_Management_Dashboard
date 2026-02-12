@@ -41,6 +41,11 @@ module.exports = (sequelize) => {
       allowNull: true,
       unique: true
     },
+    area_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'area_id'
+    },
     company_id: {
       type: DataTypes.UUID,
       allowNull: true,

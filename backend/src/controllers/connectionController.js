@@ -5,19 +5,118 @@ const ApiResponse = require('../helpers/responses');
 const { validateConnection } = require('../helpers/validators');
 
 const getAll = async (req, res, next) => {
+  const startTime = Date.now();
+  console.log('🔗 Connection controller called:', {
+    query: req.query,
+    companyId: req.companyId,
+    user: req.user?.id
+  });
+  
   try {
+    // Extract and validate query parameters
+    const {
+      status,
+      customer_id,
+      limit = 50,
+      offset = 0,
+      sort_by = 'created_at',
+      sort_order = 'DESC',
+      skip_enrichment = false
+    } = req.query;
+
+    // Validate pagination parameters
+    const validLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 1000);
+    const validOffset = Math.max(parseInt(offset) || 0, 0);
+    
+    // Validate sort parameters
+    const allowedSortFields = ['id', 'customer_id', 'connection_type', 'status', 'created_at', 'updated_at', 'installation_date', 'activation_date'];
+    const validSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const validSortOrder = ['ASC', 'DESC'].includes(sort_order?.toUpperCase()) ? sort_order.toUpperCase() : 'DESC';
+
     const filters = {
-      status: req.query.status,
-      customer_id: req.query.customer_id
+      status,
+      customer_id,
+      limit: validLimit,
+      offset: validOffset,
+      sort_by: validSortBy,
+      sort_order: validSortOrder
     };
 
-    const connections = await ConnectionService.getAll(filters, req.companyId);
-    return ApiResponse.success(res, { connections }, 'Connections retrieved successfully');
+    console.log('🔗 Validated params:', { 
+      limit: validLimit, 
+      offset: validOffset, 
+      sort_by: validSortBy, 
+      sort_order: validSortOrder,
+      skip_enrichment 
+    });
+    
+    // Fetch connections and total count in parallel
+    const [connections, totalCount] = await Promise.all([
+      ConnectionService.getAll(filters, req.companyId, skip_enrichment === 'true'),
+      ConnectionService.getCount(filters, req.companyId)
+    ]);
+
+    const totalTime = Date.now() - startTime;
+    console.log('🔗 Connection controller completed in', totalTime, 'ms, returning', connections.length, 'of', totalCount, 'connections');
+    
+    // Performance monitoring
+    if (totalTime > 3000) {
+      console.warn('⚠️ Slow API call detected:', totalTime, 'ms for', connections.length, 'records');
+    }
+
+    // Build pagination metadata
+    const pagination = {
+      currentPage: Math.floor(validOffset / validLimit) + 1,
+      pageSize: validLimit,
+      totalCount,
+      totalPages: Math.ceil(totalCount / validLimit),
+      hasNext: validOffset + validLimit < totalCount,
+      hasPrev: validOffset > 0
+    };
+
+    return ApiResponse.success(res, { 
+      connections, 
+      pagination,
+      performance: {
+        queryTime: totalTime,
+        recordCount: connections.length
+      }
+    }, 'Connections retrieved successfully');
+    
   } catch (error) {
+    const totalTime = Date.now() - startTime;
+    console.error('🔗 Connection controller failed after', totalTime, 'ms:', error);
+    
+    // Enhanced error handling
+    if (error.name === 'SequelizeConnectionError') {
+      return res.status(503).json({
+        error: 'Database connection failed',
+        message: 'Unable to connect to database. Please try again later.',
+        retryable: true
+      });
+    }
+    
+    if (error.name === 'SequelizeQueryError') {
+      return res.status(500).json({
+        error: 'Database query failed',
+        message: 'Invalid query parameters provided.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    if (error.name === 'SequelizeDatabaseError') {
+      return res.status(500).json({
+        error: 'Database error',
+        message: 'Database operation failed.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
     // Log error for debugging but don't expose details to client
     if (process.env.NODE_ENV === 'development') {
       console.error('Error fetching connections:', error.message);
     }
+    
     next(error);
   }
 };
