@@ -188,36 +188,55 @@ const update = async (id, data, userId, companyId) => {
         const updatedComplaint = await Complaint.findByPk(id);
         
         // Get customer email if customerId exists
-        let customerEmail = 'customer@example.com';
+        let customerEmail = null;
+        let customer = null;
+        
         if (updatedComplaint.customerId) {
           const { Customer } = require('../models');
-          const customer = await Customer.findByPk(updatedComplaint.customerId, {
+          customer = await Customer.findByPk(updatedComplaint.customerId, {
             attributes: ['email', 'pace_user_id', 'phone', 'name', 'father_name']
           });
-          customerEmail = customer?.email || 'customer@example.com';
+          customerEmail = customer?.email;
         }
         
-        // Add customer details to complaint data for email
-        const complaintWithCustomer = {
-          ...updatedComplaint.toJSON(),
-          customer: customer ? {
-            pace_user_id: customer.pace_user_id,
-            phone: customer.phone,
-            email: customer.email,
-            name: customer.name,
-            father_name: customer.father_name
-          } : null
-        };
-        
-        await emailService.sendComplaintStatusUpdateNotification(
-          customerEmail,
-          updatedComplaint.name || customer?.name || 'Customer',
-          complaintWithCustomer,
-          complaintData.status,
-          data.status
-        );
+        // Only send email if we have a valid customer email
+        if (customerEmail && customerEmail !== 'customer@example.com' && customerEmail.trim() !== '') {
+          console.log('📧 Sending complaint status update email to:', customerEmail);
+          
+          // Add customer details to complaint data for email
+          const complaintWithCustomer = {
+            ...updatedComplaint.toJSON(),
+            customer: customer ? {
+              pace_user_id: customer.pace_user_id,
+              phone: customer.phone,
+              email: customer.email,
+              name: customer.name,
+              father_name: customer.father_name
+            } : null
+          };
+          
+          const emailResult = await emailService.sendComplaintStatusUpdateNotification(
+            customerEmail,
+            updatedComplaint.name || customer?.name || 'Customer',
+            complaintWithCustomer,
+            complaintData.status,
+            data.status
+          );
+          
+          if (emailResult.success) {
+            console.log('✅ Complaint status update email sent successfully to:', customerEmail);
+          } else {
+            console.warn('⚠️ Failed to send status update email:', emailResult.error);
+          }
+        } else {
+          console.log('⚠️ Cannot send complaint status update email - no valid customer email found');
+          console.log('   Customer ID:', updatedComplaint.customerId);
+          console.log('   Customer Email:', customerEmail || 'Not found');
+          console.log('   Customer Name:', customer?.name || 'Not found');
+        }
       } catch (emailError) {
         console.warn('⚠️ Failed to send status update email:', emailError.message);
+        console.error('Email error details:', emailError.stack);
       }
     }
 

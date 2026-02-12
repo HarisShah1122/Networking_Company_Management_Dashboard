@@ -82,7 +82,7 @@ class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1e40af; margin: 0;">🔧 PACE Telecom</h1>
+            <h1 style="color: #1e40af; margin: 0;">🔧 Pace Telecom Katlang</h1>
             <p style="color: #6b7280; margin: 5px 0;">Complaint Management System</p>
           </div>
           
@@ -115,7 +115,7 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated message from the PACE Telecom Complaint Management System.
+              This is an automated message from the Pace Telecom Katlang Complaint Management System.
               <br>Please do not reply to this email. For support, contact your system administrator.
             </p>
           </div>
@@ -133,7 +133,7 @@ class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1e40af; margin: 0;">📢 PACE Telecom</h1>
+            <h1 style="color: #1e40af; margin: 0;">📢 Pace Telecom Katlang</h1>
             <p style="color: #6b7280; margin: 5px 0;">Complaint Management System</p>
           </div>
           
@@ -178,7 +178,7 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated message from PACE Telecom Complaint Management System.
+              This is an automated message from Pace Telecom Katlang Complaint Management System.
               If you have any questions, please contact our support team.
             </p>
           </div>
@@ -203,7 +203,7 @@ class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1e40af; margin: 0;">📢 PACE Telecom</h1>
+            <h1 style="color: #1e40af; margin: 0;">📢 Pace Telecom Katlang</h1>
             <p style="color: #6b7280; margin: 5px 0;">Complaint Management System</p>
           </div>
           
@@ -217,13 +217,13 @@ class EmailService {
             ${complaintDetails.customer?.father_name ? `<p style="margin: 10px 0;"><strong>Father Name:</strong> ${complaintDetails.customer.father_name}</p>` : ''}
             ${complaintDetails.customer?.phone ? `<p style="margin: 10px 0;"><strong>Phone:</strong> ${complaintDetails.customer.phone}</p>` : ''}
             ${complaintDetails.customer?.email ? `<p style="margin: 10px 0;"><strong>Email:</strong> ${complaintDetails.customer.email}</p>` : ''}
-            ${complaintDetails.customer?.pace_user_id ? `<p style="margin: 10px 0;"><strong>Customer ID:</strong> ${complaintDetails.customer.pace_user_id}</p>` : ''}
+            ${complaintDetails.customer?.pace_user_id ? `<p style="margin: 10px 0;"><strong>🔷 PACE ID:</strong> <span style="background-color: #1e40af; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px;">${complaintDetails.customer.pace_user_id}</span></p>` : ''}
           </div>
 
-          ${complaintDetails.address || complaintDetails.area || complaintDetails.city || complaintDetails.district ? `
+          ${complaintDetails.customer?.address || complaintDetails.address ? `
           <div style="background-color: #e0f2fe; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #0284c7;">
-            <h3 style="color: #075985; margin: 0;">📍 Location Information:</h3>
-            ${complaintDetails.address ? `<p style="margin: 10px 0;"><strong>Address:</strong> ${complaintDetails.address}</p>` : ''}
+            <h3 style="color: #075985; margin: 0;">📍 Customer Location:</h3>
+            <p style="margin: 10px 0;"><strong>🏠 Address:</strong> ${complaintDetails.customer?.address || complaintDetails.address || 'N/A'}</p>
             ${complaintDetails.area ? `<p style="margin: 10px 0;"><strong>Area:</strong> ${complaintDetails.area}</p>` : ''}
             ${complaintDetails.city ? `<p style="margin: 10px 0;"><strong>City:</strong> ${complaintDetails.city}</p>` : ''}
             ${complaintDetails.district ? `<p style="margin: 10px 0;"><strong>District:</strong> ${complaintDetails.district}</p>` : ''}
@@ -254,7 +254,7 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated message from PACE Telecom Complaint Management System.
+              This is an automated message from Pace Telecom Katlang Complaint Management System.
               If you have any questions, please contact our support team.
             </p>
           </div>
@@ -272,7 +272,7 @@ class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1e40af; margin: 0;">💰 PACE Telecom</h1>
+            <h1 style="color: #1e40af; margin: 0;">💰 Pace Telecom Katlang</h1>
             <p style="color: #6b7280; margin: 5px 0;">Payment Confirmation</p>
           </div>
           
@@ -300,7 +300,7 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated message from the PACE Telecom Billing System.
+              This is an automated message from the Pace Telecom Katlang Billing System.
               <br>Please do not reply to this email. For billing inquiries, contact our support team.
             </p>
           </div>
@@ -313,20 +313,20 @@ class EmailService {
 
   // New Customer Welcome Notification
   async sendCustomerWelcomeNotification(customerEmail, customerDetails, companyDetails) {
-    const subject = `🎉 Welcome to PACE Telecom!`;
+    const subject = `🎉 Welcome to Pace Telecom Katlang!`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1e40af; margin: 0;">🎉 PACE Telecom</h1>
+            <h1 style="color: #1e40af; margin: 0;">🎉 Pace Telecom Katlang</h1>
             <p style="color: #6b7280; margin: 5px 0;">Welcome aboard!</p>
           </div>
           
-          <h2 style="color: #333; margin-bottom: 20px;">Welcome to PACE Telecom!</h2>
+          <h2 style="color: #333; margin-bottom: 20px;">Welcome to Pace Telecom Katlang!</h2>
           
           <div style="background-color: #dbeafe; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #3b82f6;">
             <h3 style="color: #1e40af; margin: 0;">👋 Dear ${customerDetails.name},</h3>
-            <p style="margin: 10px 0; color: #1e40af;">Thank you for choosing PACE Telecom as your internet service provider!</p>
+            <p style="margin: 10px 0; color: #1e40af;">Thank you for choosing Pace Telecom Katlang as your internet service provider!</p>
           </div>
           
           <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
@@ -360,7 +360,7 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated message from the PACE Telecom Customer Management System.
+              This is an automated message from the Pace Telecom Katlang Customer Management System.
               <br>Please do not reply to this email. For support, contact our customer service team.
             </p>
           </div>
@@ -378,7 +378,7 @@ class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #dc2626; margin: 0;">⚠️ PACE Telecom</h1>
+            <h1 style="color: #dc2626; margin: 0;">⚠️ Pace Telecom Katlang</h1>
             <p style="color: #6b7280; margin: 5px 0;">SLA Management Alert</p>
           </div>
           
@@ -421,7 +421,7 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated SLA monitoring alert from the PACE Telecom Complaint Management System.
+              This is an automated SLA monitoring alert from the Pace Telecom Katlang Complaint Management System.
               <br>Please do not reply to this email. For system support, contact your administrator.
             </p>
           </div>
@@ -458,7 +458,7 @@ class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1e40af; margin: 0;">📢 PACE Telecom</h1>
+            <h1 style="color: #1e40af; margin: 0;">📢 Pace Telecom Katlang</h1>
             <p style="color: #6b7280; margin: 5px 0;">Notification System</p>
           </div>
           
@@ -476,7 +476,7 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated message from the PACE Telecom Management System.
+              This is an automated message from the Pace Telecom Katlang Management System.
               <br>Please do not reply to this email. For support, contact your system administrator.
             </p>
           </div>
