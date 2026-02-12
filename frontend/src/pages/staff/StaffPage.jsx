@@ -30,6 +30,8 @@ const StaffPage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -523,7 +525,7 @@ const StaffPage = () => {
                         </td>
                       )}
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {canManage && (
+                        {(canManage || (user?.id === user?.id && user?.role === 'CEO')) && (
                           <div className="flex items-center justify-end gap-2">
                             {(user.role === 'Staff' || user.role === 'Technician') && (
                               <button
@@ -540,7 +542,7 @@ const StaffPage = () => {
                             <button
                               onClick={() => handleEdit(user)}
                               className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"
-                              title="Edit"
+                              title={user.id === user?.id ? "Edit Profile" : "Edit User"}
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -577,7 +579,7 @@ const StaffPage = () => {
             )}
           </div>
       
-      {showModal && canManage && (
+      {showModal && (canManage || (editingUser?.id === user?.id && user?.role === 'CEO')) && (
         <Modal
           isOpen={showModal}
           onClose={() => { setShowModal(false); reset(); setEditingUser(null); setSelectedArea(''); setShowAreaSection(false); }}
@@ -751,14 +753,73 @@ const StaffPage = () => {
             {!editingUser && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">Password *</label>
-                <input
-                  {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
-                  type="password"
-                  className={`mt-1 block w-full px-3 py-2 border rounded-md ${
-                    errors.password && touchedFields.password ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
+                <div className="relative">
+                  <input
+                    {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
+                    type={showPassword ? "text" : "password"}
+                    className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md ${
+                      errors.password && touchedFields.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.907a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 14.122l4.242 4.242" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 {errors.password && touchedFields.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+              </div>
+            )}
+
+            {editingUser && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  {user?.id === editingUser?.id && user?.role === 'CEO' ? 'New Password' : 'Password'}
+                </label>
+                <div className="relative">
+                  <input
+                    {...register('password', { 
+                      required: user?.id === editingUser?.id && user?.role === 'CEO' ? false : 'Password is required', 
+                      minLength: { value: 6, message: 'Password must be at least 6 characters' } 
+                    })}
+                    type={showPassword ? "text" : "password"}
+                    placeholder={user?.id === editingUser?.id && user?.role === 'CEO' ? 'Leave blank to keep current password' : 'Enter new password'}
+                    className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md ${
+                      errors.password && touchedFields.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.907a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 14.122l4.242 4.242" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {errors.password && touchedFields.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+                {user?.id === editingUser?.id && user?.role === 'CEO' && (
+                  <p className="text-sm text-gray-500 mt-1">Leave password blank to keep your current password</p>
+                )}
               </div>
             )}
 
