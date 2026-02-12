@@ -104,16 +104,16 @@ const getAll = async (companyId, areaId = null) => {
     
     return Promise.all(complaints.map(async (c) => {
       const data = c;
-      if (!data.name || !data.whatsapp_number || !data.address) {
-        const customerData = await fetchCustomerData(data.customerId);
-        return { 
-          ...data, 
-          name: customerData.name ?? null, 
-          whatsapp_number: customerData.phone ?? customerData.whatsapp_number ?? null,
-          address: customerData.address ?? data.address ?? null
-        };
-      }
-      return data;
+      const customerData = await fetchCustomerData(data.customer_id);
+      return { 
+        ...data, 
+        name: data.name ?? customerData.name ?? null, 
+        whatsapp_number: data.whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null,
+        address: data.address ?? customerData.address ?? null,
+        father_name: customerData.father_name,
+        pace_user_id: customerData.pace_user_id,
+        customer_email: customerData.email
+      };
     }));
   } catch (err) {
     throw err;
@@ -132,12 +132,14 @@ const update = async (id, data, userId, companyId) => {
     let name = data.name ?? complaintData.name ?? null;
     let whatsapp_number = data.whatsapp_number ?? complaintData.whatsapp_number ?? null;
     let address = data.address ?? complaintData.address ?? null;
+    let father_name = null;
 
     if ((!name || !whatsapp_number || !address) && customerId) {
       const customerData = await fetchCustomerData(customerId);
       name = name ?? customerData.name ?? null;
       whatsapp_number = whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null;
       address = address ?? customerData.address ?? null;
+      father_name = customerData.father_name;
     }
 
     const updateData = {

@@ -128,7 +128,7 @@ class EmailService {
 
   // Complaint Status Update Notification
   async sendComplaintStatusUpdateNotification(customerEmail, customerName, complaintDetails, oldStatus, newStatus) {
-    const subject = `📢 Complaint Status Update - PACE ID: ${complaintDetails.customer?.pace_user_id || 'N/A'}`;
+    const subject = `📢 Complaint Status Update - ${complaintDetails.customer?.name || customerName || 'Customer'}`;
     const statusColors = {
       'open': '#f59e0b',
       'in_progress': '#3b82f6',
@@ -148,12 +148,13 @@ class EmailService {
           
           <div style="background-color: #fef3c7; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
             <h3 style="color: #92400e; margin: 0;">📋 Complaint Details:</h3>
-            <p style="margin: 10px 0;"><strong>PACE ID:</strong> ${complaintDetails.customer?.pace_user_id || 'N/A'}</p>
+            <p style="margin: 10px 0;"><strong>Complaint ID:</strong> ${complaintDetails.id}</p>
             <p style="margin: 10px 0;"><strong>Title:</strong> ${complaintDetails.title}</p>
             <p style="margin: 10px 0;"><strong>Customer:</strong> ${customerName || 'N/A'}</p>
             ${complaintDetails.customer?.father_name ? `<p style="margin: 10px 0;"><strong>Father Name:</strong> ${complaintDetails.customer.father_name}</p>` : ''}
             ${complaintDetails.customer?.phone ? `<p style="margin: 10px 0;"><strong>Phone:</strong> ${complaintDetails.customer.phone}</p>` : ''}
             ${complaintDetails.customer?.email ? `<p style="margin: 10px 0;"><strong>Email:</strong> ${complaintDetails.customer.email}</p>` : ''}
+            ${complaintDetails.customer?.pace_user_id ? `<p style="margin: 10px 0;"><strong>Customer ID:</strong> ${complaintDetails.customer.pace_user_id}</p>` : ''}
           </div>
 
           ${complaintDetails.address || complaintDetails.area || complaintDetails.city || complaintDetails.district ? `
