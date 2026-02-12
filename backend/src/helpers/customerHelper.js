@@ -2,12 +2,12 @@ const { Customer } = require('../models');
 
 const fetchCustomerData = async (customerId) => {
   if (!customerId) {
-    return { name: null, phone: null, whatsapp_number: null };
+    return { name: null, phone: null, whatsapp_number: null, address: null };
   }
 
   try {
     const customer = await Customer.findByPk(customerId, {
-      attributes: ['name', 'phone', 'whatsapp_number'],
+      attributes: ['name', 'phone', 'whatsapp_number', 'address'],
       raw: true
     });
 
@@ -15,13 +15,14 @@ const fetchCustomerData = async (customerId) => {
       return {
         name: customer.name ?? null,
         phone: customer.whatsapp_number ?? customer.phone ?? null,
-        whatsapp_number: customer.whatsapp_number ?? customer.phone ?? null
+        whatsapp_number: customer.whatsapp_number ?? customer.phone ?? null,
+        address: customer.address ?? null
       };
     }
   } catch (err) {
   }
 
-  return { name: null, phone: null, whatsapp_number: null };
+  return { name: null, phone: null, whatsapp_number: null, address: null };
 };
 
 const enrichWithCustomerData = async (items, customerIdField = 'customer_id') => {
@@ -34,7 +35,8 @@ const enrichWithCustomerData = async (items, customerIdField = 'customer_id') =>
     return {
       ...itemData,
       customer_name: customerData.name,
-      customer_phone: customerData.phone
+      customer_phone: customerData.phone,
+      customer_address: customerData.address
     };
   }));
 };

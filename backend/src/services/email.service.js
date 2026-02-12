@@ -128,7 +128,7 @@ class EmailService {
 
   // Complaint Status Update Notification
   async sendComplaintStatusUpdateNotification(customerEmail, customerName, complaintDetails, oldStatus, newStatus) {
-    const subject = `📢 Complaint Status Update - ID: ${complaintDetails.id}`;
+    const subject = `📢 Complaint Status Update - PACE ID: ${complaintDetails.customer?.pace_user_id || 'N/A'}`;
     const statusColors = {
       'open': '#f59e0b',
       'in_progress': '#3b82f6',
@@ -148,10 +148,24 @@ class EmailService {
           
           <div style="background-color: #fef3c7; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
             <h3 style="color: #92400e; margin: 0;">📋 Complaint Details:</h3>
-            <p style="margin: 10px 0;"><strong>ID:</strong> ${complaintDetails.id}</p>
+            <p style="margin: 10px 0;"><strong>PACE ID:</strong> ${complaintDetails.customer?.pace_user_id || 'N/A'}</p>
             <p style="margin: 10px 0;"><strong>Title:</strong> ${complaintDetails.title}</p>
             <p style="margin: 10px 0;"><strong>Customer:</strong> ${customerName || 'N/A'}</p>
+            ${complaintDetails.customer?.father_name ? `<p style="margin: 10px 0;"><strong>Father Name:</strong> ${complaintDetails.customer.father_name}</p>` : ''}
+            ${complaintDetails.customer?.phone ? `<p style="margin: 10px 0;"><strong>Phone:</strong> ${complaintDetails.customer.phone}</p>` : ''}
+            ${complaintDetails.customer?.email ? `<p style="margin: 10px 0;"><strong>Email:</strong> ${complaintDetails.customer.email}</p>` : ''}
           </div>
+
+          ${complaintDetails.address || complaintDetails.area || complaintDetails.city || complaintDetails.district ? `
+          <div style="background-color: #e0f2fe; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #0284c7;">
+            <h3 style="color: #075985; margin: 0;">📍 Location Information:</h3>
+            ${complaintDetails.address ? `<p style="margin: 10px 0;"><strong>Address:</strong> ${complaintDetails.address}</p>` : ''}
+            ${complaintDetails.area ? `<p style="margin: 10px 0;"><strong>Area:</strong> ${complaintDetails.area}</p>` : ''}
+            ${complaintDetails.city ? `<p style="margin: 10px 0;"><strong>City:</strong> ${complaintDetails.city}</p>` : ''}
+            ${complaintDetails.district ? `<p style="margin: 10px 0;"><strong>District:</strong> ${complaintDetails.district}</p>` : ''}
+            ${complaintDetails.landmark ? `<p style="margin: 10px 0;"><strong>Landmark:</strong> ${complaintDetails.landmark}</p>` : ''}
+          </div>
+          ` : ''}
           
           <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
             <h3 style="color: #374151; margin: 0;">🔄 Status Change:</h3>
@@ -176,8 +190,8 @@ class EmailService {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This is an automated message from the PACE Telecom Complaint Management System.
-              <br>Please do not reply to this email. For support, contact our customer service.
+              This is an automated message from PACE Telecom Complaint Management System.
+              If you have any questions, please contact our support team.
             </p>
           </div>
         </div>

@@ -35,19 +35,21 @@ const create = async (data, userId, companyId) => {
 
     let name = data.name ?? null;
     let whatsapp_number = data.whatsapp_number ?? null;
+    let address = data.address ?? null;
 
-    if ((!name || !whatsapp_number) && data.customerId) {
+    if ((!name || !whatsapp_number || !address) && data.customerId) {
       const customerData = await fetchCustomerData(data.customerId);
       name = name ?? customerData.name ?? null;
       whatsapp_number = whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null;
+      address = address ?? customerData.address ?? null;
     }
 
     const complaintId = randomUUID();
     const now = new Date();
 
-    const sqlFields = ['id','title','description','status','priority','name','whatsapp_number','company_id','created_at','updated_at'];
-    const placeholders = ['?','?','?','?','?','?','?','?','?','?'];
-    const values = [complaintId, data.title ?? '', data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', name, whatsapp_number, companyId, now, now];
+    let sqlFields = ['id','title','description','status','priority','name','whatsapp_number','address','company_id','created_at','updated_at'];
+    let placeholders = ['?','?','?','?','?','?','?','?','?','?','?'];
+    let values = [complaintId, data.title ?? '', data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', name, whatsapp_number, address, companyId, now, now];
 
     if (data.customerId) { sqlFields.push('customer_id'); placeholders.push('?'); values.push(data.customerId); }
     if (data.connectionId) { sqlFields.push('connection_id'); placeholders.push('?'); values.push(data.connectionId); }
@@ -79,7 +81,8 @@ const create = async (data, userId, companyId) => {
     return {
       ...complaint.toJSON(),
       name,
-      whatsapp_number
+      whatsapp_number,
+      address
     };
   } catch (err) {
     throw err;
@@ -101,9 +104,14 @@ const getAll = async (companyId, areaId = null) => {
     
     return Promise.all(complaints.map(async (c) => {
       const data = c;
-      if (!data.name || !data.whatsapp_number) {
+      if (!data.name || !data.whatsapp_number || !data.address) {
         const customerData = await fetchCustomerData(data.customerId);
-        return { ...data, name: customerData.name ?? null, whatsapp_number: customerData.phone ?? customerData.whatsapp_number ?? null };
+        return { 
+          ...data, 
+          name: customerData.name ?? null, 
+          whatsapp_number: customerData.phone ?? customerData.whatsapp_number ?? null,
+          address: customerData.address ?? data.address ?? null
+        };
       }
       return data;
     }));
@@ -123,11 +131,13 @@ const update = async (id, data, userId, companyId) => {
 
     let name = data.name ?? complaintData.name ?? null;
     let whatsapp_number = data.whatsapp_number ?? complaintData.whatsapp_number ?? null;
+    let address = data.address ?? complaintData.address ?? null;
 
-    if ((!name || !whatsapp_number) && customerId) {
+    if ((!name || !whatsapp_number || !address) && customerId) {
       const customerData = await fetchCustomerData(customerId);
       name = name ?? customerData.name ?? null;
       whatsapp_number = whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null;
+      address = address ?? customerData.address ?? null;
     }
 
     const updateData = {
@@ -136,7 +146,8 @@ const update = async (id, data, userId, companyId) => {
       status: data.status ?? complaintData.status,
       priority: data.priority ?? complaintData.priority,
       name,
-      whatsapp_number
+      whatsapp_number,
+      address
     };
 
     if (customerId) updateData.customerId = customerId;
@@ -179,15 +190,27 @@ const update = async (id, data, userId, companyId) => {
         if (updatedComplaint.customerId) {
           const { Customer } = require('../models');
           const customer = await Customer.findByPk(updatedComplaint.customerId, {
-            attributes: ['email']
+            attributes: ['email', 'pace_user_id', 'phone', 'name', 'father_name']
           });
           customerEmail = customer?.email || 'customer@example.com';
         }
         
+        // Add customer details to complaint data for email
+        const complaintWithCustomer = {
+          ...updatedComplaint.toJSON(),
+          customer: customer ? {
+            pace_user_id: customer.pace_user_id,
+            phone: customer.phone,
+            email: customer.email,
+            name: customer.name,
+            father_name: customer.father_name
+          } : null
+        };
+        
         await emailService.sendComplaintStatusUpdateNotification(
           customerEmail,
-          updatedComplaint.name || 'Customer',
-          updatedComplaint.toJSON(),
+          updatedComplaint.name || customer?.name || 'Customer',
+          complaintWithCustomer,
           complaintData.status,
           data.status
         );
@@ -196,7 +219,7 @@ const update = async (id, data, userId, companyId) => {
       }
     }
 
-    return { ...complaint.toJSON(), name, whatsapp_number };
+    return { ...complaint.toJSON(), name, whatsapp_number, address };
   } catch (err) {
     throw err;
   }
