@@ -1,32 +1,47 @@
 {
   "development": {
-    "username": "root",
-    "password": "medimpact_mysql_user",
-    "database": "networking_dashboard",
-    "host": "localhost",
+    "username": "dbuser",
+    "password": "01ao2188alho",
+    "database": "PACE_TELECOM_DB",
+    "host": "72.61.210.188",
     "dialect": "mysql",
     "logging": false,
     "seederStorage": "json",
-    "migrationStorage": "json"
+    "migrationStorage": "json",
+    "port": 3306,
+    "ssl": false,
+    "dialectOptions": {
+      "authPlugins": "mysql_native_password"
+    }
   },
   "test": {
-    "username": "root",
-    "password": "medimpact_mysql_user",
-    "database": "networking_dashboard",
-    "host": "localhost",
+    "username": "dbuser",
+    "password": "01ao2188alho",
+    "database": "PACE_TELECOM_DB",
+    "host": "72.61.210.188",
     "dialect": "mysql",
     "logging": false,
     "seederStorage": "json",
-    "migrationStorage": "json"
+    "migrationStorage": "json",
+    "port": 3306,
+    "ssl": false,
+    "dialectOptions": {
+      "authPlugins": "mysql_native_password"
+    }
   },
   "production": {
-    "username": "root",
-    "password": "medimpact_mysql_user",
-    "database": "networking_dashboard",
-    "host": "localhost",
+    "username": "dbuser",
+    "password": "01ao2188alho",
+    "database": "PACE_TELECOM_DB",
+    "host": "72.61.210.188",
     "dialect": "mysql",
     "logging": false,
     "seederStorage": "json",
-    "migrationStorage": "json"
+    "migrationStorage": "json",
+    "port": 3306,
+    "ssl": false,
+    "dialectOptions": {
+      "authPlugins": "mysql_native_password"
+    }
   }
 }
