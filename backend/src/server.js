@@ -13,6 +13,7 @@ const {
 const { errorHandler } = require('./middleware/error.middleware');
 const { sequelize } = require('./models');
 const slaMonitor = require('./services/slaMonitor.service');
+const emailService = require('./services/email.service');
 /* ROUTES */
 const authRoutes = require('./routes/auth.routes');
 const companyRoutes = require('./routes/company.routes');
@@ -207,6 +208,17 @@ app.use(errorHandler);
     
     // Start SLA Monitor
     slaMonitor.start();
+    
+    // Verify email service configuration
+    console.log('\n📧 === EMAIL SERVICE VERIFICATION ===');
+    const emailVerified = await emailService.verifyConnection();
+    if (emailVerified) {
+      console.log('✅ Email service is ready to send notifications');
+    } else {
+      console.log('⚠️ Email service is not configured - email notifications will be disabled');
+      console.log('🔧 To enable emails, ensure EMAIL_USER and EMAIL_PASS are set in .env file');
+    }
+    console.log('=====================================\n');
     
     app.listen(PORT, () => {
       console.log('\n🎉 === SERVER STARTED SUCCESSFULLY ===');

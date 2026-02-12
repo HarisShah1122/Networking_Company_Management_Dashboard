@@ -126,6 +126,69 @@ class EmailService {
     return await this.sendEmail(technicianEmail, subject, html);
   }
 
+  // New Complaint Confirmation Notification
+  async sendComplaintCreationNotification(customerEmail, customerName, complaintDetails) {
+    const subject = `📢 New Complaint Registered - ${complaintDetails.id}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+        <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1e40af; margin: 0;">📢 PACE Telecom</h1>
+            <p style="color: #6b7280; margin: 5px 0;">Complaint Management System</p>
+          </div>
+          
+          <h2 style="color: #333; margin-bottom: 20px;">Complaint Registered Successfully</h2>
+          
+          <div style="background-color: #d1fae5; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #10b981;">
+            <h3 style="color: #065f46; margin: 0;">✅ Complaint Details:</h3>
+            <p style="margin: 10px 0;"><strong>Complaint ID:</strong> ${complaintDetails.id}</p>
+            <p style="margin: 10px 0;"><strong>Title:</strong> ${complaintDetails.title}</p>
+            <p style="margin: 10px 0;"><strong>Customer:</strong> ${customerName || 'N/A'}</p>
+            ${complaintDetails.customer?.father_name ? `<p style="margin: 10px 0;"><strong>Father Name:</strong> ${complaintDetails.customer.father_name}</p>` : ''}
+            ${complaintDetails.customer?.phone ? `<p style="margin: 10px 0;"><strong>Phone:</strong> ${complaintDetails.customer.phone}</p>` : ''}
+            ${complaintDetails.customer?.email ? `<p style="margin: 10px 0;"><strong>Email:</strong> ${complaintDetails.customer.email}</p>` : ''}
+            ${complaintDetails.customer?.pace_user_id ? `<p style="margin: 10px 0;"><strong>Customer ID:</strong> ${complaintDetails.customer.pace_user_id}</p>` : ''}
+          </div>
+
+          ${complaintDetails.customer?.address || complaintDetails.address ? `
+          <div style="background-color: #e0f2fe; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #0284c7;">
+            <h3 style="color: #075985; margin: 0;">📍 Address Information:</h3>
+            <p style="margin: 10px 0;"><strong>Address:</strong> ${complaintDetails.customer?.address || complaintDetails.address}</p>
+          </div>
+          ` : ''}
+          
+          <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <h3 style="color: #374151; margin: 0;">📝 Description:</h3>
+            <p style="margin: 10px 0; color: #4b5563;">${complaintDetails.description}</p>
+          </div>
+          
+          <div style="background-color: #fef3c7; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
+            <h3 style="color: #92400e; margin: 0;">📋 Important Information:</h3>
+            <ul style="margin: 10px 0; color: #4b5563;">
+              <li>Your complaint has been registered successfully</li>
+              <li>We will review your complaint and assign it to our technical team</li>
+              <li>You will receive updates on the progress via email and WhatsApp</li>
+              <li>For urgent issues, please call our support line</li>
+            </ul>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${FRONTEND_URL}/complaint-status/${complaintDetails.id}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Track Complaint Status</a>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 12px; margin: 0;">
+              This is an automated message from PACE Telecom Complaint Management System.
+              If you have any questions, please contact our support team.
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    return await this.sendEmail(customerEmail, subject, html);
+  }
+
   // Complaint Status Update Notification
   async sendComplaintStatusUpdateNotification(customerEmail, customerName, complaintDetails, oldStatus, newStatus) {
     const subject = `📢 Complaint Status Update - ${complaintDetails.customer?.name || customerName || 'Customer'}`;

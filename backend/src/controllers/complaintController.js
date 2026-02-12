@@ -91,6 +91,44 @@ We'll resolve this soon. Thank you!
 
     await sendComplaintNotification(complaint.name || 'N/A', complaint.id, complaint.description || 'No description');
 
+    // Send email confirmation to customer
+    try {
+      const emailService = require('../services/email.service');
+      
+      // Get customer email if customerId exists
+      let customerEmail = 'customer@example.com';
+      if (complaint.customerId) {
+        const { Customer } = require('../models');
+        const customer = await Customer.findByPk(complaint.customerId, {
+          attributes: ['email', 'pace_user_id', 'phone', 'name', 'father_name', 'address']
+        });
+        customerEmail = customer?.email || 'customer@example.com';
+        
+        if (customer?.email) {
+          const complaintWithCustomer = {
+            ...complaint,
+            customer: {
+              pace_user_id: customer.pace_user_id,
+              phone: customer.phone,
+              email: customer.email,
+              name: customer.name,
+              father_name: customer.father_name,
+              address: customer.address
+            }
+          };
+          
+          await emailService.sendComplaintCreationNotification(
+            customer.email,
+            customer.name || complaint.name || 'Customer',
+            complaintWithCustomer
+          );
+          console.log('📧 Complaint confirmation email sent to:', customer.email);
+        }
+      }
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send complaint confirmation email:', emailError.message);
+    }
+
     return ApiResponse.success(res, complaint, 'Complaint registered successfully', 201);
   } catch (err) {
     next(err);
