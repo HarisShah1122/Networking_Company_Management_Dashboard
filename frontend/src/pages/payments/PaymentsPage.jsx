@@ -364,14 +364,28 @@ const PaymentsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap capitalize">{payment.displayPaymentMethod || payment.paymentMethod}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {payment.receiptImage ? (
-                        <a
-                          href={`${process.env.REACT_APP_BASE_URL || 'http://127.0.0.1:5000'}${payment.receiptImage}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://127.0.0.1:5000'}${payment.receiptImage}`);
+                              const blob = await response.blob();
+                              const url = window.URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `receipt-${payment.trxId}-${payment.customerName}.jpg`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              window.URL.revokeObjectURL(url);
+                            } catch (error) {
+                              console.error('Download failed:', error);
+                              toast.error('Failed to download receipt');
+                            }
+                          }}
                           className="text-indigo-600 hover:text-indigo-900"
                         >
-                          View
-                        </a>
+                          Download
+                        </button>
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -629,11 +643,7 @@ const PaymentsPage = () => {
                     Clear
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <label className="block text-xs font-medium text-blue-700">Customer ID</label>
-                    <p className="font-mono text-gray-900">{selectedCustomer.id}</p>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                   <div>
                     <label className="block text-xs font-medium text-blue-700">PACE ID</label>
                     <p className="font-mono text-gray-900">{selectedCustomer.pace_user_id ?? '-'}</p>
@@ -642,7 +652,7 @@ const PaymentsPage = () => {
                     <label className="block text-xs font-medium text-blue-700">WhatsApp</label>
                     <p className="text-gray-900">{selectedCustomer.whatsapp_number ?? selectedCustomer.phone ?? '-'}</p>
                   </div>
-                  <div className="md:col-span-3">
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-blue-700">Address</label>
                     <p className="text-gray-900">{selectedCustomer.address ?? '-'}</p>
                   </div>
