@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { customerService } from '../../services/customerService';
 import { connectionService } from '../../services/connectionService';
 import { rechargeService } from '../../services/rechargeService';
-import { paymentService } from '../../services/paymentService';
+import { paymentService } from '../../services/enhancedPaymentService';
 import useAuthStore from '../../stores/authStore';
 import Loader from '../../components/common/Loader';
 import Modal from '../../components/common/Modal';
@@ -22,6 +22,7 @@ const CustomerDetailPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -87,7 +88,11 @@ const CustomerDetailPage = () => {
   };
 
   const onPaymentSubmit = async (data) => {
+    const paymentStartTime = Date.now();
+    
     try {
+      setIsSubmittingPayment(true);
+      
       let submitData;
       const hasFile = selectedImage instanceof File;
 
@@ -110,7 +115,17 @@ const CustomerDetailPage = () => {
         };
       }
 
+      console.log('🚀 Submitting payment:', {
+        trxId: data.trxId,
+        amount: data.amount,
+        hasFile,
+        customerId: id
+      });
+
       const response = await paymentService.create(submitData);
+      
+      const paymentDuration = Date.now() - paymentStartTime;
+      console.log(`✅ Payment successful in ${paymentDuration}ms:`, response);
       
       if (response?.success || response?.data?.success) {
         toast.success('Payment added successfully!');
@@ -119,7 +134,7 @@ const CustomerDetailPage = () => {
         setSelectedImage(null);
         setImagePreview(null);
         
-        // Reload payments to show the new payment
+        // Reload payments to show new payment
         const rechRes = await rechargeService.getAll({ customer_id: id });
         let paymentsData = [];
         if (rechRes?.data?.recharges) {
@@ -136,8 +151,66 @@ const CustomerDetailPage = () => {
         throw new Error(response?.message || 'Failed to add payment');
       }
     } catch (error) {
-      console.error('Payment error:', error);
-      toast.error(error.response?.data?.message || error.message || 'Failed to add payment');
+      const paymentDuration = Date.now() - paymentStartTime;
+      console.error('❌ Payment failed after', paymentDuration + 'ms:', {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config
+      });
+      
+      // Enhanced error handling with specific user feedback
+      let errorMessage = 'Failed to add payment';
+      let errorDetails = '';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timed out. Please check your internet connection and try again.';
+        errorDetails = 'The payment request took too long to complete.';
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error. Please check your internet connection.';
+        errorDetails = 'Unable to connect to the server.';
+      } else if (error.response?.status === 503) {
+        errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+        errorDetails = 'The server is temporarily down for maintenance.';
+      } else if (error.response?.status === 429) {
+        errorMessage = 'Too many requests. Please wait and try again.';
+        errorDetails = 'Rate limit exceeded. Please wait before trying again.';
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again later.';
+        errorDetails = 'The server encountered an internal error.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Authentication expired. Please log in again.';
+        errorDetails = 'Your session has expired.';
+      } else if (error.response?.status === 413) {
+        errorMessage = 'File too large. Please choose a smaller image.';
+        errorDetails = 'The receipt image exceeds the maximum size limit.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+        errorDetails = 'Server provided specific error details.';
+      } else if (error.message) {
+        errorMessage = error.message;
+        errorDetails = 'Client-side error occurred.';
+      }
+      
+      // Show detailed error toast
+      toast.error(errorMessage, { 
+        autoClose: 5000,
+        toastId: `payment-error-${Date.now()}`,
+        position: 'top-right'
+      });
+      
+      // Log error details for debugging
+      console.error('🔍 Payment Error Details:', {
+        userMessage: errorMessage,
+        technicalDetails: errorDetails,
+        duration: paymentDuration + 'ms',
+        customerId: id,
+        trxId: data.trxId,
+        amount: data.amount
+      });
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -427,9 +500,20 @@ const CustomerDetailPage = () => {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                disabled={isSubmittingPayment}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-green-400 flex items-center justify-center min-w-[120px]"
               >
-                Add Payment
+                {isSubmittingPayment ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  'Add Payment'
+                )}
               </button>
             </div>
           </form>

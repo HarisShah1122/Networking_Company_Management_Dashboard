@@ -12,12 +12,28 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   host: DB_HOST,
   port: DB_PORT,
   dialect: 'mysql',
-  logging: false,
+  logging: NODE_ENV === 'development' ? console.log : false,
+  
+  // Optimized connection pool for cloud database
   pool: {
-    max: 10,
-    min: 0,
-    acquire: 30000,
-    idle: 10000
+    max: 25,           // Increased for production
+    min: 5,            // Keep minimum connections warm
+    acquire: 60000,    // 60 seconds for cloud latency
+    idle: 30000       // Keep idle connections longer
+  },
+  
+  // MySQL2 compatible dialect options
+  dialectOptions: {
+    connectTimeout: 60000,
+    multipleStatements: false,
+    flags: '+FOUND_ROWS'
+  },
+  
+  // Performance monitoring
+  benchmark: NODE_ENV === 'development',
+  define: {
+    timestamps: true,
+    underscored: true
   }
 });
 

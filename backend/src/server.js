@@ -11,6 +11,7 @@ const {
   SESSION_SECRET,
 } = require('./config/env');
 const { errorHandler } = require('./middleware/error.middleware');
+const { requestLogger } = require('./middleware/requestLogger.middleware');
 const { sequelize } = require('./models');
 const slaMonitor = require('./services/slaMonitor.service');
 const emailService = require('./services/email.service');
@@ -94,34 +95,6 @@ app.use('/uploads', (req, res, next) => {
 
 /* MIDDLEWARE */
 app.use(helmet());
-
-// Add request logging middleware
-app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.log('\n🔧 === BACKEND API REQUEST ===');
-  console.log('⏰ Timestamp:', timestamp);
-  console.log('📡 Method:', req.method);
-  console.log('🔗 URL:', req.url);
-  console.log('🌐 Origin:', req.get('Origin') || 'No Origin');
-  console.log('🖥️ User-Agent:', req.get('User-Agent'));
-  console.log('🍪 Cookies:', req.headers.cookie ? 'Present' : 'None');
-  console.log('📤 Request Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('============================\n');
-  
-  // Add response time header
-  const startTime = Date.now();
-  res.on('finish', () => {
-    const responseTime = Date.now() - startTime;
-    console.log('\n✅ === BACKEND API RESPONSE ===');
-    console.log('🔗 URL:', req.url);
-    console.log('📊 Status Code:', res.statusCode);
-    console.log('⏱️ Response Time:', responseTime + 'ms');
-    console.log('=============================\n');
-  });
-  
-  next();
-});
-
 app.use(cors({ 
   origin: ['http://localhost:3000', 'http://localhost:3001'], 
   credentials: true,
@@ -130,6 +103,17 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    if (responseTime > 5000) {
+      console.log(`⚠️ Slow request: ${req.method} ${req.url} took ${responseTime}ms`);
+    }
+  });
+  next();
+});
 
 /* SESSION SETUP */
 app.use(
@@ -143,7 +127,7 @@ app.use(
       maxAge: 1000 * 60 * 60 * 24, // 1 day
       httpOnly: false,
       secure: false, 
-      sameSite: 'lax',
+      sameSite: 'strict',
     },
   })
 );
@@ -209,15 +193,8 @@ app.use(errorHandler);
     // Start SLA Monitor
     slaMonitor.start();
     
-    // Verify email service configuration
-    console.log('\n📧 === EMAIL SERVICE VERIFICATION ===');
-    const emailVerified = await emailService.verifyConnection();
-    if (emailVerified) {
-      console.log('✅ Email service is ready to send notifications');
-    } else {
-      console.log('⚠️ Email service is not configured - email notifications will be disabled');
-      console.log('🔧 To enable emails, ensure EMAIL_USER and EMAIL_PASS are set in .env file');
-    }
+    // Skip email verification for now to speed up startup
+    console.log('\n📧 Email service verification skipped for faster startup');
     console.log('=====================================\n');
     
     app.listen(PORT, () => {

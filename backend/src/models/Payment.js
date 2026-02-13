@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     reference_number: { type: DataTypes.STRING(100), allowNull: true },
-    received_by:      { type: DataTypes.UUID, allowNull: false },
+    received_by:      { type: DataTypes.STRING(100), allowNull: false },
     trx_id:           { type: DataTypes.STRING(100), allowNull: false, unique: true },
     receipt_image:    { type: DataTypes.STRING, allowNull: true },
     notes:            { type: DataTypes.TEXT, allowNull: true },
