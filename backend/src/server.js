@@ -33,6 +33,7 @@ const testWhatsAppRoutes = require('./routes/testWhatsApp');
 const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
 const assignmentRoutes = require('./routes/assignment');
 const notificationRoutes = require('./routes/notification.routes');
+const pdfRoutes = require('./routes/pdf.routes');
 
 const app = express();
 
@@ -162,6 +163,7 @@ app.use('/api/test-whatsapp', testWhatsAppRoutes);
 app.use('/webhook', whatsappWebhookRoutes);
 app.use('/api/assignment', assignmentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/pdf', pdfRoutes);
 /* ERROR HANDLING */
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

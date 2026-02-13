@@ -9,6 +9,7 @@ import Modal from '../../components/common/Modal';
 import TablePagination from '../../components/common/TablePagination';
 import Loader from '../../components/common/Loader';
 import apiClient from '../../services/api/apiClient';
+import PDFService from '../../services/pdfService';
 
 const PaymentsPage = () => {
   const { user } = useAuthStore();
@@ -282,6 +283,40 @@ const PaymentsPage = () => {
     }
   };
 
+  /**
+   * Handle PDF download for payment receipt
+   */
+  const handleDownloadPDF = async (paymentId, customerName) => {
+    try {
+      await PDFService.generatePaymentReceipt(paymentId, {
+        action: 'download',
+        onStart: () => toast.info('Generating PDF receipt...'),
+        onComplete: () => toast.success('PDF receipt downloaded successfully!'),
+        onError: (error) => toast.error(`Failed to generate PDF: ${error.message}`)
+      });
+    } catch (error) {
+      toast.error('Failed to download PDF receipt');
+      console.error('PDF download error:', error);
+    }
+  };
+
+  /**
+   * Handle PDF view for payment receipt
+   */
+  const handleViewPDF = async (paymentId, customerName) => {
+    try {
+      await PDFService.generatePaymentReceipt(paymentId, {
+        action: 'view',
+        onStart: () => toast.info('Opening PDF receipt...'),
+        onComplete: () => toast.success('PDF receipt opened successfully!'),
+        onError: (error) => toast.error(`Failed to open PDF: ${error.message}`)
+      });
+    } catch (error) {
+      toast.error('Failed to open PDF receipt');
+      console.error('PDF view error:', error);
+    }
+  };
+
   if (loading) return <Loader />;
 
   return (
@@ -344,13 +379,14 @@ const PaymentsPage = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">PDF</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                     No payments found.
                   </td>
                 </tr>
@@ -391,9 +427,46 @@ const PaymentsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : '-'}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      {/* PDF Download Button */}
+                      <button
+                        onClick={() => handleDownloadPDF(payment.id, payment.customerName)}
+                        className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
+                        title="Download PDF Receipt"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16v-5l-3 3m0 0l-3-3v5" />
+                        </svg>
+                      </button>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {canManage && (
                         <div className="flex items-center justify-end gap-2">
+                          {/* PDF Download Button */}
+                          <button
+                            onClick={() => handleDownloadPDF(payment.id, payment.customerName)}
+                            className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
+                            title="Download PDF Receipt"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16v-5l-3 3m0 0l-3-3v5" />
+                            </svg>
+                          </button>
+                          
+                          {/* PDF View Button */}
+                          <button
+                            onClick={() => handleViewPDF(payment.id, payment.customerName)}
+                            className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded"
+                            title="View PDF Receipt"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm-2 5a2 2 0 11-4 0 2 2 0 014 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C1.732 13.416 1.732 15c0 1.584.732 3 1.732 3v1c0 1.584-.732 3-1.732 3H18c1.657 0 3-1.343 3-3V6c0-1.657-1.343-3-3-3H6c-1.657 0-3 1.343-3 3v12c0 1.657 1.343 3 3 3h12c1.657 0 3-1.343 3-3V6c0-1.657-1.343-3-3-3H6c-1.657 0-3 1.343-3 3v12c0 1.657 1.343 3 3 3h12c1.657 0 3-1.343 3-3V6c0-1.657-1.343-3-3-3H6c-1.657 0-3 1.343-3 3v12c0 1.657 1.343 3 3 3h12c1.657 0 3-1.343 3-3V6c0-1.657-1.343-3-3-3H6c-1.657 0-3 1.343-3 3v12c0 1.657 1.343 3 3 3h12C18.657 21 20 21.657 21 20V6c0-1.657-1.343-3-3-3H6c-1.657 0-3 1.343-3 3v12c0 1.657 1.343 3 3 3h12z" />
+                            </svg>
+                          </button>
+
                           <button
                             onClick={() => handleEdit(payment)}
                             className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded"

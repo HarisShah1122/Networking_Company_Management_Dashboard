@@ -38,14 +38,16 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'payments',
     timestamps: true,
-    underscored: true
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   });
 
   Payment.associate = (models) => {
     Payment.belongsTo(models.Customer, { foreignKey: 'customer_id', as: 'customer' });
     Payment.belongsTo(models.Connection, { foreignKey: 'connection_id', as: 'connection' });
     Payment.belongsTo(models.Recharge,   { foreignKey: 'recharge_id',   as: 'recharge'   });
-    Payment.belongsTo(models.User,       { foreignKey: 'received_by',   as: 'receiver'   });
+    // Note: received_by is a string field (username), not a foreign key to User model
   };
 
   return Payment;
