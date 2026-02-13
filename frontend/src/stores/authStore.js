@@ -23,9 +23,7 @@ const useAuthStore = create((set) => ({
         
         // Verify token is still valid with backend
         try {
-          console.log('🔍 Verifying JWT token with backend...');
           const response = await authService.getMe();
-          console.log('✅ JWT token valid, user:', response.user);
           
           // Update user data with fresh data from backend
           set({ user: response.user, isAuthenticated: true });
@@ -59,7 +57,6 @@ const useAuthStore = create((set) => ({
       // Store JWT token and user data
       if (token) {
         setToken(token);
-        console.log('💾 JWT token stored');
       }
       
       setUser({ ...user, company });
@@ -114,7 +111,6 @@ const useAuthStore = create((set) => ({
       // Store JWT token and user data
       if (token) {
         setToken(token);
-        console.log('💾 JWT token stored');
       }
       
       setUser({ ...user, company });

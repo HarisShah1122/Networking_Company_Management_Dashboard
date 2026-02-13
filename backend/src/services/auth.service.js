@@ -30,7 +30,16 @@ const login = async (username, password) => {
     ? await Company.findByPk(user.companyId)
     : null;
 
-  return { token, user, company };
+  return { 
+    token, 
+    user, 
+    company: company ? {
+      id: company.id,
+      name: company.name,
+      email: company.email,
+      status: company.status
+    } : null
+  };
 };
 
 const register = async ({ username, email, password, companyName }) => {
@@ -61,7 +70,16 @@ const register = async ({ username, email, password, companyName }) => {
   }
 
   const token = generateToken(user);
-  return { token, user, company };
+  return { 
+    token, 
+    user, 
+    company: company ? {
+      id: company.id,
+      name: company.name,
+      email: company.email,
+      status: company.status
+    } : null
+  };
 };
 
 module.exports = { login, register };

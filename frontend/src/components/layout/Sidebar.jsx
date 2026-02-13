@@ -49,7 +49,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   animation: 'glow 2s linear infinite alternate, slideInLeft 0.8s linear'
                 }}
               >
-                PACE
+                {user?.company?.name?.split(' ')[0] || 'Company'}
               </span>
               <span 
                 className="text-gray-900 ml-1 opacity-90 inline-block cursor-default"
@@ -57,7 +57,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   animation: 'fadeInUp 1s linear 0.3s both'
                 }}
               >
-                Telecom
+                {user?.company?.name?.split(' ').slice(1).join(' ') || 'Name'}
               </span>
             </h1>
           </div>

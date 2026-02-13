@@ -16,7 +16,9 @@ const Header = ({ onMenuClick }) => {
         </button>
         
         <div className="flex-1 lg:ml-0 ml-4">
-          <h2 className="text-lg font-semibold text-gray-800">PACE Telecom dashboard</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            {user?.company?.name ? `${user.company.name} dashboard` : 'Dashboard'}
+          </h2>
         </div>
 
         <div className="flex items-center space-x-3">

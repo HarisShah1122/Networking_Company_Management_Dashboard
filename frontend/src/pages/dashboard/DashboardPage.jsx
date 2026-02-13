@@ -8,9 +8,11 @@ import { stockService } from '../../services/stockService';
 import { transactionService } from '../../services/transactionService';
 import { paymentService } from '../../services/paymentService';
 import { complaintService } from '../../services/complaintService';
+import useAuthStore from '../../stores/authStore';
 import Loader from '../../components/common/Loader';
 
 const DashboardPage = () => {
+  const { user } = useAuthStore();
   const [stats, setStats] = useState({
     customers: { total: 0, active: 0 },
     connections: { total: 0, pending: 0 },
@@ -200,8 +202,6 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Customers"

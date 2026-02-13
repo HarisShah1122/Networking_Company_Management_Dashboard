@@ -98,12 +98,25 @@ const getMe = async (req, res, next) => {
       return ApiResponse.unauthorized(res, 'Not authenticated');
     }
 
+    // Fetch company information if user has a companyId
+    let company = null;
+    if (req.user.companyId) {
+      const { Company } = require('../models');
+      company = await Company.findByPk(req.user.companyId);
+    }
+
     return ApiResponse.success(res, {
       user: {
         id: req.user.id,
         username: req.user.username,
         role: req.user.role,
         companyId: req.user.companyId,
+        company: company ? {
+          id: company.id,
+          name: company.name,
+          email: company.email,
+          status: company.status
+        } : null
       },
     });
   } catch (error) {
