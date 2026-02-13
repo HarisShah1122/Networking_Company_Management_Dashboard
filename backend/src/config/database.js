@@ -33,7 +33,7 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   benchmark: NODE_ENV === 'development',
   define: {
     timestamps: true,
-    underscored: true
+    underscored: false  // Changed to false to match camelCase database columns
   }
 });
 

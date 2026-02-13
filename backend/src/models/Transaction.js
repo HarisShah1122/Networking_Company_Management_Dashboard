@@ -24,10 +24,11 @@ module.exports = (sequelize) => {
       field: 'company_id'
     },
 
-    trxId: {
+    trx_id: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
+      field: 'trx_id'
     },
 
     category: {
@@ -48,6 +49,7 @@ module.exports = (sequelize) => {
     receiptImage: {
       type: DataTypes.STRING,
       allowNull: true,
+      field: 'receiptImage'
     },
 
     created_by: {
@@ -57,6 +59,9 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'transactions',
     timestamps: true,
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    underscored: false,
   });
 
   return Transaction;

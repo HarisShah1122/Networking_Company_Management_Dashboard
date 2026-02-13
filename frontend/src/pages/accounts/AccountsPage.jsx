@@ -54,7 +54,7 @@ const AccountsPage = () => {
           (transaction.category && transaction.category.toLowerCase().includes(searchLower)) ||
           (transaction.description && transaction.description.toLowerCase().includes(searchLower)) ||
           (transaction.amount && String(transaction.amount).includes(search)) ||
-          (transaction.trxId && transaction.trxId.toLowerCase().includes(searchLower))
+          (transaction.trx_id && transaction.trx_id.toLowerCase().includes(searchLower))
         );
       }
 
@@ -131,7 +131,7 @@ const AccountsPage = () => {
         formData.append('date', parsedDate);
         formData.append('category', data.category?.trim() ?? '');
         formData.append('description', data.description?.trim() ?? '');
-        formData.append('trxId', data.trxId.trim());
+        formData.append('trx_id', data.trxId.trim());
         formData.append('receiptImage', selectedImage);
         submitData = formData;
       } else {
@@ -141,7 +141,7 @@ const AccountsPage = () => {
           date: parsedDate,
           category: data.category?.trim() ?? null,
           description: data.description?.trim() ?? null,
-          trxId: data.trxId.trim(),
+          trx_id: data.trxId.trim(),
         };
         if (editingTransaction?.receiptImage) {
           submitData.receiptImage = editingTransaction.receiptImage;
@@ -186,7 +186,7 @@ const AccountsPage = () => {
       category: transaction.category || '',
       description: transaction.description || '',
       date: transaction.date ? dayjs(transaction.date).toDate() : new Date(),
-      trxId: transaction.trxId || '',
+      trxId: transaction.trx_id || '',
     });
     if (transaction.receiptImage) {
       setImagePreview(`${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`);
@@ -305,7 +305,7 @@ const AccountsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {transaction.date ? new Date(transaction.date).toLocaleDateString() : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{transaction.trxId || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{transaction.trx_id || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-3 py-1.5 text-xs font-medium rounded-full ${

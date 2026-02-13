@@ -126,12 +126,12 @@ const create = async (req, res) => {
       date,
       category,
       description,
-      trxId
+      trx_id
     } = req.body;
 
     // Validation is handled by middleware, but double-check critical fields
-    if (!type || !amount || !date || !trxId) {
-      return ApiResponse.error(res, 'Required fields: type, amount, date, trxId', 422);
+    if (!type || !amount || !date || !trx_id) {
+      return ApiResponse.error(res, 'Required fields: type, amount, date, trx_id', 422);
     }
 
     const transactionData = {
@@ -140,7 +140,7 @@ const create = async (req, res) => {
       date,
       category,
       description,
-      trxId,
+      trx_id,
       receiptImage: req.file
         ? `/uploads/receipts/${req.file.filename}`
         : null,
@@ -222,18 +222,18 @@ const searchTrx = async (req, res) => {
   try {
     const { query } = req.query;
     const whereClause = {
-      trxId: { [Op.like]: `%${query}%` }
+      trx_id: { [Op.like]: `%${query}%` }
     };
     if (req.companyId) whereClause.company_id = req.companyId;
 
     const suggestions = await Transaction.findAll({
       where: whereClause,
-      attributes: ['trxId'],
+      attributes: ['trx_id'],
       limit: 5,
       raw: true
     });
 
-    const existsWhere = { trxId: query };
+    const existsWhere = { trx_id: query };
     if (req.companyId) existsWhere.company_id = req.companyId;
     
     const exists = await Transaction.findOne({
@@ -241,7 +241,7 @@ const searchTrx = async (req, res) => {
     });
 
     return ApiResponse.success(res, {
-      suggestions: suggestions.map(s => s.trxId),
+      suggestions: suggestions.map(s => s.trx_id),
       existing: !!exists
     });
   } catch (error) {
