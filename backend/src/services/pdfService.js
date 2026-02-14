@@ -166,6 +166,39 @@ class PDFService {
 
     yPosition += 20;
 
+    // Receipt Image Section
+    if (payment.receipt_image) {
+      doc.fontSize(14).fillColor('#1a365d').text('Receipt Image', 50, yPosition);
+      yPosition += 20;
+      
+      try {
+        // Construct full path to receipt image
+        const imagePath = path.join(__dirname, '..', '..', payment.receipt_image);
+        
+        // Check if image file exists
+        if (fs.existsSync(imagePath)) {
+          // Add image to PDF with proper sizing
+          const maxWidth = pageWidth - 100; // Account for margins
+          const imageHeight = 150; // Fixed height for receipt images
+          
+          doc.image(imagePath, 50, yPosition, {
+            width: maxWidth,
+            height: imageHeight,
+            align: 'center',
+            fit: [maxWidth, imageHeight]
+          });
+          yPosition += imageHeight + 20;
+        } else {
+          doc.fontSize(10).fillColor('#666').text('Receipt image not found', 50, yPosition);
+          yPosition += 20;
+        }
+      } catch (imageError) {
+        console.error('Error adding receipt image to PDF:', imageError);
+        doc.fontSize(10).fillColor('#666').text('Error loading receipt image', 50, yPosition);
+        yPosition += 20;
+      }
+    }
+
     // Additional Information
     if (payment.reference_number) {
       doc.text('Reference Number:', 50, yPosition);
