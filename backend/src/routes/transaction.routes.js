@@ -4,6 +4,9 @@ const router = express.Router();
 const upload = require('../middleware/upload.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
+const { validateTransaction } = require('../helpers/validators/transaction.validator');
+const { handleValidationErrors } = require('../middleware/validation.middleware');
+const { validateFileUpload } = require('../middleware/fileValidation.middleware');
 
 const transactionController = require('../controllers/transactionController');
 
@@ -16,7 +19,10 @@ router.get('/revenue-growth', transactionController.getRevenueGrowth);
 router.post(
   '/',
   requireRole('CEO', 'Manager'),
-  upload.single('receiptImage'), 
+  upload.single('receiptImage'),
+  validateTransaction,
+  handleValidationErrors,
+  validateFileUpload,
   transactionController.create
 );
 
@@ -24,6 +30,9 @@ router.put(
   '/:id',
   requireRole('CEO', 'Manager'),
   upload.single('receiptImage'),
+  validateTransaction,
+  handleValidationErrors,
+  validateFileUpload,
   transactionController.update
 );
 

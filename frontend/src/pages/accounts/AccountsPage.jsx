@@ -111,12 +111,6 @@ const AccountsPage = () => {
     };
   }, [searchTerm, typeFilter, loadTransactions]);
 
-  useEffect(() => {
-    if (!isInitialMount.current) {
-      loadSummary();
-    }
-  }, [transactions.length, loadSummary]);
-
   const onSubmit = async (data) => {
     try {
       let submitData;
@@ -125,6 +119,7 @@ const AccountsPage = () => {
       const parsedAmount = parseFloat(data.amount) ?? 0;
 
       if (hasFile) {
+        // When uploading a new file, use FormData
         const formData = new FormData();
         formData.append('type', data.type);
         formData.append('amount', `${parsedAmount}`);
@@ -135,6 +130,7 @@ const AccountsPage = () => {
         formData.append('receiptImage', selectedImage);
         submitData = formData;
       } else {
+        // When not uploading a file, send JSON data - NEVER include receiptImage
         submitData = {
           type: data.type,
           amount: parsedAmount,
@@ -143,9 +139,9 @@ const AccountsPage = () => {
           description: data.description?.trim() ?? null,
           trx_id: data.trxId.trim(),
         };
-        if (editingTransaction?.receiptImage) {
-          submitData.receiptImage = editingTransaction.receiptImage;
-        }
+        
+        // CRITICAL: Never include receiptImage field in JSON data
+        // Backend will handle preserving existing receiptImage automatically
       }
 
       if (editingTransaction) {
@@ -164,7 +160,6 @@ const AccountsPage = () => {
       await loadTransactions(searchTerm, typeFilter, false);
       await loadSummary();
     } catch (error) {
-      console.log('Error data:', error.response?.data);
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
         error.response.data.errors.forEach((err) => {
           if (err.param && err.msg) {
@@ -189,7 +184,7 @@ const AccountsPage = () => {
       trxId: transaction.trx_id || '',
     });
     if (transaction.receiptImage) {
-      setImagePreview(`${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`);
+      setImagePreview(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`);
     } else {
       setImagePreview(null);
     }
@@ -327,7 +322,7 @@ const AccountsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {transaction.receiptImage ? (
                         <a
-                          href={`${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
+                          href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-indigo-600 hover:text-indigo-900"

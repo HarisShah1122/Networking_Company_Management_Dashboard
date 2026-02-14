@@ -39,7 +39,7 @@ const validateTransaction = [
     .withMessage('TRX ID can only contain letters, numbers, hyphens, and underscores')
     .custom(async (value, { req }) => {
       const { Transaction } = require('../../models');
-      const whereClause = { trxId: value };
+      const whereClause = { trx_id: value };
       
       // If updating, exclude current record
       if (req.params.id) {
@@ -51,11 +51,7 @@ const validateTransaction = [
         throw new Error('TRX ID already exists');
       }
       return true;
-    }),
-  body('receiptImage')
-    .optional()
-    .isString()
-    .withMessage('Receipt image must be a string (file path or URL)')
+    })
 ];
 
 module.exports = {
