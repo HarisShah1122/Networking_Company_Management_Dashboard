@@ -486,6 +486,74 @@ class EmailService {
 
     return await this.sendEmail(to, subject, html);
   }
+
+  // Complaint Reassignment Notification
+  async sendComplaintReassignmentNotification(technicianEmail, technicianName, complaintDetails) {
+    const subject = `🔄 Complaint Reassigned - ID: ${complaintDetails.complaintId}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+        <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1e40af; margin: 0;">🔄 Pace Telecom</h1>
+            <p style="color: #6b7280; margin: 5px 0;">Complaint Management System</p>
+          </div>
+          
+          <h2 style="color: #333; margin-bottom: 20px;">Complaint Reassigned to You</h2>
+          
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #92400e; font-weight: bold;">This complaint has been reassigned to you</p>
+          </div>
+          
+          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+            <h3 style="color: #333; margin-top: 0;">Complaint Details:</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: #555;">Complaint ID:</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${complaintDetails.complaintId}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: #555;">Title:</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${complaintDetails.complaintTitle}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: #555;">Customer:</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${complaintDetails.customerName || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold; color: #555;">Reassigned At:</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${new Date(complaintDetails.reassignedAt).toLocaleString()}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${FRONTEND_URL}/complaints/${complaintDetails.complaintId}" 
+               style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+               View Complaint Details
+            </a>
+          </div>
+          
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #1e40af;">
+              <strong>Next Steps:</strong><br>
+              1. Review the complaint details<br>
+              2. Contact the customer if needed<br>
+              3. Update the complaint status as you work on it
+            </p>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 12px; margin: 0;">
+              This is an automated message from the Pace Telecom Complaint Management System.
+              <br>Please do not reply to this email. For support, contact your system administrator.
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    return await this.sendEmail(technicianEmail, subject, html);
+  }
 }
 
 // Create singleton instance

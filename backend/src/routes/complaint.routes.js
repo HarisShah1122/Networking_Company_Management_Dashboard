@@ -12,8 +12,11 @@ router.post('/', authenticate, enforceCompanyFiltering, validateComplaint, handl
 router.get('/', authenticate, enforceCompanyFiltering, complaintController.getAllComplaints);
 router.get('/stats', authenticate, enforceCompanyFiltering, complaintController.getStats);
 router.get('/sla-stats', authenticate, enforceCompanyFiltering, complaintController.getSLAStats);
+router.get('/available-technicians', authenticate, enforceCompanyFiltering, requireRole('CEO', 'Manager'), complaintController.getAvailableTechnicians);
 router.put('/:id', authenticate, enforceCompanyFiltering, requireRole('CEO', 'Manager'), conditionalComplaintValidation, complaintController.updateComplaint);
 router.post('/:id/assign', authenticate, enforceCompanyFiltering, requireRole('CEO', 'Manager'), complaintController.assignToTechnician);
+router.post('/:id/reassign', authenticate, enforceCompanyFiltering, requireRole('CEO', 'Manager'), complaintController.reassignComplaint);
+router.post('/:id/route', authenticate, enforceCompanyFiltering, requireRole('CEO', 'Manager'), complaintController.routeComplaint);
 // router.delete('/:id', authenticate, requireRole('CEO', 'Manager'), complaintController.deleteComplaint);
 
 module.exports = router;

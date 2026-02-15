@@ -1,18 +1,37 @@
 const { Sequelize } = require('sequelize');
-const { 
-  DB_HOST, 
-  DB_PORT, 
-  DB_NAME, 
-  DB_USER, 
-  DB_PASSWORD,
-  NODE_ENV 
-} = require('./env');
 
-const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
-  host: DB_HOST,
-  port: DB_PORT,
-  dialect: 'mysql',
-  logging: NODE_ENV === 'development' ? console.log : false,
+// Try to load local config first, fallback to environment variables
+let config;
+try {
+  config = require('./database-local.js');
+  console.log('✅ Using local database config');
+} catch (error) {
+  console.log('⚠️ Using environment variables for database config');
+  const { 
+    DB_HOST, 
+    DB_PORT, 
+    DB_NAME, 
+    DB_USER, 
+    DB_PASSWORD,
+    NODE_ENV 
+  } = require('./env');
+  
+  config = {
+    username: DB_USER || 'root',
+    password: DB_PASSWORD || '',
+    database: DB_NAME || 'networking_dashboard',
+    host: DB_HOST || 'localhost',
+    dialect: 'mysql',
+    port: parseInt(DB_PORT) || 3306,
+    NODE_ENV: NODE_ENV || 'development'
+  };
+}
+
+const sequelize = new Sequelize(config.database, config.username, config.password, {
+  host: config.host,
+  port: config.port,
+  dialect: config.dialect,
+  logging: config.NODE_ENV === 'development' ? console.log : false,
   
   // Optimized connection pool for cloud database
   pool: {
@@ -30,7 +49,7 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   },
   
   // Performance monitoring
-  benchmark: NODE_ENV === 'development',
+  benchmark: config.NODE_ENV === 'development',
   define: {
     timestamps: true,
     underscored: false  // Changed to false to match camelCase database columns

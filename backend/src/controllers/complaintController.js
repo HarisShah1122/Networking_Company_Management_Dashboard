@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const ApiResponse = require('../helpers/responses');
 const ComplaintService = require('../services/complaint.service');
+const ComplaintRoutingService = require('../services/complaintRouting.service');
 const { sendComplaintNotification, sendWhatsAppMessage } = require('../helpers/whatsappHelper');
 
 const createComplaint = async (req, res, next) => {
@@ -129,7 +130,29 @@ We'll resolve this soon. Thank you!
       console.warn('⚠️ Failed to send complaint confirmation email:', emailError.message);
     }
 
-    return ApiResponse.success(res, complaint, 'Complaint registered successfully', 201);
+    // Route complaint to area manager and auto-assign technician
+    try {
+      console.log('🔄 Starting complaint routing process...');
+      const routingResult = await ComplaintRoutingService.routeComplaint(complaint.id);
+      
+      if (routingResult.success) {
+        console.log('✅ Complaint routed successfully');
+        
+        // Add routing info to response
+        complaint.routingInfo = {
+          areaManager: routingResult.areaManager,
+          technicianAssignment: routingResult.technicianAssignment,
+          routingComplete: routingResult.routingComplete
+        };
+      } else {
+        console.warn('⚠️ Complaint routing failed:', routingResult.message);
+      }
+    } catch (routingError) {
+      console.error('❌ Complaint routing error:', routingError);
+      // Don't fail the complaint creation if routing fails
+    }
+
+    return ApiResponse.success(res, complaint, 'Complaint registered and routed successfully', 201);
   } catch (err) {
     next(err);
   }
@@ -168,8 +191,8 @@ const assignToTechnician = async (req, res, next) => {
     const { id } = req.params;
     const { technicianId } = req.body;
     
-    if (!technicianId) {
-      return ApiResponse.badRequest(res, 'Technician ID is required');
+    if (!technicianId || isNaN(technicianId)) {
+      return ApiResponse.badRequest(res, 'Valid Technician ID is required');
     }
     
     const complaint = await ComplaintService.assignToTechnician(id, technicianId, req.user?.id || null, req.companyId);
@@ -189,11 +212,60 @@ const getSLAStats = async (req, res, next) => {
   }
 };
 
+const reassignComplaint = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { technicianId } = req.body;
+    
+    if (!technicianId) {
+      return ApiResponse.badRequest(res, 'Technician ID is required');
+    }
+    
+    const reassignmentResult = await ComplaintRoutingService.reassignComplaint(
+      id, 
+      technicianId, 
+      req.user?.id || null
+    );
+    
+    return ApiResponse.success(res, reassignmentResult, 'Complaint reassigned successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getAvailableTechnicians = async (req, res, next) => {
+  try {
+    const { areaId } = req.query;
+    
+    if (!areaId) {
+      return ApiResponse.badRequest(res, 'Area ID is required');
+    }
+    
+    const technicians = await ComplaintRoutingService.getAvailableTechnicians(areaId);
+    return ApiResponse.success(res, { technicians }, 'Available technicians retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const routeComplaint = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const routingResult = await ComplaintRoutingService.routeComplaint(id);
+    return ApiResponse.success(res, routingResult, 'Complaint routed successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createComplaint,
   getAllComplaints,
   updateComplaint,
   getStats,
   assignToTechnician,
-  getSLAStats
+  getSLAStats,
+  reassignComplaint,
+  getAvailableTechnicians,
+  routeComplaint
 };

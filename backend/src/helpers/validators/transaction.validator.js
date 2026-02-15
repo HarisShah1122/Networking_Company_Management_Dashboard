@@ -29,7 +29,7 @@ const validateTransaction = [
     .trim()
     .isLength({ max: 2000 })
     .withMessage('Description must not exceed 2000 characters'),
-  body('trxId')
+  body('trx_id')
     .notEmpty()
     .withMessage('TRX ID is required')
     .trim()

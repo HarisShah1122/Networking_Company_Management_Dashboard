@@ -61,6 +61,16 @@ const ComplaintsDashboard = () => {
     setStats(newStats);
   };
 
+  // Real-time SLA timer updates
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // Force re-render to update time remaining
+      setComplaints(prev => [...prev]);
+    }, 1000); // Update every second
+
+    return () => clearInterval(timer);
+  }, []);
+
   const calculateTimeRemaining = (slaDeadline) => {
     if (!slaDeadline) return null;
     const now = new Date();
@@ -210,6 +220,11 @@ const ComplaintsDashboard = () => {
 
   const assignComplaint = async (complaintId, technicianId) => {
     try {
+      if (!technicianId || isNaN(technicianId)) {
+        toast.error('Please select a valid technician', { autoClose: 3000 });
+        return;
+      }
+      
       await complaintService.assignToTechnician(complaintId, technicianId);
       
       // Refresh complaints list
@@ -580,7 +595,12 @@ const ComplaintsDashboard = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Assign Staff Member</label>
                 <select
-                  onChange={(e) => assignComplaint(selectedComplaint.id, parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const technicianId = parseInt(e.target.value);
+                    if (technicianId && !isNaN(technicianId)) {
+                      assignComplaint(selectedComplaint.id, technicianId);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   defaultValue=""
                   disabled={techniciansLoading}

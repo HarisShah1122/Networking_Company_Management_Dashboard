@@ -113,41 +113,65 @@ const AccountsPage = () => {
 
   const onSubmit = async (data) => {
     try {
+      console.log('🔍 Original form data:', JSON.stringify(data, null, 2));
+      
       let submitData;
       const hasFile = selectedImage instanceof File;
       const parsedDate = data.date && dayjs(data.date).isValid() ? dayjs(data.date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
-      const parsedAmount = parseFloat(data.amount) ?? 0;
+      
+      // IMPORTANT: Parse amount to number and ensure it's not a string
+      let parsedAmount = parseFloat(data.amount);
+      if (isNaN(parsedAmount)) {
+        parsedAmount = 0;
+      }
+      
+      console.log('🔢 Parsed amount:', parsedAmount, 'Type:', typeof parsedAmount);
+      console.log('📅 Parsed date:', parsedDate);
 
+      // Create a completely clean data object - NEVER use original data values directly
+      const cleanData = {
+        type: data.type,
+        amount: parsedAmount, // Ensure it's a number
+        date: parsedDate,
+        category: data.category?.trim() ?? null,
+        description: data.description?.trim() ?? null,
+        trxId: data.trxId?.trim() ?? '', // Send as trxId to match backend validation
+        // Explicitly DO NOT include receiptImage
+      };
+
+      console.log('🧹 Clean data object:', JSON.stringify(cleanData, null, 2));
+      console.log('🔍 Clean data keys:', Object.keys(cleanData));
+      console.log('🔍 Has receiptImage?', 'receiptImage' in cleanData);
+
+      // CRITICAL: Always use cleanData, never original data
       if (hasFile) {
         // When uploading a new file, use FormData
         const formData = new FormData();
-        formData.append('type', data.type);
-        formData.append('amount', `${parsedAmount}`);
-        formData.append('date', parsedDate);
-        formData.append('category', data.category?.trim() ?? '');
-        formData.append('description', data.description?.trim() ?? '');
-        formData.append('trx_id', data.trxId.trim());
+        formData.append('type', cleanData.type);
+        formData.append('amount', cleanData.amount); // Send as number
+        formData.append('date', cleanData.date);
+        formData.append('category', cleanData.category ?? '');
+        formData.append('description', cleanData.description ?? '');
+        formData.append('trxId', cleanData.trxId); // Use trxId for FormData too
         formData.append('receiptImage', selectedImage);
         submitData = formData;
+        console.log('📁 FormData created (file upload)');
       } else {
-        // When not uploading a file, send JSON data - NEVER include receiptImage
-        submitData = {
-          type: data.type,
-          amount: parsedAmount,
-          date: parsedDate,
-          category: data.category?.trim() ?? null,
-          description: data.description?.trim() ?? null,
-          trx_id: data.trxId.trim(),
-        };
-        
-        // CRITICAL: Never include receiptImage field in JSON data
-        // Backend will handle preserving existing receiptImage automatically
+        // When not uploading a file, send JSON data with correct types
+        submitData = cleanData; // CRITICAL: Use cleanData, not data
+        console.log('📄 JSON data created (no file)');
       }
 
+      console.log('🚀 Final payload being sent:', JSON.stringify(submitData, null, 2));
+      console.log('🔍 Final payload keys:', Object.keys(submitData));
+      console.log('🔍 Final payload amount type:', typeof submitData.amount);
+
       if (editingTransaction) {
+        console.log('📝 Sending UPDATE request...');
         await transactionService.update(editingTransaction.id, submitData);
         toast.success('Transaction updated successfully!');
       } else {
+        console.log('📝 Sending CREATE request...');
         await transactionService.create(submitData);
         toast.success('Transaction created successfully!');
       }
@@ -160,7 +184,16 @@ const AccountsPage = () => {
       await loadTransactions(searchTerm, typeFilter, false);
       await loadSummary();
     } catch (error) {
+      console.error('❌ Error in onSubmit:', error);
+      console.error('❌ Error response:', error.response?.data);
+      
+      // Log specific validation errors
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        console.error('❌ Validation errors:', error.response.data.errors);
+        error.response.data.errors.forEach((err, index) => {
+          console.error(`❌ Error ${index + 1}:`, err);
+        });
+        
         error.response.data.errors.forEach((err) => {
           if (err.param && err.msg) {
             setError(err.param, { type: 'server', message: err.msg });
@@ -270,7 +303,6 @@ const AccountsPage = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        {/* Scrollable wrapper */}
         <div className="overflow-x-auto scrollbar-hide">
           <table className="min-w-[1200px] w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -467,21 +499,6 @@ const AccountsPage = () => {
                   placeholder="Optional description..."
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Receipt Image (optional)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-              {imagePreview && (
-                <div className="mt-3">
-                  <img src={imagePreview} alt="preview" className="max-w-xs h-auto rounded shadow-sm" />
-                </div>
-              )}
             </div>
 
             <div className="flex gap-4">

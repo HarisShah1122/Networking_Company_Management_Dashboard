@@ -19,7 +19,7 @@ class SLAService {
       const slaDeadline = new Date(now.getTime() + (SLA_HOURS * 60 * 60 * 1000));
 
       await complaint.update({
-        assignedTo: technicianId,
+        assigned_to: technicianId,
         assigned_at: now,
         sla_deadline: slaDeadline,
         sla_status: 'pending'
@@ -109,7 +109,7 @@ class SLAService {
 
       const penalty = await SLAPenalty.create({
         complaintId: complaint.id,
-        technicianId: complaint.assignedTo,
+        technicianId: complaint.assigned_to,
         companyId: complaint.company_id,
         amount: PENALTY_AMOUNT,
         assigned_at: assignedAt,
@@ -118,7 +118,7 @@ class SLAService {
         status: 'pending'
       });
 
-      console.log(`💰 PKR ${PENALTY_AMOUNT} penalty created for technician ${complaint.assignedTo} on complaint ${complaint.id}`);
+      console.log(`💰 PKR ${PENALTY_AMOUNT} penalty created for technician ${complaint.assigned_to} on complaint ${complaint.id}`);
       
       return penalty;
     } catch (error) {

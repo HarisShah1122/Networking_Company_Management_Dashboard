@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { complaintService } from '../../services/complaintService';
 import assignmentService from '../../services/assignmentService';
+import useAuthStore from '../../stores/authStore';
 import { STAFF_MEMBERS } from '../../constants/complaintConstants';
+import Modal from '../../components/common/Modal';
+import TablePagination from '../../components/common/TablePagination';
+import { transformBackendPagination } from '../../utils/pagination.utils';
 
 // Your areas with PACE TELECOM prefix
 const PACE_OFFICES = [
@@ -16,6 +20,7 @@ const PACE_OFFICES = [
 ];
 
 const ComplaintsDashboardEnhanced = () => {
+  const { user } = useAuthStore();
   const [complaints, setComplaints] = useState([]);
   const [filteredComplaints, setFilteredComplaints] = useState([]);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
@@ -34,6 +39,20 @@ const ComplaintsDashboardEnhanced = () => {
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedComplaintForAssignment, setSelectedComplaintForAssignment] = useState(null);
+  
+  // New state for manager override functionality
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [technicians, setTechnicians] = useState([]);
+  const [techniciansLoading, setTechniciansLoading] = useState(false);
+  const [selectedTechnician, setSelectedTechnician] = useState('');
+  const [reassigning, setReassigning] = useState(false);
+  const [slaStats, setSlaStats] = useState({
+    total_assigned: 0,
+    sla_met: 0,
+    sla_breached: 0,
+    compliance_rate: 0,
+    total_penalties: 0
+  });
 
   // Real areas data
   const areas = [
@@ -116,6 +135,93 @@ const ComplaintsDashboardEnhanced = () => {
     };
     setStats(newStats);
   }, []);
+
+  // Fetch technicians for an area
+  const fetchTechnicians = useCallback(async (areaId) => {
+    if (!areaId) {
+      setTechnicians([]);
+      return;
+    }
+
+    try {
+      setTechniciansLoading(true);
+      const response = await complaintService.getAvailableTechnicians(areaId);
+      
+      if (response.success) {
+        setTechnicians(response.data.technicians);
+      }
+    } catch (error) {
+      console.error('Error fetching technicians:', error);
+      toast.error('Failed to fetch technicians');
+    } finally {
+      setTechniciansLoading(false);
+    }
+  }, []);
+
+  // Fetch SLA stats
+  const fetchSLAStats = useCallback(async () => {
+    try {
+      const response = await complaintService.getSLAStats();
+      
+      if (response.success) {
+        setSlaStats(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching SLA stats:', error);
+    }
+  }, []);
+
+  // Handle complaint reassignment
+  const handleReassign = async () => {
+    if (!selectedComplaint || !selectedTechnician) {
+      toast.error('Please select a technician');
+      return;
+    }
+
+    try {
+      setReassigning(true);
+      const response = await complaintService.reassignComplaint(selectedComplaint.id, selectedTechnician);
+      
+      if (response.success) {
+        toast.success('Complaint reassigned successfully');
+        setShowReassignModal(false);
+        setSelectedComplaint(null);
+        setSelectedTechnician('');
+        loadComplaints(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error reassigning complaint:', error);
+      toast.error('Failed to reassign complaint');
+    } finally {
+      setReassigning(false);
+    }
+  };
+
+  // Open reassign modal
+  const openReassignModal = (complaint) => {
+    setSelectedComplaint(complaint);
+    setShowReassignModal(true);
+    // Fetch technicians for the complaint's area
+    if (complaint.companyArea?.id) {
+      fetchTechnicians(complaint.companyArea.id);
+    }
+  };
+
+  // Check if user can reassign
+  const canReassign = (complaint) => {
+    return user?.role === 'Manager' || user?.role === 'CEO';
+  };
+
+  // Get technician name
+  const getTechnicianName = (technician) => {
+    if (!technician) return 'Unassigned';
+    return technician.name || technician.username || 'Unknown';
+  };
+
+  // Get area name
+  const getAreaName = (complaint) => {
+    return complaint.companyArea?.name || complaint.area || 'Unknown';
+  };
 
   // Calculate time remaining for assigned complaints
   const calculateTimeRemaining = useCallback((assignedAt) => {
@@ -336,7 +442,8 @@ const ComplaintsDashboardEnhanced = () => {
   useEffect(() => {
     loadComplaints();
     loadStaff();
-  }, [loadComplaints, loadStaff]);
+    fetchSLAStats();
+  }, [loadComplaints, loadStaff, fetchSLAStats]);
 
   if (loading) {
     return (
@@ -396,6 +503,29 @@ const ComplaintsDashboardEnhanced = () => {
           <div className="bg-red-50 rounded-lg shadow p-6 border border-red-200">
             <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
             <div className="text-sm text-red-600">Overdue</div>
+          </div>
+        </div>
+
+        {/* SLA Performance Stats */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8 border border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">📊 SLA Performance</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{slaStats.total_assigned}</div>
+              <div className="text-sm text-gray-600">Total Assigned</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{slaStats.sla_met}</div>
+              <div className="text-sm text-green-600">SLA Met</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600">{slaStats.sla_breached}</div>
+              <div className="text-sm text-red-600">SLA Breached</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{slaStats.compliance_rate}%</div>
+              <div className="text-sm text-blue-600">Compliance Rate</div>
+            </div>
           </div>
         </div>
 
@@ -482,6 +612,14 @@ const ComplaintsDashboardEnhanced = () => {
                         >
                           View Details
                         </button>
+                        {canReassign(complaint) && (
+                          <button
+                            onClick={() => openReassignModal(complaint)}
+                            className="text-green-600 hover:text-green-900 mr-2"
+                          >
+                            Reassign
+                          </button>
+                        )}
                         {complaint.status === 'pending' && (
                           <>
                             <button
@@ -835,6 +973,87 @@ const ComplaintsDashboardEnhanced = () => {
                     className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reassign Modal */}
+        {showReassignModal && selectedComplaint && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-lg bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Reassign Complaint</h3>
+                <button
+                  onClick={() => {
+                    setShowReassignModal(false);
+                    setSelectedComplaint(null);
+                    setSelectedTechnician('');
+                    setTechnicians([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Complaint</h4>
+                  <p className="text-sm text-gray-900 font-medium">{selectedComplaint.title}</p>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Current Assignment</h4>
+                  <p className="text-sm text-gray-900">
+                    {getTechnicianName(selectedComplaint.assignedUser)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select New Technician
+                  </label>
+                  {techniciansLoading ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedTechnician}
+                      onChange={(e) => setSelectedTechnician(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select a technician...</option>
+                      {technicians.map((technician) => (
+                        <option key={technician.id} value={technician.id}>
+                          {technician.name} ({technician.username}) - {technician.workload} active complaints
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowReassignModal(false);
+                      setSelectedComplaint(null);
+                      setSelectedTechnician('');
+                      setTechnicians([]);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReassign}
+                    disabled={reassigning || !selectedTechnician}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {reassigning ? 'Reassigning...' : 'Reassign'}
                   </button>
                 </div>
               </div>

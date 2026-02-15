@@ -1,7 +1,7 @@
 const activityLogService = require('./activityLog.service');
 const SLAService = require('./sla.service');
 const models = require('../models');
-const { Complaint, sequelize } = models;
+const { Complaint, sequelize, Customer, Area, User } = models;
 const { fetchCustomerData } = require('../helpers/customerHelper');
 const { randomUUID } = require('crypto');
 
@@ -29,27 +29,29 @@ const create = async (data, userId, companyId) => {
         const timeDiff = new Date() - new Date(existingComplaint.created_at);
         const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
         
-        throw new Error(`Duplicate complaint detected! A similar complaint "${existingComplaint.title}" was already registered ${hoursAgo} hours ago (ID: ${existingComplaint.id}). Please check the existing complaint before creating a new one.`);
+        throw new Error(`Duplicate complaint detected! A similar complaint "${existingComplaint.title}" was already registered ${hoursAgo} hours ago (ID: ${existingComplaint.id}). Please check existing complaint before creating a new one.`);
       }
     }
 
     let name = data.name ?? null;
     let whatsapp_number = data.whatsapp_number ?? null;
     let address = data.address ?? null;
+    let area = data.area ?? null;
 
-    if ((!name || !whatsapp_number || !address) && data.customerId) {
+    if ((!name || !whatsapp_number || !address || !area) && data.customerId) {
       const customerData = await fetchCustomerData(data.customerId);
       name = name ?? customerData.name ?? null;
       whatsapp_number = whatsapp_number ?? customerData.phone ?? customerData.whatsapp_number ?? null;
       address = address ?? customerData.address ?? null;
+      area = area ?? customerData.area ?? null;
     }
 
     const complaintId = randomUUID();
     const now = new Date();
 
-    let sqlFields = ['id','title','description','status','priority','name','whatsapp_number','address','company_id','created_at','updated_at'];
-    let placeholders = ['?','?','?','?','?','?','?','?','?','?','?'];
-    let values = [complaintId, data.title ?? '', data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', name, whatsapp_number, address, companyId, now, now];
+    let sqlFields = ['id','title','description','status','priority','name','whatsapp_number','address','area','company_id','created_at','updated_at'];
+    let placeholders = ['?','?','?','?','?','?','?','?','?','?','?','?'];
+    let values = [complaintId, data.title ?? '', data.description ?? '', data.status ?? 'open', data.priority ?? 'medium', name, whatsapp_number, address, area, companyId, now, now];
 
     if (data.customerId) { sqlFields.push('customer_id'); placeholders.push('?'); values.push(data.customerId); }
     if (data.connectionId) { sqlFields.push('connection_id'); placeholders.push('?'); values.push(data.connectionId); }
@@ -75,7 +77,27 @@ const create = async (data, userId, companyId) => {
       throw err;
     }
 
-    const complaint = await Complaint.findByPk(complaintId);
+    // Get the created complaint with proper associations
+    const complaint = await Complaint.findByPk(complaintId, {
+      include: [
+        {
+          model: Customer,
+          as: 'customer',
+          attributes: ['id', 'name', 'email', 'phone', 'area_id']
+        },
+        {
+          model: Area,
+          as: 'companyArea',
+          attributes: ['id', 'name', 'manager_id'],
+          include: [{
+            model: User,
+            as: 'manager',
+            attributes: ['id', 'name', 'email', 'phone', 'username']
+          }]
+        }
+      ]
+    });
+
     activityLogService.logActivity(userId, 'create_complaint', 'complaint', `Complaint #${complaintId}`);
 
     return {
@@ -160,7 +182,7 @@ const update = async (id, data, userId, companyId) => {
       const oldAssignedTo = complaintData.assigned_to;
       const newAssignedTo = data.assignedTo ?? complaintData.assigned_to;
       
-      updateData.assignedTo = newAssignedTo;
+      updateData.assigned_to = newAssignedTo;
       
       // If assignment changed and new assignment exists
       if (oldAssignedTo !== newAssignedTo && newAssignedTo) {
@@ -298,29 +320,33 @@ const assignToTechnician = async (complaintId, technicianId, userId, companyId) 
     // Get technician details for email notification
     const { User } = require('../models');
     const technician = await User.findByPk(technicianId, {
-      attributes: ['id', 'email', 'username', 'name']
+      attributes: ['id', 'email', 'username', 'phone']
     });
 
     // Get user who assigned the complaint
     const assigningUser = await User.findByPk(userId, {
-      attributes: ['id', 'username', 'name']
+      attributes: ['id', 'username', 'phone']
     });
 
-    // Send email notification to technician
+    // Send email notification to technician (non-blocking)
     if (technician && technician.email && assigningUser) {
-      const emailService = require('./email.service');
-      const complaintData = complaint.toJSON();
-      
-      try {
-        await emailService.sendComplaintAssignmentNotification(
-          technician.email,
-          technician.username || technician.name,
-          complaintData,
-          assigningUser.username || assigningUser.name
-        );
-      } catch (emailError) {
-        console.warn('⚠️ Failed to send assignment email notification:', emailError.message);
-      }
+      // Fire and forget - don't wait for email to complete
+      setImmediate(async () => {
+        try {
+          const emailService = require('./email.service');
+          const complaintData = complaint.toJSON();
+          
+          await emailService.sendComplaintAssignmentNotification(
+            technician.email,
+            technician.username,
+            complaintData,
+            assigningUser.username
+          );
+          console.log('📧 Assignment email sent successfully');
+        } catch (emailError) {
+          console.warn('⚠️ Failed to send assignment email notification:', emailError.message);
+        }
+      });
     }
     
     // The SLA service already updates the complaint, so we just need to log the activity

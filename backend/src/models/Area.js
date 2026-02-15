@@ -23,6 +23,11 @@ module.exports = (sequelize) => {
     company_id: {
       type: DataTypes.UUID,
       allowNull: false
+    },
+    manager_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'manager_id'
     }
   }, {
     tableName: 'areas',
@@ -33,6 +38,7 @@ module.exports = (sequelize) => {
   Area.associate = (models) => {
     Area.hasMany(models.Customer, { foreignKey: 'area_id' });
     Area.hasMany(models.User, { foreignKey: 'companyId', as: 'users' });
+    Area.belongsTo(models.User, { foreignKey: 'manager_id', as: 'manager' });
   };
 
   return Area;

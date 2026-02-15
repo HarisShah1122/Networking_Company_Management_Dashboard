@@ -40,7 +40,7 @@ export const complaintService = {
 
   // Assign complaint to technician
   assignToTechnician: async (complaintId, technicianId) => {
-    const response = await apiClient.post(`/assignment/complaints/${complaintId}/assign`, { technicianId });
+    const response = await apiClient.post(`/complaints/${complaintId}/assign`, { technicianId });
     return extractData(response);
   },
 
@@ -61,6 +61,28 @@ export const complaintService = {
       technicianName: notificationData.technicianName,
       complaintId: notificationData.complaintId
     });
+    return extractData(response);
+  },
+
+  // Get available technicians for an area
+  getAvailableTechnicians: async (areaId) => {
+    const response = await apiClient.get('/complaints/available-technicians', { 
+      params: { areaId } 
+    });
+    return extractData(response);
+  },
+
+  // Reassign complaint to different technician
+  reassignComplaint: async (complaintId, technicianId) => {
+    const response = await apiClient.post(`/complaints/${complaintId}/reassign`, { 
+      technicianId 
+    });
+    return extractData(response);
+  },
+
+  // Route complaint (manual trigger)
+  routeComplaint: async (complaintId) => {
+    const response = await apiClient.post(`/complaints/${complaintId}/route`);
     return extractData(response);
   },
 };
