@@ -127,6 +127,7 @@ const AccountsPage = () => {
       
       console.log('🔢 Parsed amount:', parsedAmount, 'Type:', typeof parsedAmount);
       console.log('📅 Parsed date:', parsedDate);
+      console.log('📁 Has file selected:', hasFile);
 
       // Create a completely clean data object - NEVER use original data values directly
       const cleanData = {
@@ -135,36 +136,41 @@ const AccountsPage = () => {
         date: parsedDate,
         category: data.category?.trim() ?? null,
         description: data.description?.trim() ?? null,
-        trxId: data.trxId?.trim() ?? '', // Send as trxId to match backend validation
-        // Explicitly DO NOT include receiptImage
+        trx_id: data.trxId?.trim() ?? '', // Use trx_id to match backend validation
+        // CRITICAL: NEVER include receiptImage in JSON payload
       };
 
       console.log('🧹 Clean data object:', JSON.stringify(cleanData, null, 2));
       console.log('🔍 Clean data keys:', Object.keys(cleanData));
-      console.log('🔍 Has receiptImage?', 'receiptImage' in cleanData);
+      console.log('🔍 Has receiptImage in cleanData?', 'receiptImage' in cleanData);
 
-      // CRITICAL: Always use cleanData, never original data
+      // CRITICAL: Handle file upload vs JSON submission
       if (hasFile) {
-        // When uploading a new file, use FormData
+        // When uploading a file, use FormData with multipart/form-data
         const formData = new FormData();
         formData.append('type', cleanData.type);
-        formData.append('amount', cleanData.amount); // Send as number
+        formData.append('amount', cleanData.amount.toString()); // FormData requires strings
         formData.append('date', cleanData.date);
         formData.append('category', cleanData.category ?? '');
         formData.append('description', cleanData.description ?? '');
-        formData.append('trxId', cleanData.trxId); // Use trxId for FormData too
-        formData.append('receiptImage', selectedImage);
+        formData.append('trx_id', cleanData.trx_id);
+        formData.append('receiptImage', selectedImage); // Only include when we have a real file
+        
         submitData = formData;
         console.log('📁 FormData created (file upload)');
+        console.log('📋 FormData contents:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`  ${key}:`, value);
+        }
       } else {
-        // When not uploading a file, send JSON data with correct types
-        submitData = cleanData; // CRITICAL: Use cleanData, not data
+        // When not uploading a file, send JSON data WITHOUT receiptImage
+        submitData = cleanData;
         console.log('📄 JSON data created (no file)');
+        console.log('🚀 JSON payload:', JSON.stringify(submitData, null, 2));
       }
 
-      console.log('🚀 Final payload being sent:', JSON.stringify(submitData, null, 2));
-      console.log('🔍 Final payload keys:', Object.keys(submitData));
-      console.log('🔍 Final payload amount type:', typeof submitData.amount);
+      console.log('🔍 Final payload type:', hasFile ? 'FormData (multipart/form-data)' : 'JSON');
+      console.log('🔍 Final payload amount type:', typeof (hasFile && submitData instanceof FormData ? submitData.get('amount') : submitData.amount));
 
       if (editingTransaction) {
         console.log('📝 Sending UPDATE request...');
@@ -187,6 +193,15 @@ const AccountsPage = () => {
       console.error('❌ Error in onSubmit:', error);
       console.error('❌ Error response:', error.response?.data);
       
+      // Show toast error for user feedback
+      if (error.response?.status === 422) {
+        const errorMsg = error.response?.data?.message || 'Validation failed. Please check your input.';
+        toast.error(`❌ ${errorMsg}`);
+      } else {
+        const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? error.message ?? 'Failed to save transaction';
+        toast.error(`❌ ${errorMsg}`);
+      }
+      
       // Log specific validation errors
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
         console.error('❌ Validation errors:', error.response.data.errors);
@@ -199,9 +214,6 @@ const AccountsPage = () => {
             setError(err.param, { type: 'server', message: err.msg });
           }
         });
-      } else {
-        const errorMsg = error.response?.data?.message ?? error.response?.data?.error ?? error.message ?? 'Failed to save transaction';
-        toast.error(errorMsg);
       }
     }
   };
@@ -354,14 +366,20 @@ const AccountsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {transaction.receiptImage ? (
                         <a
-                          href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage.startsWith('/') ? '' : '/'}${transaction.receiptImage}`}
+                          href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${transaction.receiptImage}`}
+                          download={`receipt-${transaction.trx_id || transaction.id}.jpg`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
                         >
-                          View
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Download
                         </a>
-                      ) : '-'}
+                      ) : (
+                        <span className="text-gray-400 text-sm">No receipt</span>
+                      )}
                     </td>
                     {canManage && (
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -499,6 +517,28 @@ const AccountsPage = () => {
                   placeholder="Optional description..."
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Receipt Image (optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+              {imagePreview && (
+                <div className="mt-3">
+                  <img src={imagePreview} alt="Receipt preview" className="max-w-xs h-auto rounded shadow-sm" />
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedImage(null); setImagePreview(null); }}
+                    className="mt-2 text-sm text-red-600 hover:text-red-800"
+                  >
+                    Remove Image
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-4">
